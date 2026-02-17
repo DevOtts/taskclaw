@@ -1,0 +1,9 @@
+// Export components for use in other files
+export { default as Button } from './Button';
+export { default as CtaButton } from './CtaButton';
+export { default as GlassCard } from './GlassCard';
+export { default as GradientText } from './GradientText';
+export { default as CustomerValidatorModal } from './CustomerValidatorModal';
+export { default as Hero } from './Hero';
+export { default as CTA } from './CTA';
+export { default as Pricing } from './Pricing'; 

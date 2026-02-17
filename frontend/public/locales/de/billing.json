@@ -1,0 +1,150 @@
+{
+  "subscriptionTabSubheading": "Verwalten Sie Ihr Abonnement und Ihre Abrechnung",
+  "planCardTitle": "Dein Plan",
+  "planCardDescription": "Nachfolgend finden Sie die Details Ihres aktuellen Plans. ",
+  "planRenewal": "Erneuert alle {{interval}} bei {{price}}",
+  "planDetails": "Plandetails",
+  "checkout": "Zur Kasse",
+  "trialEndsOn": "Ihre Testversion endet am",
+  "billingPortalCardButton": "Besuchen Sie das Abrechnungsportal",
+  "billingPortalCardTitle": "Verwalten Sie Ihre Rechnungsdetails",
+  "billingPortalCardDescription": "Besuchen Sie Ihr Abrechnungsportal, um Ihr Abonnement und Ihre Abrechnung zu verwalten. ",
+  "cancelAtPeriodEndDescription": "Ihr Abonnement wird voraussichtlich am gekündigt {{- endDate }}.",
+  "renewAtPeriodEndDescription": "Die Verlängerung Ihres Abonnements ist für geplant {{- endDate }}",
+  "noPermissionsAlertHeading": "Sie sind nicht berechtigt, die Abrechnungseinstellungen zu ändern",
+  "noPermissionsAlertBody": "Bitte wenden Sie sich an Ihren Kontoinhaber, um die Abrechnungseinstellungen für Ihr Konto zu ändern.",
+  "checkoutSuccessTitle": "Erledigt! ",
+  "checkoutSuccessDescription": "Vielen Dank für Ihr Abonnement, wir haben Ihr Abonnement erfolgreich bearbeitet!  {{ customerEmail }}.",
+  "checkoutSuccessBackButton": "Fahren Sie mit der App fort",
+  "cannotManageBillingAlertTitle": "Sie können die Abrechnung nicht verwalten",
+  "cannotManageBillingAlertDescription": "Sie sind nicht berechtigt, die Abrechnung zu verwalten. ",
+  "manageTeamPlan": "Verwalten Sie Ihren Teamplan",
+  "manageTeamPlanDescription": "Wählen Sie einen Plan, der den Anforderungen Ihres Teams entspricht. ",
+  "basePlan": "Basisplan",
+  "billingInterval": {
+    "label": "Wählen Sie Ihr Abrechnungsintervall",
+    "month": "Wird monatlich abgerechnet",
+    "year": "Jährliche Abrechnung"
+  },
+  "perMonth": "pro Monat",
+  "custom": "Benutzerdefiniert",
+  "lifetime": "Lebensdauer",
+  "trialPeriod": "{{period}} Tagesversuch",
+  "perPeriod": "pro {{period}}",
+  "processing": "Wird bearbeitet...",
+  "proceedToPayment": "Weiter zur Zahlung",
+  "startTrial": "Testversion starten",
+  "perTeamMember": "Pro Teammitglied",
+  "perUnit": "Pro {{unit}} Verwendung",
+  "teamMembers": "Teammitglieder",
+  "includedUpTo": "Bis zu {{upTo}} {{unit}} im Plan enthalten",
+  "fromPreviousTierUpTo": "für jede {{unit}} für die nächsten {{ upTo }} {{ unit }}",
+  "andAbove": "über {{ previousTier }} {{ unit }}",
+  "setupFee": "Plus ein {{ setupFee }} Einrichtungsgebühr",
+  "perUnitIncluded": "({{included}} inbegriffen)",
+  "featuresLabel": "Merkmale",
+  "detailsLabel": "Einzelheiten",
+  "planPickerLabel": "Wählen Sie Ihren bevorzugten Plan",
+  "planCardLabel": "Verwalten Sie Ihren Plan",
+  "planPickerAlertErrorTitle": "Fehler beim Bezahlen anfordern",
+  "planPickerAlertErrorDescription": "Beim Anfordern des Bezahlvorgangs ist ein Fehler aufgetreten. ",
+  "subscriptionCancelled": "Abonnement gekündigt",
+  "cancelSubscriptionDate": "Ihr Abonnement wird zum Ende des Zeitraums gekündigt",
+  "status": {
+    "free": {
+      "badge": "Kostenloser Plan",
+      "heading": "Sie nutzen derzeit den kostenlosen Plan",
+      "description": "Sie haben einen kostenlosen Tarif. "
+    },
+    "active": {
+      "badge": "Aktiv",
+      "heading": "Ihr Abonnement ist aktiv",
+      "description": "Ihr Abonnement ist aktiv. "
+    },
+    "trialing": {
+      "badge": "Versuch",
+      "heading": "Du stehst vor Gericht",
+      "description": "Ihre Testversion endet am {{- trialEndDate }}."
+    },
+    "past_due": {
+      "badge": "Überfällig",
+      "heading": "Ihre Rechnung ist überfällig",
+      "description": "Ihre Rechnung ist überfällig. "
+    },
+    "canceled": {
+      "badge": "Abgesagt",
+      "heading": "Ihr Abonnement ist gekündigt",
+      "description": "Ihr Abonnement ist gekündigt. "
+    },
+    "unpaid": {
+      "badge": "Unbezahlt",
+      "heading": "Ihre Rechnung ist unbezahlt",
+      "description": "Ihre Rechnung ist unbezahlt. "
+    },
+    "incomplete": {
+      "badge": "Unvollständig",
+      "heading": "Wir warten auf Ihre Zahlung",
+      "description": "Wir warten auf den Eingang Ihrer Zahlung. "
+    },
+    "incomplete_expired": {
+      "badge": "Abgelaufen",
+      "heading": "Ihre Zahlung ist abgelaufen",
+      "description": "Ihre Zahlung ist abgelaufen. "
+    },
+    "paused": {
+      "badge": "Angehalten",
+      "heading": "Ihr Abonnement ist pausiert",
+      "description": "Ihr Abonnement ist pausiert. "
+    },
+    "succeeded": {
+      "badge": "Erfolgreich",
+      "heading": "Ihre Zahlung war erfolgreich",
+      "description": "Ihre Zahlung war erfolgreich. "
+    },
+    "pending": {
+      "badge": "Ausstehend",
+      "heading": "Ihre Zahlung steht aus",
+      "description": "Ihre Zahlung steht aus. "
+    },
+    "failed": {
+      "badge": "Fehlgeschlagen",
+      "heading": "Ihre Zahlung ist fehlgeschlagen",
+      "description": "Ihre Zahlung ist fehlgeschlagen. "
+    }
+  },
+  "plans": {
+    "features": {
+      "fileStorage": "Dateispeicherung",
+      "maxTasks": "Bis zu 10 Aufgaben",
+      "chatSupport": "Chat-Unterstützung"
+    },
+    "starter": {
+      "name": "Anlasser",
+      "description": "Für kleine Teams, die gerade erst anfangen",
+      "badge": "Wert",
+      "base": "Base",
+      "features": {
+        "maxTokens": "Bis zu 500k Token"
+      }
+    },
+    "pro": {
+      "name": "Profi",
+      "description": "Für wachsende Teams",
+      "badge": "Beliebt",
+      "base": "Base",
+      "features": {
+        "maxTokens": "Bis zu 3M Token"
+      }
+    },
+    "enterprise": {
+      "name": "Unternehmen",
+      "description": "Für große Teams und Organisationen",
+      "badge": "Brauch",
+      "base": "Base",
+      "features": {
+        "maxTokens": "Unbegrenzte Token",
+        "chatSupport": "Vorrangiger Support"
+      }
+    }
+  }
+}

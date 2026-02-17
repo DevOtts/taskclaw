@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Magic UI - Kanban Board</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#6366f1",
+              "background-light": "#f8fafc",
+              "background-dark": "#0a0a0c",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "12px",
+            },
+          },
+        },
+      };
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .dark .glass {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .star-field {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0a0a0c 100%);
+            overflow: hidden;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+        }
+        .border-beam {
+            position: relative;
+        }
+        .border-beam::after {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.5), transparent);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: xor;
+            -webkit-mask-composite: destination-out;
+            animation: beam 4s linear infinite;
+        }
+        @keyframes beam {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="star-field hidden dark:block">
+<script>
+            const field = document.querySelector('.star-field');
+            for(let i=0; i<150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 2 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
+                field.appendChild(star);
+            }
+        </script>
+</div>
+<nav class="flex items-center justify-between px-8 py-4 bg-transparent border-b border-white/5">
+<div class="flex items-center gap-2">
+<span class="material-icons-round text-primary">auto_awesome</span>
+<span class="font-bold text-lg tracking-tight">Magic UI</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-1 text-slate-400 text-sm">
+<span class="material-icons-round text-sm">search</span>
+<span>Search...</span>
+</div>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-white/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnyuBP7JsBpAmCf5su8K75pk3FIWbfDzDPJGyc-Rc264DOxSOIwRRZokfxSMng1-UH41VPV0sATFU2aMqevUf42h7P-R6_vfW3pd4xXlR0DSauE09jz5ni_2UVVLQ2gkNs92odmqWioZ7dvZAY8naDriD3Kdp9QHGv5mzxOn_pD6RcE0Kq0iFJDxgRrQqZOcGbQmrWnX20Hh1OyTjMVnfyh858tM_eRAAZ37eB6VSOB8VKKIRV1OABVdOFdf6W0YeVXwGHuWdo4jDB"/>
+</div>
+</nav>
+<main class="max-w-[1400px] mx-auto p-8">
+<div class="flex justify-between items-center mb-10">
+<div class="flex items-center glass rounded-full p-1 border-white/10">
+<button class="px-4 py-2 rounded-full text-sm font-medium text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+<span class="material-icons-round text-lg">format_list_bulleted</span>
+                    Category List
+                </button>
+<button class="px-4 py-2 rounded-full text-sm font-medium bg-primary/20 text-primary border border-primary/20 flex items-center gap-2">
+<span class="material-icons-round text-lg">grid_view</span>
+                    Kanban Board
+                </button>
+</div>
+<div class="glass px-6 py-3 rounded-2xl border-white/10 flex items-center gap-4">
+<div class="text-right">
+<div class="text-2xl font-mono font-bold text-orange-400">23:45</div>
+<div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Pomodoro Focus</div>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-orange-400/30 flex items-center justify-center text-orange-400">
+<span class="material-icons-round">pause</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between px-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                        To-Do
+                    </div>
+<span>4</span>
+</div>
+<div class="glass p-4 rounded-xl space-y-3 group hover:border-white/20 transition-all cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-primary/80 uppercase">Pessoal</span>
+<span class="material-icons-round text-slate-500 text-sm">more_horiz</span>
+</div>
+<h3 class="font-medium">Gift Ideas</h3>
+<div class="flex items-center gap-2 text-xs text-slate-500">
+<span class="material-icons-round text-sm">sticky_note_2</span>
+<span>3 items listed</span>
+</div>
+</div>
+<div class="glass p-4 rounded-xl space-y-3 group border-dashed border-white/5 hover:bg-white/5 transition-all cursor-pointer flex items-center justify-center py-6">
+<span class="material-icons-round text-slate-500">add</span>
+<span class="text-sm text-slate-500 font-medium">New Item</span>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between px-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        Today
+                    </div>
+<span>2</span>
+</div>
+<div class="relative glass p-4 rounded-xl space-y-4 group transition-all cursor-pointer border-beam overflow-hidden">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-blue-400 uppercase">Pessoal</span>
+<span class="material-icons-round text-slate-500 text-sm">more_horiz</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+<span class="material-icons-round">calendar_today</span>
+</div>
+<div>
+<h3 class="font-medium">Weekly Planning</h3>
+<p class="text-[11px] text-slate-500">July 22-28</p>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex items-center gap-2 text-xs text-slate-400">
+<span class="material-icons-round text-blue-400 text-[14px]">check_circle</span>
+<span>Reading</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-400">
+<span class="material-icons-round text-blue-400 text-[14px]">check_circle</span>
+<span>Gym</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-500">
+<span class="material-icons-round text-[14px]">radio_button_unchecked</span>
+<span>Meditate</span>
+</div>
+</div>
+</div>
+<div class="glass p-4 rounded-xl space-y-3 group hover:border-white/20 transition-all cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-slate-400 uppercase">Sync</span>
+<span class="material-icons-round text-slate-500 text-sm">more_horiz</span>
+</div>
+<h3 class="font-medium">Team Sync</h3>
+<div class="flex items-center gap-2 text-xs text-slate-500">
+<span class="material-icons-round text-sm">groups</span>
+<span>10:00 AM</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between px-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                        In Progress
+                    </div>
+<span>3</span>
+</div>
+<div class="glass p-4 rounded-xl space-y-4 group hover:border-white/20 transition-all cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-orange-400 uppercase">8Figure</span>
+<span class="material-icons-round text-slate-500 text-sm">more_horiz</span>
+</div>
+<div class="h-12 w-full flex items-end gap-[2px]">
+<div class="flex-1 bg-orange-400/10 rounded-sm h-[30%]"></div>
+<div class="flex-1 bg-orange-400/20 rounded-sm h-[45%]"></div>
+<div class="flex-1 bg-orange-400/10 rounded-sm h-[60%]"></div>
+<div class="flex-1 bg-orange-400/40 rounded-sm h-[40%]"></div>
+<div class="flex-1 bg-orange-400/20 rounded-sm h-[75%]"></div>
+<div class="flex-1 bg-orange-400 rounded-sm h-[90%]"></div>
+</div>
+<div>
+<h3 class="font-medium text-sm">Q3 Revenue</h3>
+<p class="text-xs text-green-400 font-medium">$250,000 (On Track)</p>
+</div>
+</div>
+<div class="glass p-4 rounded-xl space-y-3 group hover:border-white/20 transition-all cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-purple-400 uppercase">Microfactory</span>
+<span class="material-icons-round text-slate-500 text-sm">more_horiz</span>
+</div>
+<h3 class="font-medium">Production Pipeline</h3>
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded bg-purple-500/20 flex items-center justify-center text-[10px] text-purple-400">ID</div>
+<span class="material-icons-round text-slate-600 text-[12px]">arrow_forward</span>
+<div class="w-6 h-6 rounded bg-purple-500/20 flex items-center justify-center text-[10px] text-purple-400">PR</div>
+<span class="material-icons-round text-slate-600 text-[12px]">arrow_forward</span>
+<div class="w-6 h-6 rounded bg-white/5 border border-white/10 flex items-center justify-center text-[10px] text-slate-500">TF</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between px-2 text-sm font-semibold text-slate-400 uppercase tracking-wider">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+                        Done
+                    </div>
+<span>8</span>
+</div>
+<div class="glass p-4 rounded-xl space-y-3 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-green-400 uppercase">Microfactory</span>
+<span class="material-icons-round text-green-400 text-sm">task_alt</span>
+</div>
+<h3 class="font-medium line-through decoration-slate-500">Machine B Check</h3>
+<p class="text-xs text-slate-500 italic">Completed 2h ago</p>
+</div>
+</div>
+</div>
+<div class="fixed bottom-8 right-8 w-[320px] glass p-6 rounded-3xl border-white/20 shadow-2xl z-50">
+<div class="flex items-start justify-between mb-6">
+<div class="bg-black p-2 rounded-lg">
+<svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+<path d="M17 3.5a.5.5 0 0 0-.5-.5H7.5a.5.5 0 0 0-.5.5V5h10V3.5zM18.5 3h.5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h.5V2.5A1.5 1.5 0 0 1 7 1h10a1.5 1.5 0 0 1 1.5 1.5V3zM18 19V7H6v12h12z"></path>
+</svg>
+</div>
+<button class="text-slate-500 hover:text-white">
+<span class="material-icons-round">close</span>
+</button>
+</div>
+<h2 class="text-xl font-bold mb-1">Weekly Planning: July 22-28</h2>
+<p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Description</p>
+<div class="bg-black/20 p-4 rounded-xl mb-6 text-sm text-slate-400 leading-relaxed min-h-[120px]">
+                Review last week's progress. Set priorities for the upcoming week.
+                <br/><br/>
+                Schedule key tasks and meetings in the calendar.
+            </div>
+<div class="space-y-3">
+<button class="w-full py-3 px-4 glass rounded-xl text-sm font-semibold hover:bg-white/10 transition-colors">
+                    Open in Notion
+                </button>
+<button class="w-full py-3 px-4 bg-white text-black dark:bg-slate-100 rounded-xl text-sm font-bold hover:bg-white/90 transition-colors">
+                    Complete Task
+                </button>
+</div>
+</div>
+</main>
+<footer class="fixed bottom-0 left-0 w-full px-8 py-4 flex items-center justify-between text-[11px] font-medium text-slate-500 uppercase tracking-widest border-t border-white/5 pointer-events-none">
+<div class="flex gap-8">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                Connected to Notion: Marketing Workspace
+            </div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                Last sync: 2 minutes ago
+            </div>
+</div>
+<div>
+            V1.0.4 - Alpha Build
+        </div>
+</footer>
+
+</body></html>

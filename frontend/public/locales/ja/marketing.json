@@ -1,0 +1,23 @@
+{
+  "blog": "ブログ",
+  "blogSubtitle": "プラットフォームに関するニュースと最新情報",
+  "documentation": "ドキュメンテーション",
+  "documentationSubtitle": "プラットフォームの使用を開始するためのチュートリアルとガイド",
+  "faq": "よくある質問",
+  "faqSubtitle": "プラットフォームに関するよくある質問",
+  "pricing": "価格設定",
+  "pricingSubtitle": "料金プランと支払いオプション",
+  "backToBlog": "ブログに戻る",
+  "noPosts": "投稿が見つかりませんでした",
+  "blogPaginationNext": "次のページ",
+  "blogPaginationPrevious": "前のページ",
+  "readMore": "続きを読む",
+  "contactFaq": "ご質問がございましたら、お問い合わせください",
+  "contact": "接触",
+  "about": "について",
+  "product": "製品",
+  "legal": "法律上の",
+  "termsOfService": "利用規約",
+  "cookiePolicy": "クッキーポリシー",
+  "privacyPolicy": "プライバシーポリシー"
+}

@@ -1,0 +1,150 @@
+{
+  "subscriptionTabSubheading": "管理您的订阅和账单",
+  "planCardTitle": "你的计划",
+  "planCardDescription": "以下是您当前计划的详细信息。",
+  "planRenewal": "更新每 {{interval}} 在 {{price}}",
+  "planDetails": "计划详情",
+  "checkout": "进行结算",
+  "trialEndsOn": "您的试用期结束于",
+  "billingPortalCardButton": "访问计费门户",
+  "billingPortalCardTitle": "管理您的账单详细信息",
+  "billingPortalCardDescription": "访问您的计费门户来管理您的订阅和计费。",
+  "cancelAtPeriodEndDescription": "您的订阅计划取消于 {{- endDate }}。",
+  "renewAtPeriodEndDescription": "您的订阅计划续订于 {{- endDate }}",
+  "noPermissionsAlertHeading": "您无权更改结算设置",
+  "noPermissionsAlertBody": "请联系您的帐户所有者以更改您帐户的结算设置。",
+  "checkoutSuccessTitle": "完毕！",
+  "checkoutSuccessDescription": "感谢您的订阅，我们已成功处理您的订阅！ {{ customerEmail }}。",
+  "checkoutSuccessBackButton": "前往应用程序",
+  "cannotManageBillingAlertTitle": "您无法管理帐单",
+  "cannotManageBillingAlertDescription": "您没有管理账单的权限。",
+  "manageTeamPlan": "管理您的团队计划",
+  "manageTeamPlanDescription": "选择适合您团队需求的计划。",
+  "basePlan": "基本计划",
+  "billingInterval": {
+    "label": "选择您的计费间隔",
+    "month": "按月计费",
+    "year": "按年计费"
+  },
+  "perMonth": "每月",
+  "custom": "自定义",
+  "lifetime": "寿命",
+  "trialPeriod": "{{period}} 日间试用",
+  "perPeriod": "每 {{period}}",
+  "processing": "加工...",
+  "proceedToPayment": "继续付款",
+  "startTrial": "开始试用",
+  "perTeamMember": "每个团队成员",
+  "perUnit": "每 {{unit}} 用法",
+  "teamMembers": "团队成员",
+  "includedUpTo": "取决于 {{upTo}} {{unit}} 纳入计划",
+  "fromPreviousTierUpTo": "对于每个 {{unit}} 为下一个 {{ upTo }} {{ unit }}",
+  "andAbove": "多于 {{ previousTier }} {{ unit }}",
+  "setupFee": "加一个 {{ setupFee }} 安装费",
+  "perUnitIncluded": "（{{included}} 包括）",
+  "featuresLabel": "特征",
+  "detailsLabel": "细节",
+  "planPickerLabel": "选择您喜欢的计划",
+  "planCardLabel": "管理您的计划",
+  "planPickerAlertErrorTitle": "请求结账时出错",
+  "planPickerAlertErrorDescription": "请求结帐时出错。",
+  "subscriptionCancelled": "订阅已取消",
+  "cancelSubscriptionDate": "您的订阅将在该期限结束时取消",
+  "status": {
+    "free": {
+      "badge": "免费计划",
+      "heading": "您目前使用的是免费计划",
+      "description": "您采用的是免费计划。"
+    },
+    "active": {
+      "badge": "积极的",
+      "heading": "您的订阅已激活",
+      "description": "您的订阅已激活。"
+    },
+    "trialing": {
+      "badge": "审判",
+      "heading": "你正在接受审判",
+      "description": "您的试用将于 {{- trialEndDate }}。"
+    },
+    "past_due": {
+      "badge": "逾期",
+      "heading": "您的发票已逾期",
+      "description": "您的发票已逾期。"
+    },
+    "canceled": {
+      "badge": "取消",
+      "heading": "您的订阅已取消",
+      "description": "您的订阅已取消。"
+    },
+    "unpaid": {
+      "badge": "未付",
+      "heading": "您的发票未支付",
+      "description": "您的发票尚未支付。"
+    },
+    "incomplete": {
+      "badge": "不完整",
+      "heading": "我们正在等待您的付款",
+      "description": "我们正在等待您的付款完成。"
+    },
+    "incomplete_expired": {
+      "badge": "已到期",
+      "heading": "您的付款已过期",
+      "description": "您的付款已过期。"
+    },
+    "paused": {
+      "badge": "已暂停",
+      "heading": "您的订阅已暂停",
+      "description": "您的订阅已暂停。"
+    },
+    "succeeded": {
+      "badge": "成功了",
+      "heading": "您付款成功",
+      "description": "您的付款成功。"
+    },
+    "pending": {
+      "badge": "待办的",
+      "heading": "您的付款待处理",
+      "description": "您的付款正在等待中。"
+    },
+    "failed": {
+      "badge": "失败的",
+      "heading": "您的付款失败",
+      "description": "您的付款失败。"
+    }
+  },
+  "plans": {
+    "features": {
+      "fileStorage": "文件存储",
+      "maxTasks": "最多 10 个任务",
+      "chatSupport": "聊天支持"
+    },
+    "starter": {
+      "name": "起动机",
+      "description": "对于刚刚起步的小团队",
+      "badge": "价值",
+      "base": "根据",
+      "features": {
+        "maxTokens": "最多 500k 代币"
+      }
+    },
+    "pro": {
+      "name": "专业版",
+      "description": "对于成长中的团队",
+      "badge": "受欢迎的",
+      "base": "根据",
+      "features": {
+        "maxTokens": "最多 3M 代币"
+      }
+    },
+    "enterprise": {
+      "name": "企业",
+      "description": "对于大型团队和组织",
+      "badge": "风俗",
+      "base": "根据",
+      "features": {
+        "maxTokens": "无限代币",
+        "chatSupport": "优先支持"
+      }
+    }
+  }
+}

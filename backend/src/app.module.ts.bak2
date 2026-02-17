@@ -1,0 +1,57 @@
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { SupabaseModule } from './supabase/supabase.module';
+import { UsersModule } from './users/users.module';
+import { AccountsModule } from './accounts/accounts.module';
+import { ProjectsModule } from './projects/projects.module';
+import { TeamsModule } from './teams/teams.module';
+import { PlansModule } from './plans/plans.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SearchModule } from './search/search.module';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
+import { CommonModule } from './common/common.module';
+import { AuthModule } from './auth/auth.module';
+import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
+import { CategoriesModule } from './categories/categories.module';
+import { SourcesModule } from './sources/sources.module';
+import { TasksModule } from './tasks/tasks.module';
+import { SyncModule } from './sync/sync.module';
+import { AdaptersModule } from './adapters/adapters.module';
+import { AiProviderModule } from './ai-provider/ai-provider.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    SupabaseModule,
+    AuthModule,
+    UsersModule,
+    AccountsModule,
+    ProjectsModule,
+    TeamsModule,
+    PlansModule,
+    SubscriptionsModule,
+    SearchModule,
+    SystemSettingsModule,
+    CommonModule,
+    AiAssistantModule,
+    AdaptersModule,
+    CategoriesModule,
+    SourcesModule,
+    TasksModule,
+    SyncModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RequestLoggerMiddleware)
+      .forRoutes('*');
+  }
+}

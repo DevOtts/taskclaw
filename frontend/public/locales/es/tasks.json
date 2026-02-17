@@ -1,0 +1,23 @@
+{
+  "tasksTabLabel": "Tareas",
+  "tasksTabDescription": "Una lista de tareas que deben completarse.",
+  "searchTasks": "Tareas de búsqueda",
+  "noTasksFound": "No se encontraron tareas para la consulta de búsqueda \"{{query}}\"",
+  "clearSearch": "Borrar búsqueda",
+  "addNewTask": "Agregar nueva tarea",
+  "addNewTaskDescription": "Complete el siguiente formulario para agregar una nueva tarea",
+  "addTask": "Agregar tarea",
+  "addingTask": "Agregando tarea...",
+  "taskTitle": "Tarea",
+  "taskTitleDescription": "Introduce un nombre para tu tarea",
+  "taskDescription": "Descripción de la tarea",
+  "taskDescriptionDescription": "Introduce una descripción para tu tarea.",
+  "updatingTask": "Actualizando tarea...",
+  "updateTask": "Tarea de actualización",
+  "task": "Tarea",
+  "createdAt": "Creado en",
+  "updatedAt": "Actualizado en",
+  "deleteTask": "Eliminar tarea",
+  "deletingTask": "Eliminando tarea...",
+  "deleteTaskConfirmation": "¿Estás seguro de que deseas eliminar esta tarea?"
+}

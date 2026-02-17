@@ -1,0 +1,23 @@
+{
+  "tasksTabLabel": "Compiti",
+  "tasksTabDescription": "Un elenco di attività che devono essere completate.",
+  "searchTasks": "Compiti di ricerca",
+  "noTasksFound": "Nessuna attività trovata per la query di ricerca \"{{query}}\"",
+  "clearSearch": "Cancella ricerca",
+  "addNewTask": "Aggiungi nuova attività",
+  "addNewTaskDescription": "Compila il modulo sottostante per aggiungere una nuova attività",
+  "addTask": "Aggiungi attività",
+  "addingTask": "Aggiunta attività...",
+  "taskTitle": "Compito",
+  "taskTitleDescription": "Inserisci un nome per la tua attività",
+  "taskDescription": "Descrizione del compito",
+  "taskDescriptionDescription": "Inserisci una descrizione per la tua attività",
+  "updatingTask": "Aggiornamento attività...",
+  "updateTask": "Aggiorna attività",
+  "task": "Compito",
+  "createdAt": "Creato a",
+  "updatedAt": "Aggiornato a",
+  "deleteTask": "Elimina attività",
+  "deletingTask": "Eliminazione attività...",
+  "deleteTaskConfirmation": "Sei sicuro di voler eliminare questa attività?"
+}

@@ -1,0 +1,23 @@
+{
+  "tasksTabLabel": "Tasks",
+  "tasksTabDescription": "A list of tasks that need to be completed.",
+  "searchTasks": "Search tasks",
+  "noTasksFound": "No tasks found for the search query \"{{query}}\"",
+  "clearSearch": "Clear search",
+  "addNewTask": "Add new task",
+  "addNewTaskDescription": "Fill out the form below to add a new task",
+  "addTask": "Add task",
+  "addingTask": "Adding task...",
+  "taskTitle": "Task",
+  "taskTitleDescription": "Enter a name for your task",
+  "taskDescription": "Task Description",
+  "taskDescriptionDescription": "Enter a description for your task",
+  "updatingTask": "Updating task...",
+  "updateTask": "Update task",
+  "task": "Task",
+  "createdAt": "Created at",
+  "updatedAt": "Updated at",
+  "deleteTask": "Delete task",
+  "deletingTask": "Deleting task...",
+  "deleteTaskConfirmation": "Are you sure you want to delete this task?"
+}

@@ -1,0 +1,23 @@
+{
+  "blog": "Blog",
+  "blogSubtitle": "Noticias y actualizaciones sobre la plataforma",
+  "documentation": "Documentación",
+  "documentationSubtitle": "Tutoriales y guía para comenzar con la plataforma",
+  "faq": "Preguntas Frecuentes",
+  "faqSubtitle": "Preguntas frecuentes sobre la plataforma",
+  "pricing": "Precios",
+  "pricingSubtitle": "Planes de precios y opciones de pago",
+  "backToBlog": "Volver al blog",
+  "noPosts": "No se encontraron publicaciones",
+  "blogPaginationNext": "Página Siguiente",
+  "blogPaginationPrevious": "Página Anterior",
+  "readMore": "Leer más",
+  "contactFaq": "Si tienes alguna pregunta, por favor contáctanos",
+  "contact": "Contacto",
+  "about": "Acerca de",
+  "product": "Producto",
+  "legal": "Legal",
+  "termsOfService": "Términos de Servicio",
+  "cookiePolicy": "Política de Cookies",
+  "privacyPolicy": "Política de Privacidad"
+}

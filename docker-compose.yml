@@ -1,0 +1,185 @@
+# ============================================================
+# TaskClaw — Docker Compose
+# ============================================================
+#
+# Quick start (BYO Supabase — you provide your own Supabase URL):
+#   cp backend/.env.example backend/.env
+#   cp frontend/.env.example frontend/.env
+#   docker compose up -d
+#
+# Full local stack (includes Supabase — zero external dependencies):
+#   cp .env.example .env
+#   docker compose --profile supabase up -d
+#
+# Pin a version:
+#   TASKCLAW_VERSION=v1.0.0 docker compose up -d
+#
+# ============================================================
+
+services:
+  # ── Core services (always run) ──────────────────────────────
+
+  backend:
+    image: taskclaw/backend:${TASKCLAW_VERSION:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    env_file: ./backend/.env
+    environment:
+      EDITION: community
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    user: "1000:1000"
+
+  frontend:
+    image: taskclaw/frontend:${TASKCLAW_VERSION:-latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    env_file: ./frontend/.env
+    environment:
+      NEXT_PUBLIC_EDITION: community
+      NEXT_PUBLIC_API_URL: http://backend:3001
+    depends_on:
+      - backend
+    restart: unless-stopped
+    user: "1000:1000"
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Supabase services (opt-in: --profile supabase) ──────────
+  # Use these if you don't have a Supabase Cloud instance.
+  # Make sure to update backend/.env and frontend/.env to point
+  # to the local Supabase instance (see .env.example files).
+
+  db:
+    image: supabase/postgres:17.4.1.11
+    profiles: [supabase]
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-change-me-generate-a-secret-at-least-32-chars-long}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  kong:
+    image: kong:2.8.1
+    profiles: [supabase]
+    ports:
+      - "${SUPABASE_API_PORT:-7431}:8000"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    volumes:
+      - ./docker/volumes/api/kong.yml:/var/lib/kong/kong.yml:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  auth:
+    image: supabase/gotrue:v2.186.0
+    profiles: [supabase]
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:${SUPABASE_API_PORT:-7431}/auth/v1
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:${FRONTEND_PORT:-3000}
+      GOTRUE_URI_ALLOW_LIST: "*"
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-change-me-generate-a-secret-at-least-32-chars-long}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_SMTP_ADMIN_EMAIL: admin@example.com
+      GOTRUE_SMTP_HOST: supabase-mail
+      GOTRUE_SMTP_PORT: 2500
+      GOTRUE_SMTP_USER: fake_mail_user
+      GOTRUE_SMTP_PASS: fake_mail_password
+      GOTRUE_SMTP_SENDER_NAME: TaskClaw
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    profiles: [supabase]
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-change-me-generate-a-secret-at-least-32-chars-long}
+      PGRST_DB_USE_LEGACY_GUC_VARS: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  studio:
+    image: supabase/studio:latest
+    profiles: [supabase]
+    ports:
+      - "${SUPABASE_STUDIO_PORT:-7430}:3000"
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: http://localhost:${SUPABASE_API_PORT:-7431}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+    depends_on:
+      - kong
+    restart: unless-stopped
+
+  meta:
+    image: supabase/postgres-meta:v0.84.2
+    profiles: [supabase]
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  db_data:

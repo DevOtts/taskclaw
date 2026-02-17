@@ -1,0 +1,23 @@
+{
+  "tasksTabLabel": "任务",
+  "tasksTabDescription": "需要完成的任务列表。",
+  "searchTasks": "搜索任务",
+  "noTasksFound": "没有找到搜索查询的任务“{{query}}”",
+  "clearSearch": "清除搜索",
+  "addNewTask": "添加新任务",
+  "addNewTaskDescription": "填写下面的表格以添加新任务",
+  "addTask": "添加任务",
+  "addingTask": "添加任务...",
+  "taskTitle": "任务",
+  "taskTitleDescription": "输入您的任务的名称",
+  "taskDescription": "任务描述",
+  "taskDescriptionDescription": "输入您的任务的描述",
+  "updatingTask": "正在更新任务...",
+  "updateTask": "更新任务",
+  "task": "任务",
+  "createdAt": "创建于",
+  "updatedAt": "更新于",
+  "deleteTask": "删除任务",
+  "deletingTask": "正在删除任务...",
+  "deleteTaskConfirmation": "您确定要删除此任务吗？"
+}

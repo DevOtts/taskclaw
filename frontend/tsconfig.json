@@ -1,0 +1,225 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@kit/ui/accordion": [
+        "./src/kit/shadcn/accordion.tsx"
+      ],
+      "@kit/ui/alert-dialog": [
+        "./src/kit/shadcn/alert-dialog.tsx"
+      ],
+      "@kit/ui/avatar": [
+        "./src/kit/shadcn/avatar.tsx"
+      ],
+      "@kit/ui/button": [
+        "./src/kit/shadcn/button.tsx"
+      ],
+      "@kit/ui/calendar": [
+        "./src/kit/shadcn/calendar.tsx"
+      ],
+      "@kit/ui/card": [
+        "./src/kit/shadcn/card.tsx"
+      ],
+      "@kit/ui/checkbox": [
+        "./src/kit/shadcn/checkbox.tsx"
+      ],
+      "@kit/ui/command": [
+        "./src/kit/shadcn/command.tsx"
+      ],
+      "@kit/ui/data-table": [
+        "./src/kit/shadcn/data-table.tsx"
+      ],
+      "@kit/ui/dialog": [
+        "./src/kit/shadcn/dialog.tsx"
+      ],
+      "@kit/ui/dropdown-menu": [
+        "./src/kit/shadcn/dropdown-menu.tsx"
+      ],
+      "@kit/ui/navigation-menu": [
+        "./src/kit/shadcn/navigation-menu.tsx"
+      ],
+      "@kit/ui/form": [
+        "./src/kit/shadcn/form.tsx"
+      ],
+      "@kit/ui/input": [
+        "./src/kit/shadcn/input.tsx"
+      ],
+      "@kit/ui/label": [
+        "./src/kit/shadcn/label.tsx"
+      ],
+      "@kit/ui/popover": [
+        "./src/kit/shadcn/popover.tsx"
+      ],
+      "@kit/ui/scroll-area": [
+        "./src/kit/shadcn/scroll-area.tsx"
+      ],
+      "@kit/ui/select": [
+        "./src/kit/shadcn/select.tsx"
+      ],
+      "@kit/ui/sheet": [
+        "./src/kit/shadcn/sheet.tsx"
+      ],
+      "@kit/ui/table": [
+        "./src/kit/shadcn/table.tsx"
+      ],
+      "@kit/ui/tabs": [
+        "./src/kit/shadcn/tabs.tsx"
+      ],
+      "@kit/ui/tooltip": [
+        "./src/kit/shadcn/tooltip.tsx"
+      ],
+      "@kit/ui/sonner": [
+        "./src/kit/shadcn/sonner.tsx"
+      ],
+      "@kit/ui/heading": [
+        "./src/kit/shadcn/heading.tsx"
+      ],
+      "@kit/ui/alert": [
+        "./src/kit/shadcn/alert.tsx"
+      ],
+      "@kit/ui/badge": [
+        "./src/kit/shadcn/badge.tsx"
+      ],
+      "@kit/ui/radio-group": [
+        "./src/kit/shadcn/radio-group.tsx"
+      ],
+      "@kit/ui/separator": [
+        "./src/kit/shadcn/separator.tsx"
+      ],
+      "@kit/ui/input-otp": [
+        "./src/kit/shadcn/input-otp.tsx"
+      ],
+      "@kit/ui/textarea": [
+        "./src/kit/shadcn/textarea.tsx"
+      ],
+      "@kit/ui/switch": [
+        "./src/kit/shadcn/switch.tsx"
+      ],
+      "@kit/ui/breadcrumb": [
+        "./src/kit/shadcn/breadcrumb.tsx"
+      ],
+      "@kit/ui/chart": [
+        "./src/kit/shadcn/chart.tsx"
+      ],
+      "@kit/ui/skeleton": [
+        "./src/kit/shadcn/skeleton.tsx"
+      ],
+      "@kit/ui/shadcn-sidebar": [
+        "./src/kit/shadcn/sidebar.tsx"
+      ],
+      "@kit/ui/collapsible": [
+        "./src/kit/shadcn/collapsible.tsx"
+      ],
+      "@kit/ui/utils": [
+        "./src/kit/lib/utils/index.ts"
+      ],
+      "@kit/ui/if": [
+        "./src/kit/makerkit/if.tsx"
+      ],
+      "@kit/ui/trans": [
+        "./src/kit/makerkit/trans.tsx"
+      ],
+      "@kit/ui/sidebar": [
+        "./src/kit/makerkit/sidebar.tsx"
+      ],
+      "@kit/ui/navigation-schema": [
+        "./src/kit/makerkit/navigation-config.schema.ts"
+      ],
+      "@kit/ui/bordered-navigation-menu": [
+        "./src/kit/makerkit/bordered-navigation-menu.tsx"
+      ],
+      "@kit/ui/spinner": [
+        "./src/kit/makerkit/spinner.tsx"
+      ],
+      "@kit/ui/page": [
+        "./src/kit/makerkit/page.tsx"
+      ],
+      "@kit/ui/image-uploader": [
+        "./src/kit/makerkit/image-uploader.tsx"
+      ],
+      "@kit/ui/global-loader": [
+        "./src/kit/makerkit/global-loader.tsx"
+      ],
+      "@kit/ui/auth-change-listener": [
+        "./src/kit/makerkit/auth-change-listener.tsx"
+      ],
+      "@kit/ui/loading-overlay": [
+        "./src/kit/makerkit/loading-overlay.tsx"
+      ],
+      "@kit/ui/profile-avatar": [
+        "./src/kit/makerkit/profile-avatar.tsx"
+      ],
+      "@kit/ui/mode-toggle": [
+        "./src/kit/makerkit/mode-toggle.tsx"
+      ],
+      "@kit/ui/enhanced-data-table": [
+        "./src/kit/makerkit/data-table.tsx"
+      ],
+      "@kit/ui/language-selector": [
+        "./src/kit/makerkit/language-selector.tsx"
+      ],
+      "@kit/ui/stepper": [
+        "./src/kit/makerkit/stepper.tsx"
+      ],
+      "@kit/ui/cookie-banner": [
+        "./src/kit/makerkit/cookie-banner.tsx"
+      ],
+      "@kit/ui/card-button": [
+        "./src/kit/makerkit/card-button.tsx"
+      ],
+      "@kit/ui/version-updater": [
+        "./src/kit/makerkit/version-updater.tsx"
+      ],
+      "@kit/ui/multi-step-form": [
+        "./src/kit/makerkit/multi-step-form.tsx"
+      ],
+      "@kit/ui/app-breadcrumbs": [
+        "./src/kit/makerkit/app-breadcrumbs.tsx"
+      ],
+      "@kit/ui/empty-state": [
+        "./src/kit/makerkit/empty-state.tsx"
+      ],
+      "@kit/ui/marketing": [
+        "./src/kit/makerkit/marketing/index.tsx"
+      ],
+      "@kit/ui/*": [
+        "./src/kit/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

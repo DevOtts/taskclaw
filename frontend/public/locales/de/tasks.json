@@ -1,0 +1,23 @@
+{
+  "tasksTabLabel": "Aufgaben",
+  "tasksTabDescription": "Eine Liste der Aufgaben, die erledigt werden müssen.",
+  "searchTasks": "Suchaufgaben",
+  "noTasksFound": "Für die Suchanfrage „Keine Aufgaben gefunden“{{query}}\"",
+  "clearSearch": "Saubere Suche",
+  "addNewTask": "Neue Aufgabe hinzufügen",
+  "addNewTaskDescription": "Füllen Sie das Formular unten aus, um eine neue Aufgabe hinzuzufügen",
+  "addTask": "Aufgabe hinzufügen",
+  "addingTask": "Aufgabe wird hinzugefügt...",
+  "taskTitle": "Aufgabe",
+  "taskTitleDescription": "Geben Sie einen Namen für Ihre Aufgabe ein",
+  "taskDescription": "Aufgabenbeschreibung",
+  "taskDescriptionDescription": "Geben Sie eine Beschreibung für Ihre Aufgabe ein",
+  "updatingTask": "Aufgabe wird aktualisiert...",
+  "updateTask": "Aufgabe aktualisieren",
+  "task": "Aufgabe",
+  "createdAt": "Hergestellt in",
+  "updatedAt": "Aktualisiert am",
+  "deleteTask": "Aufgabe löschen",
+  "deletingTask": "Aufgabe wird gelöscht...",
+  "deleteTaskConfirmation": "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?"
+}

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Onboarding - Category Setup</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec5b13",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#0f1115",
+                        "surface-dark": "#1a1d23",
+                        "border-dark": "#2d3139",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+        .shimmer {
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+            background-size: 200% 100%;
+        }
+        .radial-glow {
+            background: radial-gradient(circle at center, rgba(236, 91, 19, 0.08) 0%, rgba(15, 17, 21, 0) 70%);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col items-center">
+<!-- Radial Background Glow -->
+<div class="fixed inset-0 radial-glow pointer-events-none"></div>
+<div class="relative z-10 w-full max-w-[1000px] px-6 py-8 md:py-12">
+<!-- Top Navigation / Progress Header -->
+<header class="flex flex-col gap-6 mb-12">
+<div class="flex items-center justify-between w-full">
+<div class="flex items-center gap-2">
+<div class="bg-primary p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-white text-xl">rocket_launch</span>
+</div>
+<h2 class="text-xl font-bold tracking-tight">Onboarding</h2>
+</div>
+<button class="flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-all hover:bg-slate-200 dark:hover:bg-surface-dark rounded-lg">
+<span class="material-symbols-outlined text-base">arrow_back</span>
+                    Back
+                </button>
+</div>
+<div class="w-full space-y-2">
+<div class="flex justify-between items-end">
+<span class="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Step 3 of 3</span>
+<span class="text-sm font-bold text-primary">66% Complete</span>
+</div>
+<div class="h-2 w-full bg-slate-200 dark:bg-border-dark rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full shadow-[0_0_12px_rgba(236,91,19,0.4)]" style="width: 66%;"></div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex flex-col items-center text-center max-w-3xl mx-auto mb-12">
+<h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">How would you like to organize your life?</h1>
+<p class="text-lg text-slate-600 dark:text-slate-400 mb-10">Select or create categories to keep your tasks and goals separated. You can change these later.</p>
+<!-- Category Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 w-full text-left">
+<!-- Category Card: Personal Life -->
+<div class="group relative bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark p-5 rounded-xl transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-500">
+<span class="material-symbols-outlined text-3xl">favorite</span>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-500">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div>
+<h3 class="font-bold text-lg mb-1">Personal Life</h3>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-pink-500"></span>
+<span class="text-xs font-medium text-slate-500 uppercase">Personal</span>
+</div>
+</div>
+</div>
+<!-- Category Card: Year Goals Tasks -->
+<div class="group relative bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark p-5 rounded-xl transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
+<span class="material-symbols-outlined text-3xl">target</span>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-500">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div>
+<h3 class="font-bold text-lg mb-1">Year Goals Tasks</h3>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span class="text-xs font-medium text-slate-500 uppercase">Milestones</span>
+</div>
+</div>
+</div>
+<!-- Category Card: Work -->
+<div class="group relative bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark p-5 rounded-xl transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+<span class="material-symbols-outlined text-3xl">work</span>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-500">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div>
+<h3 class="font-bold text-lg mb-1">Work</h3>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+<span class="text-xs font-medium text-slate-500 uppercase">Professional</span>
+</div>
+</div>
+</div>
+<!-- Category Card: Studies -->
+<div class="group relative bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark p-5 rounded-xl transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 cursor-pointer">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+<span class="material-symbols-outlined text-3xl">school</span>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-500">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<div>
+<h3 class="font-bold text-lg mb-1">Studies</h3>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-xs font-medium text-slate-500 uppercase">Learning</span>
+</div>
+</div>
+</div>
+<!-- Add New Category -->
+<div class="group relative bg-transparent border-2 border-dashed border-slate-300 dark:border-border-dark p-5 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:bg-slate-50 dark:hover:bg-surface-dark/40 hover:border-primary/50 cursor-pointer min-h-[160px]">
+<div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-border-dark flex items-center justify-center text-slate-500 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">add</span>
+</div>
+<span class="font-semibold text-slate-500 group-hover:text-primary transition-colors">Add New Category</span>
+</div>
+</div>
+</main>
+<!-- Footer Actions -->
+<footer class="flex flex-col items-center gap-4">
+<button class="group relative w-full max-w-sm overflow-hidden bg-primary text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all hover:-translate-y-0.5 active:translate-y-0">
+<span class="relative z-10 flex items-center justify-center gap-2">
+                    Finish Setup
+                    <span class="material-symbols-outlined text-xl">check_circle</span>
+</span>
+<div class="absolute inset-0 shimmer opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+<p class="text-sm text-slate-500 dark:text-slate-400">You can always add or remove categories later in Settings.</p>
+</footer>
+</div>
+<!-- Decorative Elements (Magic UI inspired) -->
+<div class="fixed top-1/4 -left-20 w-64 h-64 bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="fixed bottom-1/4 -right-20 w-64 h-64 bg-primary/10 blur-[120px] rounded-full pointer-events-none"></div>
+</body></html>

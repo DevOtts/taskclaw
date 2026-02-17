@@ -1,0 +1,62 @@
+{
+  "homeTabDescription": "Willkommen auf Ihrer Homepage",
+  "accountMembers": "Kontomitglieder",
+  "dashboardTabDescription": "Eine Übersicht über die Aktivität und Leistung Ihres Kontos in allen Ihren Projekten.",
+  "settingsTabDescription": "Verwalten Sie Ihre Einstellungen und Präferenzen.",
+  "emailAddress": "E-Mail-Adresse",
+  "password": "Passwort",
+  "modalConfirmationQuestion": "Bist du dir sicher, dass du weitermachen willst?",
+  "imageInputLabel": "Klicken Sie hier, um ein Bild hochzuladen",
+  "cancel": "Stornieren",
+  "clear": "Klar",
+  "notFound": "Nicht gefunden",
+  "backToHomePage": "Zurück zur Startseite",
+  "goBack": "Geh zurück",
+  "genericServerError": "Entschuldigung, etwas ist schief gelaufen.",
+  "genericServerErrorHeading": "Leider ist bei der Bearbeitung Ihrer Anfrage ein Fehler aufgetreten. ",
+  "pageNotFound": "Leider existiert diese Seite nicht.",
+  "pageNotFoundSubHeading": "Entschuldigung, die von Ihnen gesuchte Seite wurde nicht gefunden",
+  "genericError": "Entschuldigung, etwas ist schief gelaufen.",
+  "genericErrorSubHeading": "Entschuldigung, bei der Bearbeitung Ihrer Anfrage ist ein Fehler aufgetreten. ",
+  "anonymousUser": "Anonym",
+  "tryAgain": "Versuchen Sie es erneut",
+  "theme": "Thema",
+  "lightTheme": "Licht",
+  "darkTheme": "Dunkel",
+  "redEmberTheme": "Glutrot",
+  "purpleLuxuryTheme": "Luxuriöses Lila",
+  "systemTheme": "System",
+  "expandSidebar": "Erweitern Sie die Seitenleiste",
+  "collapseSidebar": "Seitenleiste einklappen",
+  "documentation": "Dokumentation",
+  "getStarted": "Loslegen",
+  "getStartedWithPlan": "Beginnen Sie mit {{plan}}",
+  "retry": "Wiederholen",
+  "contactUs": "Kontaktiere uns",
+  "loading": "Wird geladen. ",
+  "yourAccounts": "Ihre Konten",
+  "continue": "Weitermachen",
+  "skip": "Überspringen",
+  "signedInAs": "Eingeloggt als",
+  "pageOfPages": "Seite {{page}} von {{total}}",
+  "noData": "Keine Daten verfügbar",
+  "pageNotFoundHeading": "Autsch! ",
+  "errorPageHeading": "Autsch!",
+  "routes": {
+    "home": "Zuhause",
+    "members": "Teammitglieder",
+    "billing": "Abrechnung",
+    "dashboard": "Instrumententafel",
+    "settings": "Einstellungen",
+    "profile": "Profil",
+    "chat": "Obra.ninja AI"
+  },
+  "roles": {
+    "owner": {
+      "label": "Eigentümer"
+    },
+    "member": {
+      "label": "Mitglied"
+    }
+  }
+}

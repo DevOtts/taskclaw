@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Onboarding Step 2: Setup Checklist</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec5b13",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#16100d", // Darkened version of theme base
+                        "surface-dark": "#221610",
+                        "border-dark": "#3d2a21",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3d2a21;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased h-screen overflow-hidden">
+<div class="flex h-full w-full">
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 bg-background-light dark:bg-background-dark">
+<!-- Top Navigation / Progress Header -->
+<header class="border-b border-slate-200 dark:border-border-dark px-8 py-4 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="bg-primary p-1.5 rounded-lg text-white">
+<span class="material-symbols-outlined text-xl">rocket_launch</span>
+</div>
+<h1 class="text-lg font-bold tracking-tight">Onboarding <span class="text-slate-400 font-normal mx-2">/</span> Step 2</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">33% Complete</span>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-surface-dark rounded-lg text-slate-500 transition-colors">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="w-full h-1.5 bg-slate-200 dark:bg-border-dark rounded-full overflow-hidden">
+<div class="h-full bg-primary w-1/3 transition-all duration-500 ease-out shadow-[0_0_12px_rgba(236,91,19,0.4)]"></div>
+</div>
+</header>
+<!-- Checklist Body -->
+<div class="flex-1 overflow-y-auto custom-scrollbar px-8 py-10">
+<div class="max-w-2xl">
+<h2 class="text-3xl font-bold mb-2">Let's get your workspace ready</h2>
+<p class="text-slate-500 dark:text-slate-400 mb-10">Complete these core configuration tasks to unlock the full potential of your productivity suite.</p>
+<div class="space-y-3">
+<!-- Task 1: Completed -->
+<div class="group flex items-start gap-4 p-4 rounded-xl border border-slate-200 dark:border-border-dark bg-slate-50 dark:bg-surface-dark/40 opacity-70">
+<div class="mt-1 flex-shrink-0">
+<div class="bg-primary/20 text-primary rounded-full p-1 flex items-center justify-center">
+<span class="material-symbols-outlined text-base font-bold">check</span>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-semibold line-through decoration-primary/50">Connect Notion</h3>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-border-dark text-slate-500 font-bold uppercase tracking-tighter">Completed</span>
+</div>
+<p class="text-sm text-slate-400">Your databases and private pages have been successfully synced.</p>
+</div>
+<button class="text-slate-400 hover:text-primary p-1">
+<span class="material-symbols-outlined text-sm">settings</span>
+</button>
+</div>
+<!-- Task 2: Active/Pending -->
+<div class="group flex items-start gap-4 p-4 rounded-xl border-2 border-primary bg-primary/5 dark:bg-primary/10 shadow-lg shadow-primary/5 relative transition-all">
+<div class="mt-1 flex-shrink-0">
+<div class="border-2 border-primary rounded-full w-6 h-6 flex items-center justify-center">
+<div class="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+</div>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-slate-900 dark:text-white">Define Categories</h3>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-bold uppercase tracking-tighter">Required</span>
+</div>
+<p class="text-sm text-slate-600 dark:text-slate-300">Organize your workflow into distinct buckets like 'Client Work', 'Internal', and 'Personal'.</p>
+</div>
+<button class="bg-primary text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                                Start
+                            </button>
+</div>
+<!-- Task 3: Pending -->
+<div class="group flex items-start gap-4 p-4 rounded-xl border border-slate-200 dark:border-border-dark hover:border-slate-300 dark:hover:border-slate-600 transition-all bg-white dark:bg-surface-dark">
+<div class="mt-1 flex-shrink-0">
+<div class="border-2 border-slate-300 dark:border-slate-700 rounded-full w-6 h-6"></div>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-semibold">Setup OpenClaw API</h3>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase tracking-tighter">Automations</span>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400">Integrate our proprietary automation engine to handle recurring scheduling tasks.</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-primary text-sm font-bold px-3 py-1 border border-primary/50 rounded hover:bg-primary/10">Configure</button>
+</div>
+</div>
+<!-- Task 4: Pending -->
+<div class="group flex items-start gap-4 p-4 rounded-xl border border-slate-200 dark:border-border-dark hover:border-slate-300 dark:hover:border-slate-600 transition-all bg-white dark:bg-surface-dark">
+<div class="mt-1 flex-shrink-0">
+<div class="border-2 border-slate-300 dark:border-slate-700 rounded-full w-6 h-6"></div>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-semibold">Link your first task to Pomodoro</h3>
+</div>
+<p class="text-sm text-slate-500 dark:text-slate-400">Connect a specific Notion item to the deep-work timer to track focused hours.</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-primary text-sm font-bold px-3 py-1 border border-primary/50 rounded hover:bg-primary/10">Link</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Footer -->
+<footer class="border-t border-slate-200 dark:border-border-dark px-8 py-6 flex items-center justify-between bg-white/50 dark:bg-background-dark/50 backdrop-blur-md">
+<button class="text-slate-500 hover:text-slate-800 dark:hover:text-white text-sm font-semibold transition-colors">
+                    Skip for now
+                </button>
+<div class="flex gap-3">
+<button class="bg-primary text-white px-8 py-2.5 rounded-lg font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                        Continue
+                    </button>
+</div>
+</footer>
+</main>
+<!-- Workspace Preview Sidebar -->
+<aside class="hidden lg:flex w-96 flex-col bg-slate-100 dark:bg-surface-dark border-l border-slate-200 dark:border-border-dark overflow-hidden">
+<div class="p-6">
+<div class="flex items-center justify-between mb-8">
+<h2 class="text-xs font-bold uppercase tracking-widest text-slate-500">Live Preview</h2>
+<div class="flex gap-1">
+<div class="w-2.5 h-2.5 rounded-full bg-red-400/30"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-yellow-400/30"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-green-400/30"></div>
+</div>
+</div>
+<!-- Mock UI Skeleton -->
+<div class="bg-white dark:bg-background-dark rounded-xl border border-slate-200 dark:border-border-dark shadow-2xl h-[600px] flex overflow-hidden">
+<!-- Mini Side Nav -->
+<div class="w-12 border-r border-slate-200 dark:border-border-dark flex flex-col items-center py-4 gap-4 bg-slate-50 dark:bg-surface-dark">
+<div class="w-7 h-7 bg-primary rounded-lg"></div>
+<span class="material-symbols-outlined text-slate-400 text-lg">grid_view</span>
+<span class="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
+<span class="material-symbols-outlined text-primary text-lg">check_circle</span>
+<span class="material-symbols-outlined text-slate-400 text-lg">monitoring</span>
+</div>
+<!-- Sidebar content -->
+<div class="flex-1 flex flex-col">
+<div class="p-4 border-b border-slate-200 dark:border-border-dark">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-4 h-4 rounded-full bg-indigo-500"></div>
+<span class="text-xs font-bold">Workspace Preview</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Folders</span>
+<span class="material-symbols-outlined text-[10px] text-slate-400">add</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-2 p-1.5 rounded bg-slate-100 dark:bg-surface-dark">
+<span class="material-symbols-outlined text-xs text-slate-400">folder</span>
+<span class="text-[11px] font-medium">Marketing</span>
+</div>
+<div class="flex items-center gap-2 p-1.5 rounded">
+<span class="material-symbols-outlined text-xs text-slate-400">folder</span>
+<span class="text-[11px] font-medium text-slate-400">Product Dev</span>
+</div>
+</div>
+</div>
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Lists</span>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-2 p-1.5 rounded bg-primary/10 border border-primary/20">
+<span class="material-symbols-outlined text-xs text-primary">list</span>
+<span class="text-[11px] font-medium text-primary">Daily Sprint</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Live Feed/Task Area Preview -->
+<div class="flex-1 p-4 bg-slate-50/50 dark:bg-background-dark/50">
+<div class="flex items-center justify-between mb-4">
+<div class="h-3 w-20 bg-slate-200 dark:bg-border-dark rounded"></div>
+<div class="h-3 w-10 bg-slate-200 dark:bg-border-dark rounded"></div>
+</div>
+<div class="space-y-2">
+<div class="h-10 w-full border border-slate-100 dark:border-border-dark bg-white dark:bg-surface-dark rounded shadow-sm"></div>
+<div class="h-10 w-full border border-slate-100 dark:border-border-dark bg-white dark:bg-surface-dark rounded shadow-sm"></div>
+<div class="h-10 w-full border border-slate-100 dark:border-border-dark bg-white dark:bg-surface-dark rounded shadow-sm"></div>
+</div>
+<!-- Floating Pomodoro Preview -->
+<div class="mt-8 p-3 rounded-xl bg-primary text-white shadow-xl shadow-primary/20 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="text-[9px] font-bold uppercase tracking-tighter opacity-70">Focus Timer</span>
+<span class="text-xl font-bold tabular-nums leading-none">25:00</span>
+</div>
+<div class="bg-white/20 p-1.5 rounded-lg">
+<span class="material-symbols-outlined text-lg">play_arrow</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8 p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/30 dark:bg-surface-dark/30">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary">auto_fix</span>
+<p class="text-xs font-bold">Dynamic Preview</p>
+</div>
+<p class="text-[11px] text-slate-500 leading-relaxed">As you complete the checklist, your workspace on the left will populate with your real-time configurations.</p>
+</div>
+</div>
+</aside>
+</div>
+</body></html>

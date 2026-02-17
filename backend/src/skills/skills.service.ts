@@ -1,0 +1,331 @@
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import { SupabaseService } from '../supabase/supabase.service';
+import { SupabaseAdminService } from '../supabase/supabase-admin.service';
+import { CreateSkillDto } from './dto/create-skill.dto';
+import { UpdateSkillDto } from './dto/update-skill.dto';
+
+@Injectable()
+export class SkillsService {
+  private readonly logger = new Logger(SkillsService.name);
+
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly supabaseAdmin: SupabaseAdminService,
+  ) {}
+
+  /**
+   * List all skills for an account (optionally filter by active status)
+   */
+  async findAll(accessToken: string, accountId: string, activeOnly?: boolean) {
+    try {
+      const client = this.supabaseAdmin.getClient();
+      let query = client
+        .from('skills')
+        .select('*')
+        .eq('account_id', accountId)
+        .order('name', { ascending: true });
+
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        this.logger.error(`Failed to fetch skills: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      return data || [];
+    } catch (error) {
+      this.logger.error('Error fetching skills:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a single skill by ID
+   */
+  async findOne(accessToken: string, accountId: string, id: string) {
+    try {
+      const client = this.supabaseAdmin.getClient();
+      const { data, error } = await client
+        .from('skills')
+        .select('*')
+        .eq('id', id)
+        .eq('account_id', accountId)
+        .single();
+
+      if (error || !data) {
+        throw new NotFoundException('Skill not found');
+      }
+
+      return data;
+    } catch (error) {
+      this.logger.error('Error fetching skill:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get skills by multiple IDs (for chat skill selection)
+   */
+  async findByIds(accessToken: string, accountId: string, skillIds: string[]) {
+    try {
+      if (!skillIds || skillIds.length === 0) {
+        return [];
+      }
+
+      const client = this.supabaseAdmin.getClient();
+      const { data, error } = await client
+        .from('skills')
+        .select('*')
+        .eq('account_id', accountId)
+        .in('id', skillIds)
+        .eq('is_active', true);
+
+      if (error) {
+        this.logger.error(`Failed to fetch skills by IDs: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      return data || [];
+    } catch (error) {
+      this.logger.error('Error fetching skills by IDs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get default skills for a category
+   */
+  async findDefaultForCategory(accessToken: string, accountId: string, categoryId: string) {
+    try {
+      const client = this.supabaseAdmin.getClient();
+
+      // Join category_skills with skills
+      const { data, error } = await client
+        .from('category_skills')
+        .select(
+          `
+          skill_id,
+          skills (
+            id,
+            account_id,
+            name,
+            description,
+            instructions,
+            is_active
+          )
+        `,
+        )
+        .eq('category_id', categoryId);
+
+      if (error) {
+        this.logger.error(`Failed to fetch category skills: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      // Filter and flatten
+      const skills = (data || [])
+        .map((cs: any) => cs.skills)
+        .filter((skill: any) => skill && skill.is_active && skill.account_id === accountId);
+
+      return skills;
+    } catch (error) {
+      this.logger.error('Error fetching category skills:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new skill
+   */
+  async create(accessToken: string, accountId: string, userId: string, createDto: CreateSkillDto) {
+    try {
+      const client = this.supabaseAdmin.getClient();
+
+      // Check for duplicate name
+      const { data: existing } = await client
+        .from('skills')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('name', createDto.name)
+        .single();
+
+      if (existing) {
+        throw new ConflictException(`Skill with name "${createDto.name}" already exists`);
+      }
+
+      const { data, error } = await client
+        .from('skills')
+        .insert([
+          {
+            account_id: accountId,
+            created_by: userId,
+            name: createDto.name,
+            description: createDto.description || '',
+            instructions: createDto.instructions,
+            is_active: createDto.is_active !== undefined ? createDto.is_active : true,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        this.logger.error(`Failed to create skill: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error) {
+      this.logger.error('Error creating skill:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a skill
+   */
+  async update(accessToken: string, accountId: string, id: string, updateDto: UpdateSkillDto) {
+    try {
+      // Check skill exists
+      await this.findOne(accessToken, accountId, id);
+
+      // Check for duplicate name if changing name
+      if (updateDto.name) {
+        const client = this.supabaseAdmin.getClient();
+        const { data: existing } = await client
+          .from('skills')
+          .select('id')
+          .eq('account_id', accountId)
+          .eq('name', updateDto.name)
+          .neq('id', id)
+          .single();
+
+        if (existing) {
+          throw new ConflictException(`Skill with name "${updateDto.name}" already exists`);
+        }
+      }
+
+      const client = this.supabaseAdmin.getClient();
+      const { data, error } = await client
+        .from('skills')
+        .update({
+          ...(updateDto.name !== undefined && { name: updateDto.name }),
+          ...(updateDto.description !== undefined && { description: updateDto.description }),
+          ...(updateDto.instructions !== undefined && { instructions: updateDto.instructions }),
+          ...(updateDto.is_active !== undefined && { is_active: updateDto.is_active }),
+        })
+        .eq('id', id)
+        .eq('account_id', accountId)
+        .select()
+        .single();
+
+      if (error) {
+        this.logger.error(`Failed to update skill: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error) {
+      this.logger.error('Error updating skill:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Link a skill to a category (default skill)
+   */
+  async linkToCategory(accessToken: string, accountId: string, skillId: string, categoryId: string) {
+    try {
+      // Verify skill and category belong to account
+      await this.findOne(accessToken, accountId, skillId);
+
+      const client = this.supabaseAdmin.getClient();
+
+      // Verify category exists and belongs to account
+      const { data: category } = await client
+        .from('categories')
+        .select('id')
+        .eq('id', categoryId)
+        .eq('account_id', accountId)
+        .single();
+
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      // Insert association
+      const { data, error } = await client
+        .from('category_skills')
+        .insert([{ category_id: categoryId, skill_id: skillId }])
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') {
+          // Unique violation
+          throw new ConflictException('Skill already linked to this category');
+        }
+        this.logger.error(`Failed to link skill to category: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error) {
+      this.logger.error('Error linking skill to category:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Unlink a skill from a category
+   */
+  async unlinkFromCategory(accessToken: string, accountId: string, skillId: string, categoryId: string) {
+    try {
+      // Verify ownership
+      await this.findOne(accessToken, accountId, skillId);
+
+      const client = this.supabaseAdmin.getClient();
+      const { error } = await client
+        .from('category_skills')
+        .delete()
+        .eq('category_id', categoryId)
+        .eq('skill_id', skillId);
+
+      if (error) {
+        this.logger.error(`Failed to unlink skill from category: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      return { message: 'Skill unlinked from category successfully' };
+    } catch (error) {
+      this.logger.error('Error unlinking skill from category:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a skill
+   */
+  async remove(accessToken: string, accountId: string, id: string) {
+    try {
+      // Check skill exists
+      await this.findOne(accessToken, accountId, id);
+
+      const client = this.supabaseAdmin.getClient();
+      const { error } = await client.from('skills').delete().eq('id', id).eq('account_id', accountId);
+
+      if (error) {
+        this.logger.error(`Failed to delete skill: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      return { message: 'Skill deleted successfully' };
+    } catch (error) {
+      this.logger.error('Error deleting skill:', error);
+      throw error;
+    }
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "subscriptionTabSubheading": "サブスクリプションと請求を管理する",
+  "planCardTitle": "あなたの計画",
+  "planCardDescription": "現在のプランの詳細は以下のとおりです。",
+  "planRenewal": "ごとに更新します {{interval}} で {{price}}",
+  "planDetails": "プラン詳細",
+  "checkout": "チェックアウトに進む",
+  "trialEndsOn": "トライアルは次の日に終了します",
+  "billingPortalCardButton": "請求ポータルにアクセスする",
+  "billingPortalCardTitle": "請求の詳細を管理する",
+  "billingPortalCardDescription": "請求ポータルにアクセスして、サブスクリプションと請求を管理します。",
+  "cancelAtPeriodEndDescription": "あなたのサブスクリプションは次の日にキャンセルされる予定です {{- endDate }}。",
+  "renewAtPeriodEndDescription": "サブスクリプションは次の日に更新される予定です {{- endDate }}",
+  "noPermissionsAlertHeading": "請求設定を変更する権限がありません",
+  "noPermissionsAlertBody": "アカウントの請求設定を変更するには、アカウント所有者に連絡してください。",
+  "checkoutSuccessTitle": "終わり！",
+  "checkoutSuccessDescription": "ご購読いただきありがとうございます。購読が正常に処理されました。 {{ customerEmail }}。",
+  "checkoutSuccessBackButton": "アプリに進む",
+  "cannotManageBillingAlertTitle": "請求を管理できない",
+  "cannotManageBillingAlertDescription": "請求を管理する権限がありません。",
+  "manageTeamPlan": "チームプランを管理する",
+  "manageTeamPlanDescription": "チームのニーズに合ったプランをお選びください。",
+  "basePlan": "基本プラン",
+  "billingInterval": {
+    "label": "請求間隔を選択してください",
+    "month": "毎月請求される",
+    "year": "毎年請求される"
+  },
+  "perMonth": "毎月",
+  "custom": "カスタム",
+  "lifetime": "一生",
+  "trialPeriod": "{{period}} 一日トライアル",
+  "perPeriod": "当たり {{period}}",
+  "processing": "処理...",
+  "proceedToPayment": "支払いに進む",
+  "startTrial": "トライアルを開始する",
+  "perTeamMember": "チームメンバーごとに",
+  "perUnit": "あたり {{unit}} 使用法",
+  "teamMembers": "チームメンバー",
+  "includedUpTo": "まで {{upTo}} {{unit}} プランに含まれている",
+  "fromPreviousTierUpTo": "それぞれに {{unit}} 次のために {{ upTo }} {{ unit }}",
+  "andAbove": "その上 {{ previousTier }} {{ unit }}",
+  "setupFee": "プラス {{ setupFee }} セットアップ料金",
+  "perUnitIncluded": "({{included}} 含まれています）",
+  "featuresLabel": "特徴",
+  "detailsLabel": "詳細",
+  "planPickerLabel": "お好みのプランをお選びください",
+  "planCardLabel": "プランを管理する",
+  "planPickerAlertErrorTitle": "チェックアウト要求エラー",
+  "planPickerAlertErrorDescription": "チェックアウト要求中にエラーが発生しました。",
+  "subscriptionCancelled": "サブスクリプションがキャンセルされました",
+  "cancelSubscriptionDate": "期間が終了するとサブスクリプションはキャンセルされます",
+  "status": {
+    "free": {
+      "badge": "無料プラン",
+      "heading": "現在無料プランをご利用中です",
+      "description": "無料プランをご利用中です。"
+    },
+    "active": {
+      "badge": "アクティブ",
+      "heading": "サブスクリプションは有効です",
+      "description": "サブスクリプションは有効です。"
+    },
+    "trialing": {
+      "badge": "トライアル",
+      "heading": "あなたは裁判中です",
+      "description": "トライアルは次の日に終了します {{- trialEndDate }}。"
+    },
+    "past_due": {
+      "badge": "延滞",
+      "heading": "請求書の期限が過ぎています",
+      "description": "請求書の期限が過ぎています。"
+    },
+    "canceled": {
+      "badge": "キャンセル",
+      "heading": "サブスクリプションがキャンセルされました",
+      "description": "サブスクリプションがキャンセルされました。"
+    },
+    "unpaid": {
+      "badge": "未払い",
+      "heading": "請求書は未払いです",
+      "description": "請求書は未払いです。"
+    },
+    "incomplete": {
+      "badge": "不完全な",
+      "heading": "お支払いをお待ちしております",
+      "description": "お支払いが完了するのを待っています。"
+    },
+    "incomplete_expired": {
+      "badge": "期限切れ",
+      "heading": "お支払い期限が切れました",
+      "description": "お支払いの有効期限が切れました。"
+    },
+    "paused": {
+      "badge": "一時停止中",
+      "heading": "サブスクリプションは一時停止されています",
+      "description": "サブスクリプションは一時停止されています。"
+    },
+    "succeeded": {
+      "badge": "成功しました",
+      "heading": "お支払いは正常に完了しました",
+      "description": "お支払いは正常に完了しました。"
+    },
+    "pending": {
+      "badge": "保留中",
+      "heading": "お支払いは保留中です",
+      "description": "お支払いは保留中です。"
+    },
+    "failed": {
+      "badge": "失敗した",
+      "heading": "お支払いに失敗しました",
+      "description": "お支払いに失敗しました。"
+    }
+  },
+  "plans": {
+    "features": {
+      "fileStorage": "ファイルストレージ",
+      "maxTasks": "最大10個のタスク",
+      "chatSupport": "チャットサポート"
+    },
+    "starter": {
+      "name": "スターター",
+      "description": "始めたばかりの小規模チーム向け",
+      "badge": "価値",
+      "base": "ベース",
+      "features": {
+        "maxTokens": "最大 500,000 トークン"
+      }
+    },
+    "pro": {
+      "name": "プロ",
+      "description": "成長するチームのために",
+      "badge": "人気のある",
+      "base": "ベース",
+      "features": {
+        "maxTokens": "最大 300 万トークン"
+      }
+    },
+    "enterprise": {
+      "name": "企業",
+      "description": "大規模なチームや組織向け",
+      "badge": "カスタム",
+      "base": "ベース",
+      "features": {
+        "maxTokens": "無制限のトークン",
+        "chatSupport": "優先サポート"
+      }
+    }
+  }
+}

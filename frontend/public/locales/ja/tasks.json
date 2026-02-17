@@ -1,0 +1,23 @@
+{
+  "tasksTabLabel": "タスク",
+  "tasksTabDescription": "完了する必要があるタスクのリスト。",
+  "searchTasks": "タスクの検索",
+  "noTasksFound": "検索クエリに対するタスクが見つかりませんでした。」{{query}}」",
+  "clearSearch": "検索をクリア",
+  "addNewTask": "新しいタスクを追加する",
+  "addNewTaskDescription": "新しいタスクを追加するには、以下のフォームに記入してください",
+  "addTask": "タスクの追加",
+  "addingTask": "タスクを追加しています...",
+  "taskTitle": "タスク",
+  "taskTitleDescription": "タスクの名前を入力してください",
+  "taskDescription": "タスクの説明",
+  "taskDescriptionDescription": "タスクの説明を入力してください",
+  "updatingTask": "タスクを更新しています...",
+  "updateTask": "更新タスク",
+  "task": "タスク",
+  "createdAt": "で作成されました",
+  "updatedAt": "更新日時",
+  "deleteTask": "タスクの削除",
+  "deletingTask": "タスクを削除しています...",
+  "deleteTaskConfirmation": "このタスクを削除してもよろしいですか?"
+}

@@ -1,0 +1,23 @@
+{
+  "tasksTabLabel": "Tâches",
+  "tasksTabDescription": "Une liste de tâches à accomplir.",
+  "searchTasks": "Tâches de recherche",
+  "noTasksFound": "Aucune tâche trouvée pour la requête de recherche \"{{query}}\"",
+  "clearSearch": "Effacer la recherche",
+  "addNewTask": "Ajouter une nouvelle tâche",
+  "addNewTaskDescription": "Remplissez le formulaire ci-dessous pour ajouter une nouvelle tâche",
+  "addTask": "Ajouter une tâche",
+  "addingTask": "Ajout d'une tâche...",
+  "taskTitle": "Tâche",
+  "taskTitleDescription": "Entrez un nom pour votre tâche",
+  "taskDescription": "Description de la tâche",
+  "taskDescriptionDescription": "Entrez une description pour votre tâche",
+  "updatingTask": "Tâche de mise à jour...",
+  "updateTask": "Tâche de mise à jour",
+  "task": "Tâche",
+  "createdAt": "Créé à",
+  "updatedAt": "Mis à jour à",
+  "deleteTask": "Supprimer la tâche",
+  "deletingTask": "Suppression de la tâche...",
+  "deleteTaskConfirmation": "Êtes-vous sûr de vouloir supprimer cette tâche ?"
+}

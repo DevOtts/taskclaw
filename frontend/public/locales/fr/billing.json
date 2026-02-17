@@ -1,0 +1,150 @@
+{
+  "subscriptionTabSubheading": "Gérez votre abonnement et votre facturation",
+  "planCardTitle": "Votre plan",
+  "planCardDescription": "Vous trouverez ci-dessous les détails de votre forfait actuel. ",
+  "planRenewal": "Se renouvelle tous les {{interval}} à {{price}}",
+  "planDetails": "Détails du forfait",
+  "checkout": "Passer à la caisse",
+  "trialEndsOn": "Votre essai se termine le",
+  "billingPortalCardButton": "Visitez le portail de facturation",
+  "billingPortalCardTitle": "Gérez vos détails de facturation",
+  "billingPortalCardDescription": "Visitez votre portail de facturation pour gérer votre abonnement et votre facturation. ",
+  "cancelAtPeriodEndDescription": "Votre abonnement devrait être annulé le {{- endDate }}.",
+  "renewAtPeriodEndDescription": "Votre abonnement devrait être renouvelé le {{- endDate }}",
+  "noPermissionsAlertHeading": "Vous n'êtes pas autorisé à modifier les paramètres de facturation",
+  "noPermissionsAlertBody": "Veuillez contacter le propriétaire de votre compte pour modifier les paramètres de facturation de votre compte.",
+  "checkoutSuccessTitle": "Fait! ",
+  "checkoutSuccessDescription": "Merci pour votre abonnement, nous avons traité avec succès votre abonnement !  {{ customerEmail }}.",
+  "checkoutSuccessBackButton": "Passer à l'application",
+  "cannotManageBillingAlertTitle": "Vous ne pouvez pas gérer la facturation",
+  "cannotManageBillingAlertDescription": "Vous n'avez pas les autorisations nécessaires pour gérer la facturation. ",
+  "manageTeamPlan": "Gérez votre forfait d'équipe",
+  "manageTeamPlanDescription": "Choisissez un plan qui répond aux besoins de votre équipe. ",
+  "basePlan": "Forfait de base",
+  "billingInterval": {
+    "label": "Choisissez votre intervalle de facturation",
+    "month": "Facturé mensuellement",
+    "year": "Facturé annuellement"
+  },
+  "perMonth": "par mois",
+  "custom": "Coutume",
+  "lifetime": "Durée de vie",
+  "trialPeriod": "{{period}} journée d'essai",
+  "perPeriod": "par {{period}}",
+  "processing": "Traitement...",
+  "proceedToPayment": "Procéder au paiement",
+  "startTrial": "Commencer procès",
+  "perTeamMember": "Par membre de l'équipe",
+  "perUnit": "Par {{unit}} usage",
+  "teamMembers": "Membres de l'équipe",
+  "includedUpTo": "Jusqu'à {{upTo}} {{unit}} inclus dans le plan",
+  "fromPreviousTierUpTo": "pour chaque {{unit}} pour le prochain {{ upTo }} {{ unit }}",
+  "andAbove": "au-dessus de {{ previousTier }} {{ unit }}",
+  "setupFee": "plus un {{ setupFee }} frais d'installation",
+  "perUnitIncluded": "({{included}} inclus)",
+  "featuresLabel": "Caractéristiques",
+  "detailsLabel": "Détails",
+  "planPickerLabel": "Choisissez votre forfait préféré",
+  "planCardLabel": "Gérez votre forfait",
+  "planPickerAlertErrorTitle": "Erreur lors de la demande de paiement",
+  "planPickerAlertErrorDescription": "Une erreur s'est produite lors de la demande de paiement. ",
+  "subscriptionCancelled": "Abonnement annulé",
+  "cancelSubscriptionDate": "Votre abonnement sera résilié à la fin de la période",
+  "status": {
+    "free": {
+      "badge": "Forfait gratuit",
+      "heading": "Vous êtes actuellement sur le forfait gratuit",
+      "description": "Vous bénéficiez d'un forfait gratuit. "
+    },
+    "active": {
+      "badge": "Actif",
+      "heading": "Votre abonnement est actif",
+      "description": "Votre abonnement est actif. "
+    },
+    "trialing": {
+      "badge": "Procès",
+      "heading": "Tu es à l'essai",
+      "description": "Votre essai se terminera le {{- trialEndDate }}."
+    },
+    "past_due": {
+      "badge": "En souffrance",
+      "heading": "Votre facture est en souffrance",
+      "description": "Votre facture est en souffrance. "
+    },
+    "canceled": {
+      "badge": "Annulé",
+      "heading": "Votre abonnement est annulé",
+      "description": "Votre abonnement est annulé. "
+    },
+    "unpaid": {
+      "badge": "Non payé",
+      "heading": "Votre facture est impayée",
+      "description": "Votre facture est impayée. "
+    },
+    "incomplete": {
+      "badge": "Incomplet",
+      "heading": "Nous attendons votre paiement",
+      "description": "Nous attendons que votre paiement soit effectué. "
+    },
+    "incomplete_expired": {
+      "badge": "Expiré",
+      "heading": "Votre paiement a expiré",
+      "description": "Votre paiement a expiré. "
+    },
+    "paused": {
+      "badge": "En pause",
+      "heading": "Votre abonnement est suspendu",
+      "description": "Votre abonnement est suspendu. "
+    },
+    "succeeded": {
+      "badge": "Réussi",
+      "heading": "Votre paiement a réussi",
+      "description": "Votre paiement a réussi. "
+    },
+    "pending": {
+      "badge": "En attente",
+      "heading": "Votre paiement est en attente",
+      "description": "Votre paiement est en attente. "
+    },
+    "failed": {
+      "badge": "Échoué",
+      "heading": "Votre paiement a échoué",
+      "description": "Votre paiement a échoué. "
+    }
+  },
+  "plans": {
+    "features": {
+      "fileStorage": "Stockage de fichiers",
+      "maxTasks": "Jusqu'à 10 tâches",
+      "chatSupport": "Assistance par chat"
+    },
+    "starter": {
+      "name": "Entrée",
+      "description": "Pour les petites équipes qui débutent",
+      "badge": "Valeur",
+      "base": "Base",
+      "features": {
+        "maxTokens": "Jusqu'à 500k jetons"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "description": "Pour les équipes en pleine croissance",
+      "badge": "Populaire",
+      "base": "Base",
+      "features": {
+        "maxTokens": "Jusqu'à 3M jetons"
+      }
+    },
+    "enterprise": {
+      "name": "Entreprise",
+      "description": "Pour les grandes équipes et organisations",
+      "badge": "Coutume",
+      "base": "Base",
+      "features": {
+        "maxTokens": "Jetons illimitées",
+        "chatSupport": "Assistance prioritaire"
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TaskClaw Onboarding - Step 1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec5b13",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#221610",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .magic-grid {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(236, 91, 19, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(236, 91, 19, 0.05) 1px, transparent 1px);
+        }
+        .radial-fade {
+            background: radial-gradient(circle at center, transparent 0%, #221610 80%);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col items-center justify-center overflow-hidden relative">
+<!-- Background Magic UI Grid -->
+<div class="absolute inset-0 magic-grid z-0"></div>
+<div class="absolute inset-0 radial-fade z-10"></div>
+<!-- Main Content Container -->
+<main class="relative z-20 w-full max-w-[540px] px-6">
+<!-- Header Logo Area -->
+<div class="flex items-center justify-center gap-3 mb-12">
+<div class="bg-primary p-2 rounded-lg text-white">
+<svg class="size-6" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-2xl font-bold tracking-tight text-white">TaskClaw</h2>
+</div>
+<!-- Central Onboarding Card -->
+<div class="bg-white/5 dark:bg-[#2d1e16] border border-white/10 backdrop-blur-xl rounded-xl p-8 md:p-12 shadow-2xl flex flex-col items-center text-center">
+<div class="mb-6">
+<div class="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-6 mx-auto">
+<span class="material-symbols-outlined text-primary text-4xl">rocket_launch</span>
+</div>
+<h1 class="text-3xl font-bold text-white mb-4 tracking-tight">Welcome to TaskClaw</h1>
+<p class="text-slate-400 text-base leading-relaxed max-w-sm mx-auto">
+                    Let's get your workspace synced. Connect your tools to start automating your workflow in seconds.
+                </p>
+</div>
+<!-- Integration Actions -->
+<div class="w-full space-y-4 mt-4">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-3 shadow-lg shadow-primary/20 group">
+<svg class="size-6 fill-white" role="img" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.459 4.208c-.739 0-1.317.579-1.317 1.317v12.943c0 .738.578 1.317 1.317 1.317h15.084c.738 0 1.317-.579 1.317-1.317V5.525c0-.738-.579-1.317-1.317-1.317H4.459zm1.036 1.83h1.873v11.113H5.495V6.038zm3.321 0h1.874v1.874H8.816V6.038zm0 2.508h1.874v8.605H8.816V8.546zm3.322-2.508h1.873v1.874h-1.873V6.038zm0 2.508h1.873v8.605h-1.873V8.546zm3.322-2.508h1.873v1.874h-1.873V6.038zm0 2.508h1.873v8.605h-1.873V8.546z"></path>
+</svg>
+                    Connect Notion
+                    <span class="material-symbols-outlined text-xl transition-transform group-hover:translate-x-1">arrow_forward</span>
+</button>
+<button class="w-full bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 font-medium py-4 px-6 rounded-lg transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-xl">settings_suggest</span>
+                    Setup Manually
+                </button>
+</div>
+<!-- Footer Meta -->
+<div class="mt-8 pt-8 border-t border-white/5 w-full flex flex-col items-center">
+<p class="text-xs text-slate-500 uppercase tracking-widest font-bold mb-4">Step 1 of 3: Workspace Integration</p>
+<div class="flex gap-2">
+<div class="h-1.5 w-12 bg-primary rounded-full"></div>
+<div class="h-1.5 w-12 bg-white/10 rounded-full"></div>
+<div class="h-1.5 w-12 bg-white/10 rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Help Link -->
+<p class="mt-8 text-center text-slate-500 text-sm">
+            Need help? <a class="text-primary hover:underline font-medium" href="#">Chat with support</a> or <a class="text-primary hover:underline font-medium" href="#">read the guide</a>.
+        </p>
+</main>
+<!-- Visual Background Element -->
+<div class="absolute bottom-10 right-10 opacity-20 pointer-events-none hidden lg:block z-20">
+<div class="relative w-64 h-64 border border-primary/30 rounded-full flex items-center justify-center">
+<div class="w-48 h-48 border border-primary/20 rounded-full flex items-center justify-center">
+<div class="w-32 h-32 border border-primary/10 rounded-full"></div>
+</div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary/40 text-6xl">all_inclusive</span>
+</div>
+</div>
+</div>
+<!-- Image for Context (Hidden but providing alt metadata) -->
+<img class="hidden" data-alt="Subtle dark geometric background pattern with orange accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXzB0jRdGBphpS2olfHpZovSNYJuBn8h1AnWKZpjPA55j6uhdlw65q5xiN27omKCXiudUbAE-2xj6w8vLd3jbsnaXqcXd2XzpvYT2eFTK8WKJjcf4YHvtU6Q-4q2w6H_rzhprPmDZ_g0lr1snUckQSgn1Z2LGbj77IpsYxfBWdjZ8KdqjFt_90drkLZpScu441WPJSstPcI_le0cEkj6bY_e0CU20nNy7xKeI-68uRnM0UVD48aJ_G_OU5RdudyXFyDTo792HkSV75"/>
+</body></html>

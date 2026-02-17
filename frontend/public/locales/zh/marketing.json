@@ -1,0 +1,23 @@
+{
+  "blog": "博客",
+  "blogSubtitle": "有关平台的新闻和更新",
+  "documentation": "文档",
+  "documentationSubtitle": "平台入门教程和指南",
+  "faq": "常问问题",
+  "faqSubtitle": "有关平台的常见问题",
+  "pricing": "价钱",
+  "pricingSubtitle": "定价计划和付款方式",
+  "backToBlog": "返回博客",
+  "noPosts": "没有找到帖子",
+  "blogPaginationNext": "下一页",
+  "blogPaginationPrevious": "上一页",
+  "readMore": "阅读更多",
+  "contactFaq": "如果您有任何疑问，请与我们联系",
+  "contact": "接触",
+  "about": "关于",
+  "product": "产品",
+  "legal": "合法的",
+  "termsOfService": "服务条款",
+  "cookiePolicy": "Cookie 政策",
+  "privacyPolicy": "隐私政策"
+}

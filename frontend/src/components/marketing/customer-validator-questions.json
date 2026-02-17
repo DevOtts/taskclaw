@@ -1,0 +1,89 @@
+{
+  "steps": [
+    { "id": 1, "title": "PROJECT", "description": "Basic requirements" },
+    { "id": 2, "title": "FEATURES", "description": "Technical needs" },
+    { "id": 3, "title": "SUMMARY", "description": "Review and submit" },
+    { "id": 4, "title": "YOUR INFO", "description": "Personal details" }
+  ],
+  "questions": [
+    {
+      "id": "product_type",
+      "text": "What type of product are you looking to build?",
+      "type": "radio",
+      "step": 1,
+      "required": true,
+      "options": [
+        { "value": "mobile_app", "label": "Mobile App" },
+        { "value": "web_app", "label": "Web Application" },
+        { "value": "saas", "label": "SaaS Product" },
+        { "value": "other", "label": "Other" }
+      ]
+    },
+    {
+      "id": "timeline",
+      "text": "When do you need this project completed?",
+      "type": "radio",
+      "step": 1,
+      "required": true,
+      "options": [
+        { "value": "1month", "label": "Within 1 month" },
+        { "value": "3months", "label": "Within 3 months" },
+        { "value": "6months", "label": "Within 6 months" },
+        { "value": "flexible", "label": "Timeline is flexible" }
+      ]
+    },
+    {
+      "id": "budget",
+      "text": "What's your approximate budget for this project?",
+      "type": "radio",
+      "step": 1,
+      "required": true,
+      "options": [
+        { "value": "under5k", "label": "Under $5,000" },
+        { "value": "5k-10k", "label": "$5,000 - $10,000" },
+        { "value": "10k-25k", "label": "$10,000 - $25,000" },
+        { "value": "25k-50k", "label": "$25,000 - $50,000" },
+        { "value": "over50k", "label": "Over $50,000" }
+      ]
+    },
+    {
+      "id": "features",
+      "text": "Which features are most important to you? (Select all that apply)",
+      "type": "checkbox",
+      "step": 2,
+      "required": true,
+      "options": [
+        { "value": "auth", "label": "User authentication" },
+        { "value": "payments", "label": "Payment processing" },
+        { "value": "dashboard", "label": "Admin dashboard" },
+        { "value": "notifications", "label": "Notifications system" },
+        { "value": "analytics", "label": "Analytics & reporting" },
+        { "value": "api", "label": "API integration" }
+      ]
+    },
+    {
+      "id": "description",
+      "text": "Please describe your project in a few sentences.",
+      "type": "textarea",
+      "step": 2,
+      "required": false,
+      "placeholder": "Tell us about your goals and requirements..."
+    },
+    {
+      "id": "product_description",
+      "text": "Please describe your product idea in more detail:",
+      "type": "textarea",
+      "step": 2,
+      "required": true,
+      "placeholder": "Tell us about your product idea, target audience, and any specific requirements..."
+    },
+    {
+      "id": "company_website",
+      "text": "Do you have an existing company website?",
+      "type": "text",
+      "step": 3,
+      "required": false,
+      "placeholder": "e.g., https://example.com (leave blank if none)"
+    }
+  ]
+} 
