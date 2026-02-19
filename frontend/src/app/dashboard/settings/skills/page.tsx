@@ -3,10 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   getSkills, createSkill, updateSkill, deleteSkill,
-  linkSkillToCategory, unlinkSkillFromCategory,
+  getCategorySkillsMap, linkSkillToCategory, unlinkSkillFromCategory,
 } from './actions';
 import { getCategories } from '../categories/actions';
-import { getAgentSyncStatus, type SyncStatusDetail } from '../agent-sync/actions';
 import { Plus, Edit, Trash2, Save, X, Power, PowerOff, Tag, Link2 } from 'lucide-react';
 
 interface Skill {
@@ -35,7 +34,6 @@ export default function SkillsPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [skillCategoryMap, setSkillCategoryMap] = useState<Map<string, string[]>>(new Map());
-  const [syncDetails, setSyncDetails] = useState<Map<string, SyncStatusDetail>>(new Map());
   const [loading, setLoading] = useState(true);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -50,48 +48,23 @@ export default function SkillsPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [skillsData, catsData, syncData] = await Promise.all([
+      const [skillsData, catsData, catSkillsMap] = await Promise.all([
         getSkills(),
         getCategories(),
-        getAgentSyncStatus(),
+        getCategorySkillsMap(),
       ]);
       setSkills(skillsData || []);
       setCategories(catsData || []);
 
-      // Build sync details map
-      if (syncData?.details) {
-        const map = new Map<string, SyncStatusDetail>();
-        for (const d of syncData.details) {
-          map.set(d.category_id, d);
-        }
-        setSyncDetails(map);
-      }
-
-      // Build skill -> categories map from sync data
-      // We can infer from skill_ids_snapshot in sync details
+      // Build skill -> categories map (reverse of category -> skills)
       const scMap = new Map<string, string[]>();
-      if (syncData?.details) {
-        for (const d of syncData.details) {
-          // The sync status includes skill_count but not individual IDs in the status response.
-          // We'll build this from the category_skills endpoint instead.
-        }
-      }
-
-      // Fetch linked categories for each skill by checking category_skills
-      // We use the findDefaultForCategory endpoint in reverse - check each category
-      const { getSkillsForCategory } = await import('./actions');
-      for (const cat of (catsData || [])) {
-        try {
-          const catSkills = await getSkillsForCategory(cat.id);
-          for (const skill of (catSkills || [])) {
-            const existing = scMap.get(skill.id) || [];
-            if (!existing.includes(cat.id)) {
-              existing.push(cat.id);
-            }
-            scMap.set(skill.id, existing);
+      for (const [catId, skills] of Object.entries(catSkillsMap || {})) {
+        for (const skill of skills) {
+          const existing = scMap.get(skill.id) || [];
+          if (!existing.includes(catId)) {
+            existing.push(catId);
           }
-        } catch {
-          // Category may have no skills
+          scMap.set(skill.id, existing);
         }
       }
       setSkillCategoryMap(scMap);

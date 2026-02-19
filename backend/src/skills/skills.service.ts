@@ -100,6 +100,53 @@ export class SkillsService {
   }
 
   /**
+   * Get all category-skill mappings for an account in one query.
+   * Returns { [categoryId]: Skill[] }
+   */
+  async getCategorySkillsMap(accessToken: string, accountId: string) {
+    try {
+      const client = this.supabaseAdmin.getClient();
+
+      const { data, error } = await client
+        .from('category_skills')
+        .select(
+          `
+          category_id,
+          skills (
+            id,
+            account_id,
+            name,
+            description,
+            is_active
+          )
+        `,
+        );
+
+      if (error) {
+        this.logger.error(`Failed to fetch category skills map: ${error.message}`);
+        throw new Error(error.message);
+      }
+
+      const map: Record<string, any[]> = {};
+      for (const row of data || []) {
+        const skill = (row as any).skills;
+        if (!skill || !skill.is_active || skill.account_id !== accountId) continue;
+        if (!map[row.category_id]) map[row.category_id] = [];
+        map[row.category_id].push({
+          id: skill.id,
+          name: skill.name,
+          description: skill.description,
+          is_active: skill.is_active,
+        });
+      }
+      return map;
+    } catch (error) {
+      this.logger.error('Error fetching category skills map:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get default skills for a category
    */
   async findDefaultForCategory(accessToken: string, accountId: string, categoryId: string) {

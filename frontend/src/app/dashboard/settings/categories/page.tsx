@@ -39,7 +39,7 @@ import {
     getCategories, createCategory, updateCategory, deleteCategory,
     getSources, updateSource, getSourceProperties,
 } from './actions'
-import { getSkills, getSkillsForCategory, linkSkillToCategory, unlinkSkillFromCategory } from '../skills/actions'
+import { getSkills, getSkillsForCategory, getCategorySkillsMap, linkSkillToCategory, unlinkSkillFromCategory } from '../skills/actions'
 import { getAgentSyncStatus, triggerSync, type SyncStatusDetail } from '../agent-sync/actions'
 import { getKnowledgeDocs } from '../../knowledge/actions'
 
@@ -182,70 +182,92 @@ export default function CategoriesPage() {
     const [editingCategory, setEditingCategory] = useState<Category | null>(null)
     const [filterSourceId, setFilterSourceId] = useState<string | null>(null)
     const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+    // Background-loaded data (non-blocking)
     const [syncDetails, setSyncDetails] = useState<Map<string, SyncStatusDetail>>(new Map())
     const [categorySkills, setCategorySkills] = useState<Map<string, Skill[]>>(new Map())
+
+    // Edit dialog lazy-loaded data
+    const [editLoading, setEditLoading] = useState(false)
     const [allSkills, setAllSkills] = useState<Skill[]>([])
     const [allKnowledgeDocs, setAllKnowledgeDocs] = useState<KnowledgeDoc[]>([])
+    const [editCategorySkills, setEditCategorySkills] = useState<Skill[]>([])
+
     const [linkingCategory, setLinkingCategory] = useState<string | null>(null)
     const searchParams = useSearchParams()
+
+    // ── Step 1: Fast initial load — only categories + sources ──
+    const loadListData = useCallback(async () => {
+        setLoading(true)
+        const [catData, srcData] = await Promise.all([
+            getCategories(),
+            getSources(),
+        ])
+        setCategories(catData)
+        setSources(srcData)
+        setLoading(false)
+        return catData
+    }, [])
+
+    useEffect(() => { loadListData() }, [loadListData])
+
+    // ── Step 2: Background load sync status + skill chips (non-blocking) ──
+    useEffect(() => {
+        // Load sync status in background
+        getAgentSyncStatus().then((syncData) => {
+            if (syncData?.details) {
+                const map = new Map<string, SyncStatusDetail>()
+                for (const d of syncData.details) map.set(d.category_id, d)
+                setSyncDetails(map)
+            }
+        }).catch(() => {})
+
+        // Load category skills map in background (1 call replaces N)
+        getCategorySkillsMap().then((map) => {
+            const skillsMap = new Map<string, Skill[]>()
+            for (const [catId, skills] of Object.entries(map)) {
+                if (skills.length > 0) skillsMap.set(catId, skills)
+            }
+            setCategorySkills(skillsMap)
+        }).catch(() => {})
+    }, [])
+
+    // ── Step 3: Lazy load edit data when dialog opens ──
+    const loadEditData = useCallback(async (categoryId: string) => {
+        setEditLoading(true)
+        const [skillsData, knowledgeData, catSkills] = await Promise.all([
+            getSkills(),
+            getKnowledgeDocs().catch(() => []),
+            getSkillsForCategory(categoryId).catch(() => []),
+        ])
+        setAllSkills(skillsData || [])
+        setAllKnowledgeDocs(knowledgeData || [])
+        setEditCategorySkills(catSkills || [])
+        setEditLoading(false)
+    }, [])
+
+    const openEditDialog = useCallback((cat: Category) => {
+        setEditingCategory(cat)
+        loadEditData(cat.id)
+    }, [loadEditData])
 
     // Auto-open edit dialog when navigating with ?edit=categoryId
     useEffect(() => {
         const editId = searchParams.get('edit')
         if (editId && categories.length > 0 && !editingCategory) {
             const cat = categories.find((c) => c.id === editId)
-            if (cat) setEditingCategory(cat)
+            if (cat) openEditDialog(cat)
         }
     }, [searchParams, categories]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const loadData = useCallback(async () => {
-        setLoading(true)
-        const [catData, srcData, syncData, skillsData, knowledgeData] = await Promise.all([
-            getCategories(),
-            getSources(),
-            getAgentSyncStatus(),
-            getSkills(),
-            getKnowledgeDocs().catch(() => []),
-        ])
-        setCategories(catData)
-        setSources(srcData)
-        setAllSkills(skillsData || [])
-        setAllKnowledgeDocs(knowledgeData || [])
-
-        // Build sync status map
-        if (syncData?.details) {
-            const map = new Map<string, SyncStatusDetail>()
-            for (const d of syncData.details) {
-                map.set(d.category_id, d)
-            }
-            setSyncDetails(map)
-        }
-
-        // Load linked skills for each category
-        const skillsMap = new Map<string, Skill[]>()
-        for (const cat of catData) {
-            try {
-                const skills = await getSkillsForCategory(cat.id)
-                if (skills && skills.length > 0) {
-                    skillsMap.set(cat.id, skills)
-                }
-            } catch {
-                // Ignore - category may have no skills
-            }
-        }
-        setCategorySkills(skillsMap)
-
-        setLoading(false)
-    }, [])
-
-    useEffect(() => { loadData() }, [loadData])
+    // ── Targeted mutations (no full reload) ──
 
     const handleToggleVisibility = async (cat: Category) => {
         const result = await updateCategory(cat.id, { visible: !cat.visible })
         if (result.error) {
             setAlert({ type: 'error', message: result.error })
         } else {
-            loadData()
+            setCategories((prev) => prev.map((c) => c.id === cat.id ? { ...c, visible: !c.visible } : c))
         }
     }
 
@@ -264,7 +286,12 @@ export default function CategoriesPage() {
             setAlert({ type: 'error', message: result.error })
         } else {
             setAlert({ type: 'success', message: 'Category deleted.' })
-            loadData()
+            setCategories((prev) => prev.filter((c) => c.id !== catId))
+            setCategorySkills((prev) => {
+                const next = new Map(prev)
+                next.delete(catId)
+                return next
+            })
         }
     }
 
@@ -272,7 +299,17 @@ export default function CategoriesPage() {
         try {
             await linkSkillToCategory(skillId, categoryId)
             setLinkingCategory(null)
-            loadData()
+            // Update edit dialog skills
+            const skill = allSkills.find((s) => s.id === skillId)
+            if (skill) {
+                setEditCategorySkills((prev) => [...prev, skill])
+                setCategorySkills((prev) => {
+                    const next = new Map(prev)
+                    const existing = next.get(categoryId) || []
+                    next.set(categoryId, [...existing, skill])
+                    return next
+                })
+            }
         } catch (e: any) {
             setAlert({ type: 'error', message: e.message || 'Failed to link skill' })
         }
@@ -281,7 +318,14 @@ export default function CategoriesPage() {
     const handleUnlinkSkill = async (categoryId: string, skillId: string) => {
         try {
             await unlinkSkillFromCategory(skillId, categoryId)
-            loadData()
+            // Update edit dialog skills
+            setEditCategorySkills((prev) => prev.filter((s) => s.id !== skillId))
+            setCategorySkills((prev) => {
+                const next = new Map(prev)
+                const existing = next.get(categoryId) || []
+                next.set(categoryId, existing.filter((s) => s.id !== skillId))
+                return next
+            })
         } catch (e: any) {
             setAlert({ type: 'error', message: e.message || 'Failed to unlink skill' })
         }
@@ -291,13 +335,11 @@ export default function CategoriesPage() {
         try {
             await triggerSync(categoryId)
             setAlert({ type: 'success', message: 'Sync triggered successfully.' })
-            // Refresh sync status
+            // Refresh sync status only
             const syncData = await getAgentSyncStatus()
             if (syncData?.details) {
                 const map = new Map<string, SyncStatusDetail>()
-                for (const d of syncData.details) {
-                    map.set(d.category_id, d)
-                }
+                for (const d of syncData.details) map.set(d.category_id, d)
                 setSyncDetails(map)
             }
         } catch (e: any) {
@@ -355,7 +397,7 @@ export default function CategoriesPage() {
                             syncDetail={syncDetails.get(cat.id)}
                             isLinking={linkingCategory === cat.id}
                             onToggleVisibility={() => handleToggleVisibility(cat)}
-                            onEdit={() => setEditingCategory(cat)}
+                            onEdit={() => openEditDialog(cat)}
                             onDelete={() => handleDelete(cat.id)}
                             onConfigureFilters={(sourceId) => setFilterSourceId(sourceId)}
                             onLinkSkill={(skillId) => handleLinkSkill(cat.id, skillId)}
@@ -390,20 +432,24 @@ export default function CategoriesPage() {
                     if (!open) {
                         setShowCreateDialog(false)
                         setEditingCategory(null)
+                        setEditCategorySkills([])
                     }
                 }}
                 category={editingCategory}
+                editLoading={editLoading}
                 linkedSources={editingCategory ? sources.filter((s) => s.category_id === editingCategory.id) : undefined}
                 allSources={sources}
                 allSkills={allSkills}
-                linkedSkills={editingCategory ? (categorySkills.get(editingCategory.id) || []) : []}
+                linkedSkills={editingCategory ? editCategorySkills : []}
                 allKnowledgeDocs={allKnowledgeDocs}
                 onLinkSkill={(skillId) => editingCategory && handleLinkSkill(editingCategory.id, skillId)}
                 onUnlinkSkill={(skillId) => editingCategory && handleUnlinkSkill(editingCategory.id, skillId)}
                 onSaved={() => {
                     setShowCreateDialog(false)
                     setEditingCategory(null)
-                    loadData()
+                    setEditCategorySkills([])
+                    // Only reload list data (fast)
+                    loadListData()
                     setAlert({ type: 'success', message: editingCategory ? 'Category updated.' : 'Category created.' })
                 }}
             />
@@ -416,7 +462,7 @@ export default function CategoriesPage() {
                     onOpenChange={(open) => { if (!open) setFilterSourceId(null) }}
                     onSaved={() => {
                         setFilterSourceId(null)
-                        loadData()
+                        loadListData()
                         setAlert({ type: 'success', message: 'Source filters updated.' })
                     }}
                 />
@@ -661,11 +707,12 @@ function CategoryCard({
 // Create/Edit Category Dialog (with inline source filters)
 // ============================================================================
 
-function CategoryDialog({ open, onOpenChange, category, onSaved, linkedSources, allSources, allSkills, linkedSkills, allKnowledgeDocs, onLinkSkill, onUnlinkSkill }: {
+function CategoryDialog({ open, onOpenChange, category, onSaved, editLoading, linkedSources, allSources, allSkills, linkedSkills, allKnowledgeDocs, onLinkSkill, onUnlinkSkill }: {
     open: boolean
     onOpenChange: (open: boolean) => void
     category: Category | null
     onSaved: () => void
+    editLoading?: boolean
     linkedSources?: Source[]
     allSources?: Source[]
     allSkills?: Skill[]
@@ -952,50 +999,59 @@ function CategoryDialog({ open, onOpenChange, category, onSaved, linkedSources, 
                                 </p>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                                {(linkedSkills || []).map((skill) => (
-                                    <div key={skill.id} className="flex items-center gap-1.5 text-xs rounded-md px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                        <Brain className="h-3 w-3" />
-                                        <span>{skill.name}</span>
-                                        <button onClick={() => onUnlinkSkill?.(skill.id)} className="hover:text-red-400 transition-colors ml-1" title={`Unlink ${skill.name}`}>
-                                            <X className="h-3 w-3" />
-                                        </button>
+                            {editLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                    <span className="text-sm text-muted-foreground">Loading skills...</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {(linkedSkills || []).map((skill) => (
+                                            <div key={skill.id} className="flex items-center gap-1.5 text-xs rounded-md px-2 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                                <Brain className="h-3 w-3" />
+                                                <span>{skill.name}</span>
+                                                <button onClick={() => onUnlinkSkill?.(skill.id)} className="hover:text-red-400 transition-colors ml-1" title={`Unlink ${skill.name}`}>
+                                                    <X className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {(!linkedSkills || linkedSkills.length === 0) && (
+                                            <div className="w-full text-center py-6 border border-dashed rounded-lg bg-accent/30">
+                                                <Brain className="h-6 w-6 text-muted-foreground mx-auto mb-1.5" />
+                                                <p className="text-xs text-muted-foreground">No skills linked yet.</p>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5">Use the picker below to add skills.</p>
+                                            </div>
+                                        )}
                                     </div>
-                                ))}
-                                {(!linkedSkills || linkedSkills.length === 0) && (
-                                    <div className="w-full text-center py-6 border border-dashed rounded-lg bg-accent/30">
-                                        <Brain className="h-6 w-6 text-muted-foreground mx-auto mb-1.5" />
-                                        <p className="text-xs text-muted-foreground">No skills linked yet.</p>
-                                        <p className="text-[10px] text-muted-foreground mt-0.5">Use the picker below to add skills.</p>
-                                    </div>
-                                )}
-                            </div>
 
-                            {(() => {
-                                const linkedIds = new Set((linkedSkills || []).map(s => s.id))
-                                const available = (allSkills || []).filter(s => !linkedIds.has(s.id) && s.is_active)
-                                if (available.length === 0) return null
-                                return (
-                                    <Select value="" onValueChange={(v) => { if (v) onLinkSkill?.(v) }}>
-                                        <SelectTrigger className="h-9 text-xs w-full">
-                                            <SelectValue placeholder="+ Add a skill to this category..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {available.map((skill) => (
-                                                <SelectItem key={skill.id} value={skill.id}>
-                                                    <div className="flex items-center gap-2">
-                                                        <Brain className="h-3 w-3 text-indigo-400" />
-                                                        <span>{skill.name}</span>
-                                                        {skill.description && (
-                                                            <span className="text-muted-foreground text-[10px] truncate max-w-48">— {skill.description}</span>
-                                                        )}
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )
-                            })()}
+                                    {(() => {
+                                        const linkedIds = new Set((linkedSkills || []).map(s => s.id))
+                                        const available = (allSkills || []).filter(s => !linkedIds.has(s.id) && s.is_active)
+                                        if (available.length === 0) return null
+                                        return (
+                                            <Select value="" onValueChange={(v) => { if (v) onLinkSkill?.(v) }}>
+                                                <SelectTrigger className="h-9 text-xs w-full">
+                                                    <SelectValue placeholder="+ Add a skill to this category..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {available.map((skill) => (
+                                                        <SelectItem key={skill.id} value={skill.id}>
+                                                            <div className="flex items-center gap-2">
+                                                                <Brain className="h-3 w-3 text-indigo-400" />
+                                                                <span>{skill.name}</span>
+                                                                {skill.description && (
+                                                                    <span className="text-muted-foreground text-[10px] truncate max-w-48">— {skill.description}</span>
+                                                                )}
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )
+                                    })()}
+                                </>
+                            )}
                         </TabsContent>
 
                         {/* ── Tab: Knowledge ── */}
@@ -1006,7 +1062,12 @@ function CategoryDialog({ open, onOpenChange, category, onSaved, linkedSources, 
                                 </p>
                             </div>
 
-                            {(() => {
+                            {editLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                    <span className="text-sm text-muted-foreground">Loading knowledge docs...</span>
+                                </div>
+                            ) : (() => {
                                 const catDocs = (allKnowledgeDocs || []).filter((d) => d.category_id === category?.id)
                                 const masterDoc = catDocs.find((d) => d.is_master)
                                 const otherDocs = catDocs.filter((d) => !d.is_master)

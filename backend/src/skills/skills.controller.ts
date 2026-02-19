@@ -31,6 +31,14 @@ export class SkillsController {
     return this.skillsService.findAll(req.accessToken, accountId, activeOnly === 'true');
   }
 
+  @Get('category-map')
+  getCategorySkillsMap(
+    @Request() req,
+    @Param('accountId') accountId: string,
+  ) {
+    return this.skillsService.getCategorySkillsMap(req.accessToken, accountId);
+  }
+
   @Get('category/:categoryId/default')
   findDefaultForCategory(
     @Request() req,

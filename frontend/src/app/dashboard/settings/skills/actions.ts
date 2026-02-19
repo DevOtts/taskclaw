@@ -134,6 +134,33 @@ export async function deleteSkill(id: string) {
   }
 }
 
+export async function getCategorySkillsMap(): Promise<Record<string, any[]>> {
+  try {
+    const accountId = await getCurrentAccountId();
+    if (!accountId) {
+      throw new Error('No account ID found');
+    }
+
+    const response = await fetch(
+      `${API_URL}/accounts/${accountId}/skills/category-map`,
+      {
+        headers: await getAuthHeaders(),
+        cache: 'no-store',
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch category skills map');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching category skills map:', error);
+    return {};
+  }
+}
+
 export async function getSkillsForCategory(categoryId: string) {
   try {
     const accountId = await getCurrentAccountId();
