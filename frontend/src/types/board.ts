@@ -19,6 +19,15 @@ export interface Board {
   updated_at: string
 }
 
+export interface SchemaField {
+  key: string
+  label: string
+  type: 'text' | 'number' | 'boolean' | 'date' | 'url' | 'email' | 'json' | 'dropdown'
+  required?: boolean
+  default_value?: string
+  options?: string[] // for dropdown type
+}
+
 export interface BoardStep {
   id: string
   board_instance_id: string
@@ -27,8 +36,23 @@ export interface BoardStep {
   step_type: 'input' | 'ai_process' | 'human_review' | 'action' | 'done'
   position: number
   color: string | null
-  ai_enabled?: boolean
-  ai_first?: boolean
+  linked_category_id: string | null
+  linked_category?: {
+    id: string
+    name: string
+    color: string | null
+    icon: string | null
+  } | null
+  // Rich config
+  trigger_type: 'on_entry' | 'manual' | 'schedule' | 'webhook'
+  ai_first: boolean
+  input_schema: SchemaField[]
+  output_schema: SchemaField[]
+  on_success_step_id: string | null
+  on_error_step_id: string | null
+  webhook_url: string | null
+  webhook_auth_header: string | null
+  schedule_cron: string | null
   task_count?: number
   created_at: string
   updated_at: string

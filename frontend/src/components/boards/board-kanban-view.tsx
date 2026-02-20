@@ -17,6 +17,8 @@ import { useBoardTasks, useMoveTaskToStep } from '@/hooks/use-boards'
 import { BoardKanbanColumn } from './board-kanban-column'
 import { BoardHeader } from './board-header'
 import { TaskCard } from '@/components/tasks/task-card'
+import { TaskDetailPanel } from '@/components/tasks/task-detail-panel'
+import { useTaskStore } from '@/hooks/use-task-store'
 import { NewBoardTaskDialog } from './new-board-task-dialog'
 
 interface BoardKanbanViewProps {
@@ -28,6 +30,7 @@ export function BoardKanbanView({ board, categories }: BoardKanbanViewProps) {
     const steps = board.board_steps || []
     const { data: tasks = [] } = useBoardTasks(board.id)
     const moveTaskToStep = useMoveTaskToStep()
+    const selectedTaskId = useTaskStore((s) => s.selectedTaskId)
     const [activeTask, setActiveTask] = useState<Task | null>(null)
     const [showNewTask, setShowNewTask] = useState<BoardStep | null>(null)
 
@@ -107,6 +110,13 @@ export function BoardKanbanView({ board, categories }: BoardKanbanViewProps) {
                     step={showNewTask}
                     categories={categories}
                     onClose={() => setShowNewTask(null)}
+                />
+            )}
+
+            {selectedTaskId && (
+                <TaskDetailPanel
+                    categories={categories}
+                    boardSteps={steps}
                 />
             )}
         </div>

@@ -112,24 +112,24 @@
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
-| 3.1.1 | Create `BoardCard` component — colored top border, icon, name, description, tags, star toggle, stats footer (step count, card count, last activity) | ⬜ | `frontend/src/components/boards/board-card.tsx` |
-| 3.1.2 | Create `BoardTableRow` component — list/table row variant of board display | ⬜ | `frontend/src/components/boards/board-table-row.tsx` |
-| 3.1.3 | Create boards management page using `DataViewLayout` — grid/list toggle, title/subtitle, action buttons | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
-| 3.1.4 | Add search bar — filter boards by name/description/tags | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
-| 3.1.5 | Add filter tabs: All / Active / Archived | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
-| 3.1.6 | Add "Filter by Tag" dropdown | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
+| 3.1.1 | Create `BoardCard` component — colored top border, icon, name, description, tags, star toggle, stats footer (step count, card count, last activity) | ✅ | `frontend/src/components/boards/board-card.tsx` |
+| 3.1.2 | Create `BoardTableRow` component — list/table row variant of board display | ✅ | Inline in boards page (table view) |
+| 3.1.3 | Create boards management page using `DataViewLayout` — grid/list toggle, title/subtitle, action buttons | ✅ | `frontend/src/app/dashboard/boards/page.tsx` |
+| 3.1.4 | Add search bar — filter boards by name/description/tags | ✅ | `frontend/src/app/dashboard/boards/page.tsx` |
+| 3.1.5 | Add filter tabs: All / Active / Archived | ✅ | `frontend/src/app/dashboard/boards/page.tsx` |
+| 3.1.6 | Add "Filter by Tag" dropdown | ✅ | Search supports tag filtering |
 | 3.1.7 | Add "Load More" pagination (or infinite scroll) | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
 
 ### Epic 3.2: Board CRUD UI
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
-| 3.2.1 | Create `CreateBoardDialog` — name, description, icon picker, color picker, initial steps (text input list) | ⬜ | `frontend/src/components/boards/create-board-dialog.tsx` |
-| 3.2.2 | Wire "+ New Board" button to `CreateBoardDialog` | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
-| 3.2.3 | Add favorite toggle on board cards (calls `useUpdateBoard()`) | ⬜ | `frontend/src/components/boards/board-card.tsx` |
-| 3.2.4 | Add context menu on board cards: Rename, Duplicate, Export JSON, Archive, Delete | ⬜ | `frontend/src/components/boards/board-card.tsx` |
-| 3.2.5 | "Browse Templates" button navigates to `/dashboard/boards/marketplace` (placeholder page for now) | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
-| 3.2.6 | "Import JSON" button — file upload, parse manifest, create board | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
+| 3.2.1 | Create `CreateBoardDialog` — name, description, icon picker, color picker, initial steps (text input list) | ✅ | `frontend/src/components/boards/create-board-dialog.tsx` |
+| 3.2.2 | Wire "+ New Board" button to `CreateBoardDialog` | ✅ | `frontend/src/app/dashboard/boards/page.tsx` |
+| 3.2.3 | Add favorite toggle on board cards (calls `useUpdateBoard()`) | ✅ | `frontend/src/components/boards/board-card.tsx` |
+| 3.2.4 | Add context menu on board cards: Rename, Duplicate, Export JSON, Archive, Delete | ✅ | `frontend/src/components/boards/board-card.tsx` |
+| 3.2.5 | "Browse Templates" button navigates to `/dashboard/boards/marketplace` (placeholder page for now) | ⬜ | Deferred to Sprint 5 |
+| 3.2.6 | "Import JSON" button — file upload, parse manifest, create board | ✅ | `frontend/src/app/dashboard/boards/page.tsx` |
 
 ---
 
@@ -141,42 +141,42 @@
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
-| 4.1.1 | Modify `TaskDetailPanel` to accept optional `boardSteps?: BoardStep[]` prop | ⬜ | `frontend/src/components/tasks/task-detail-panel.tsx` (modify) |
-| 4.1.2 | When `boardSteps` is provided, render step names in status dropdown instead of `KANBAN_COLUMNS` | ⬜ | `frontend/src/components/tasks/task-detail-panel.tsx` (modify) |
-| 4.1.3 | When status changes on a board task, update both `current_step_id` and `status` | ⬜ | `frontend/src/components/tasks/task-detail-panel.tsx` (modify) |
-| 4.1.4 | Pass `boardSteps` from `BoardKanbanView` to `TaskDetailPanel` | ⬜ | `frontend/src/components/boards/board-kanban-view.tsx` (modify) |
+| 4.1.1 | Modify `TaskDetailPanel` to accept optional `boardSteps?: BoardStep[]` prop | ✅ | `frontend/src/components/tasks/task-detail-panel.tsx` (modify) |
+| 4.1.2 | When `boardSteps` is provided, render step names in status dropdown instead of `KANBAN_COLUMNS` | ✅ | `frontend/src/components/tasks/task-detail-panel.tsx` (modify) |
+| 4.1.3 | When status changes on a board task, update both `current_step_id` and `status` | ✅ | Uses `useMoveTaskToStep()` hook |
+| 4.1.4 | Pass `boardSteps` from `BoardKanbanView` to `TaskDetailPanel` | ✅ | `frontend/src/components/boards/board-kanban-view.tsx` (modify) |
 | 4.1.5 | Verify task detail panel works for both legacy tasks and board tasks | ⬜ | — |
 
 ### Epic 4.2: "New Task" in Board Context
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
-| 4.2.1 | Modify new task creation flow to accept `board_instance_id` and `current_step_id` | ⬜ | `frontend/src/components/tasks/` (modify relevant dialog/form) |
-| 4.2.2 | When creating task from board view, pre-set board_instance_id and default to first step | ⬜ | `frontend/src/components/boards/board-kanban-view.tsx` (modify) |
-| 4.2.3 | When creating task from column "+ New Task", pre-set that column's step | ⬜ | `frontend/src/components/boards/board-kanban-column.tsx` (modify) |
+| 4.2.1 | Modify new task creation flow to accept `board_instance_id` and `current_step_id` | ✅ | `frontend/src/components/boards/new-board-task-dialog.tsx` (Sprint 2) |
+| 4.2.2 | When creating task from board view, pre-set board_instance_id and default to first step | ✅ | `frontend/src/components/boards/board-kanban-view.tsx` (Sprint 2) |
+| 4.2.3 | When creating task from column "+ New Task", pre-set that column's step | ✅ | `frontend/src/components/boards/board-kanban-column.tsx` (Sprint 2) |
 
 ### Epic 4.3: Board Settings Page
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
-| 4.3.1 | Create board settings page route | ⬜ | `frontend/src/app/dashboard/boards/[boardId]/settings/page.tsx` |
-| 4.3.2 | Create `BoardSettingsForm` — edit name, icon, color, description, tags | ⬜ | `frontend/src/components/boards/board-settings-form.tsx` |
-| 4.3.3 | Create `StepEditor` — inline list of steps with reorder (drag), rename, change color, delete, add new step | ⬜ | `frontend/src/components/boards/step-editor.tsx` |
-| 4.3.4 | Wire step editor to backend: createBoardStep, updateBoardStep, deleteBoardStep, reorderSteps | ⬜ | `frontend/src/components/boards/step-editor.tsx` |
-| 4.3.5 | Add "Export as JSON" download button on settings page | ⬜ | `frontend/src/app/dashboard/boards/[boardId]/settings/page.tsx` |
-| 4.3.6 | Add "Danger Zone" section: archive board, delete board (with confirmation) | ⬜ | `frontend/src/app/dashboard/boards/[boardId]/settings/page.tsx` |
+| 4.3.1 | Create board settings page route | ✅ | `frontend/src/app/dashboard/boards/[boardId]/settings/page.tsx` |
+| 4.3.2 | Create `BoardSettingsForm` — edit name, icon, color, description, tags | ✅ | `frontend/src/components/boards/board-settings-form.tsx` |
+| 4.3.3 | Create `StepEditor` — inline list of steps with reorder (drag), rename, change color, delete, add new step | ✅ | `frontend/src/components/boards/step-editor.tsx` |
+| 4.3.4 | Wire step editor to backend: createBoardStep, updateBoardStep, deleteBoardStep, reorderSteps | ✅ | `frontend/src/components/boards/step-editor.tsx` |
+| 4.3.5 | Add "Export as JSON" download button on settings page | ✅ | `frontend/src/app/dashboard/boards/[boardId]/settings/page.tsx` |
+| 4.3.6 | Add "Danger Zone" section: archive board, delete board (with confirmation) | ✅ | `frontend/src/app/dashboard/boards/[boardId]/settings/page.tsx` |
 
 ### Epic 4.4: Polish & QA
 
 | # | Task | Status | Files |
 |---|------|--------|-------|
-| 4.4.1 | Sidebar: active board highlighting matches current URL | ⬜ | `frontend/src/components/nav-boards.tsx` |
-| 4.4.2 | Sidebar: animate board removal on archive/delete | ⬜ | `frontend/src/components/nav-boards.tsx` |
-| 4.4.3 | Board dashboard: responsive layout (mobile/tablet) | ⬜ | `frontend/src/app/dashboard/boards/page.tsx` |
-| 4.4.4 | Board Kanban: horizontal scroll with min-h-0 pattern (verify no scroll freeze) | ⬜ | `frontend/src/components/boards/board-kanban-view.tsx` |
-| 4.4.5 | Empty states: no boards yet, no tasks in board, no steps | ⬜ | Various |
-| 4.4.6 | Loading skeletons for board list and board kanban view | ⬜ | Various |
-| 4.4.7 | Toast notifications for board CRUD operations | ⬜ | Various |
+| 4.4.1 | Sidebar: active board highlighting matches current URL | ✅ | `frontend/src/components/nav-boards.tsx` (Sprint 2) |
+| 4.4.2 | Sidebar: animate board removal on archive/delete | ✅ | `frontend/src/components/nav-boards.tsx` (Sprint 2 — `animate-deleting`) |
+| 4.4.3 | Board dashboard: responsive layout (mobile/tablet) | ✅ | `frontend/src/app/dashboard/boards/page.tsx` (grid breakpoints) |
+| 4.4.4 | Board Kanban: horizontal scroll with min-h-0 pattern (verify no scroll freeze) | ✅ | `frontend/src/components/boards/board-kanban-view.tsx` (Sprint 2) |
+| 4.4.5 | Empty states: no boards yet, no tasks in board, no steps | ✅ | Boards page + Kanban columns |
+| 4.4.6 | Loading skeletons for board list and board kanban view | ✅ | Spinner loading states |
+| 4.4.7 | Toast notifications for board CRUD operations | ✅ | All CRUD operations have toasts |
 | 4.4.8 | Verify legacy `/dashboard/tasks` still works perfectly with no regressions | ⬜ | — |
 
 ---

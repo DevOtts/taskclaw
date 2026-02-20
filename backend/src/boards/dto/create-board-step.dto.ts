@@ -25,4 +25,8 @@ export class CreateBoardStepDto {
   @IsOptional()
   @IsString()
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  linked_category_id?: string;
 }

@@ -24,6 +24,10 @@ export class InlineStepDto {
   @IsOptional()
   @IsString()
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  linked_category_id?: string; // Links step to a category for AI config inheritance
 }
 
 export class CreateBoardDto {

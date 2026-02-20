@@ -239,7 +239,7 @@ export async function getBoardSteps(boardId: string): Promise<BoardStep[]> {
 
 export async function createBoardStep(
     boardId: string,
-    data: { step_key: string; name: string; step_type?: string; position?: number; color?: string }
+    data: { step_key: string; name: string; step_type?: string; position?: number; color?: string; linked_category_id?: string | null }
 ): Promise<{ success?: boolean; step?: BoardStep; error?: string }> {
     const headers = await getAuthHeaders()
     if (!headers) return { error: 'Not authenticated' }
@@ -270,7 +270,22 @@ export async function createBoardStep(
 export async function updateBoardStep(
     boardId: string,
     stepId: string,
-    updates: Partial<{ name: string; position: number; color: string; step_type: string }>
+    updates: Partial<{
+        name: string
+        position: number
+        color: string
+        step_type: string
+        linked_category_id: string | null
+        trigger_type: string
+        ai_first: boolean
+        input_schema: any[]
+        output_schema: any[]
+        on_success_step_id: string | null
+        on_error_step_id: string | null
+        webhook_url: string | null
+        webhook_auth_header: string | null
+        schedule_cron: string | null
+    }>
 ): Promise<{ success?: boolean; step?: BoardStep; error?: string }> {
     const headers = await getAuthHeaders()
     if (!headers) return { error: 'Not authenticated' }

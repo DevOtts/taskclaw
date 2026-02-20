@@ -3,7 +3,6 @@
 import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useTasks } from '@/hooks/use-tasks'
 import { useTaskFilters } from '@/hooks/use-task-filters'
 import { useTaskStore } from '@/hooks/use-task-store'
@@ -16,15 +15,6 @@ import { SourceFilter } from './source-filter'
 import { TasksViewToggle } from './tasks-view-toggle'
 import { PomodoroTimer } from './pomodoro-timer'
 import { TaskDetailPanel } from './task-detail-panel'
-
-// Create query client for this scope
-const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            refetchOnWindowFocus: false,
-        },
-    },
-})
 
 interface TasksDashboardInnerProps {
     categories: Category[]
@@ -169,9 +159,5 @@ interface TasksDashboardProps {
 }
 
 export function TasksDashboard({ categories }: TasksDashboardProps) {
-    return (
-        <QueryClientProvider client={queryClient}>
-            <TasksDashboardInner categories={categories} />
-        </QueryClientProvider>
-    )
+    return <TasksDashboardInner categories={categories} />
 }

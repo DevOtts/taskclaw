@@ -20,7 +20,7 @@ export class BoardStepsService {
 
     const { data, error } = await client
       .from('board_steps')
-      .select('*')
+      .select('*, linked_category:categories!linked_category_id(id, name, color, icon)')
       .eq('board_instance_id', boardId)
       .order('position', { ascending: true });
 
@@ -79,6 +79,7 @@ export class BoardStepsService {
         step_type: dto.step_type || 'human_review',
         position,
         color: dto.color || null,
+        linked_category_id: dto.linked_category_id || null,
       })
       .select()
       .single();

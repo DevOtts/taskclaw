@@ -24,7 +24,7 @@ export class BoardsService {
 
     let query = client
       .from('board_instances')
-      .select('*, board_steps(id, step_key, name, step_type, position, color)')
+      .select('*, board_steps(id, step_key, name, step_type, position, color, linked_category_id, linked_category:categories!linked_category_id(id, name, color, icon))')
       .eq('account_id', accountId);
 
     if (filters?.archived !== undefined) {
@@ -83,7 +83,7 @@ export class BoardsService {
 
     const { data, error } = await client
       .from('board_instances')
-      .select('*, board_steps(id, step_key, name, step_type, position, color)')
+      .select('*, board_steps(id, step_key, name, step_type, position, color, linked_category_id, trigger_type, ai_first, input_schema, output_schema, on_success_step_id, on_error_step_id, linked_category:categories!linked_category_id(id, name, color, icon))')
       .eq('id', boardId)
       .eq('account_id', accountId)
       .single();
@@ -162,6 +162,7 @@ export class BoardsService {
           step_type: stepType,
           position: index,
           color: step.color || null,
+          linked_category_id: step.linked_category_id || null,
         };
       });
 
@@ -262,6 +263,7 @@ export class BoardsService {
         step_type: step.step_type,
         position: step.position,
         color: step.color,
+        linked_category_id: step.linked_category_id || null,
       }));
 
       await client.from('board_steps').insert(stepRows);
@@ -290,7 +292,9 @@ export class BoardsService {
         type: step.step_type,
         position: step.position,
         color: step.color,
-        ai_config: { enabled: false },
+        linked_category_id: step.linked_category_id || null,
+        linked_category_name: step.linked_category?.name || null,
+        ai_config: { enabled: !!step.linked_category_id },
         fields: { inputs: [], outputs: [] },
       })),
     };

@@ -19,9 +19,11 @@ import {
 import { toast } from 'sonner'
 import { useTaskStore } from '@/hooks/use-task-store'
 import { useTaskDetail, useTaskContent, useTaskComments, useTaskUsage, useUpdateTask, useCompleteTask, useDeleteTask, useMoveTask, useAiProviderConfig } from '@/hooks/use-tasks'
+import { useMoveTaskToStep } from '@/hooks/use-boards'
 import { usePomodoroStore } from '@/hooks/use-pomodoro'
 import { PRIORITY_COLORS, STATUS_COLORS, KANBAN_COLUMNS } from '@/types/task'
 import type { Category } from '@/types/task'
+import type { BoardStep } from '@/types/board'
 import { cn } from '@/lib/utils'
 import { TaskAIChat } from './task-ai-chat'
 import { MarkdownEditor } from './markdown-editor'
@@ -44,9 +46,10 @@ import {
 
 interface TaskDetailPanelProps {
     categories?: Category[]
+    boardSteps?: BoardStep[]
 }
 
-export function TaskDetailPanel({ categories = [] }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanelProps) {
     const selectedTaskId = useTaskStore((s) => s.selectedTaskId)
     const setSelectedTaskId = useTaskStore((s) => s.setSelectedTaskId)
     const { data: task, isLoading } = useTaskDetail(selectedTaskId)
@@ -58,6 +61,7 @@ export function TaskDetailPanel({ categories = [] }: TaskDetailPanelProps) {
     const completeTask = useCompleteTask()
     const deleteTask = useDeleteTask()
     const moveTask = useMoveTask()
+    const moveTaskToStep = useMoveTaskToStep()
     const pomodoroStore = usePomodoroStore()
 
     const [showAIChat, setShowAIChat] = useState(false)
@@ -122,9 +126,13 @@ export function TaskDetailPanel({ categories = [] }: TaskDetailPanelProps) {
         updateTask.mutate({ id: selectedTaskId, notes })
     }
 
-    const handleStatusChange = (status: string) => {
+    const handleStatusChange = (status: string, stepId?: string) => {
         if (!selectedTaskId || status === task?.status) return
-        moveTask.mutate({ id: selectedTaskId, status })
+        if (stepId && boardSteps) {
+            moveTaskToStep.mutate({ taskId: selectedTaskId, stepId, stepName: status })
+        } else {
+            moveTask.mutate({ id: selectedTaskId, status })
+        }
     }
 
     const handleCategoryChange = (categoryId: string | null) => {
@@ -154,9 +162,10 @@ export function TaskDetailPanel({ categories = [] }: TaskDetailPanelProps) {
     const priorityColor = task?.priority
         ? PRIORITY_COLORS[task.priority]
         : '#71717a'
-    const statusColor = task?.status
-        ? STATUS_COLORS[task.status]
-        : '#71717a'
+    const currentBoardStep = boardSteps?.find((s) => s.name === task?.status || s.id === (task as any)?.current_step_id)
+    const statusColor = currentBoardStep?.color
+        || (task?.status ? STATUS_COLORS[task.status] : '#71717a')
+        || '#71717a'
 
     // Is this a manually created task (no external source)?
     const isManualTask = !task?.source_id
@@ -263,25 +272,47 @@ export function TaskDetailPanel({ categories = [] }: TaskDetailPanelProps) {
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="min-w-[160px]">
-                                        {KANBAN_COLUMNS.map((status) => {
-                                            const color = STATUS_COLORS[status] || '#71717a'
-                                            return (
-                                                <DropdownMenuItem
-                                                    key={status}
-                                                    onClick={() => handleStatusChange(status)}
-                                                    className={cn(
-                                                        'flex items-center gap-2 text-xs cursor-pointer',
-                                                        task.status === status && 'bg-accent',
-                                                    )}
-                                                >
-                                                    <span
-                                                        className="w-2 h-2 rounded-full shrink-0"
-                                                        style={{ backgroundColor: color }}
-                                                    />
-                                                    {status}
-                                                </DropdownMenuItem>
-                                            )
-                                        })}
+                                        {boardSteps ? (
+                                            boardSteps.map((step) => {
+                                                const stepColor = step.color || '#71717a'
+                                                return (
+                                                    <DropdownMenuItem
+                                                        key={step.id}
+                                                        onClick={() => handleStatusChange(step.name, step.id)}
+                                                        className={cn(
+                                                            'flex items-center gap-2 text-xs cursor-pointer',
+                                                            task.status === step.name && 'bg-accent',
+                                                        )}
+                                                    >
+                                                        <span
+                                                            className="w-2 h-2 rounded-full shrink-0"
+                                                            style={{ backgroundColor: stepColor }}
+                                                        />
+                                                        {step.name}
+                                                    </DropdownMenuItem>
+                                                )
+                                            })
+                                        ) : (
+                                            KANBAN_COLUMNS.map((status) => {
+                                                const color = STATUS_COLORS[status] || '#71717a'
+                                                return (
+                                                    <DropdownMenuItem
+                                                        key={status}
+                                                        onClick={() => handleStatusChange(status)}
+                                                        className={cn(
+                                                            'flex items-center gap-2 text-xs cursor-pointer',
+                                                            task.status === status && 'bg-accent',
+                                                        )}
+                                                    >
+                                                        <span
+                                                            className="w-2 h-2 rounded-full shrink-0"
+                                                            style={{ backgroundColor: color }}
+                                                        />
+                                                        {status}
+                                                    </DropdownMenuItem>
+                                                )
+                                            })
+                                        )}
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>

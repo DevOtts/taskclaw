@@ -1,6 +1,7 @@
 import { AppSidebar } from '@/components/app-sidebar'
 import { AiBubble } from '@/components/ai/ai-bubble'
 import { SystemStatusBar } from '@/components/system-status-bar'
+import { QueryProvider } from '@/components/query-provider'
 import {
     SidebarInset,
     SidebarProvider,
@@ -67,26 +68,28 @@ export default async function DashboardLayout({
     }))
 
     return (
-        <SidebarProvider>
-            <AppSidebar
-                user={user ? { ...user, email: user.email || '', role: user.role } : null}
-                teams={teams}
-                activeTeam={activeTeam}
-                projects={projects}
-                allowMultipleProjects={settings?.allow_multiple_projects ?? true}
-                allowMultipleTeams={settings?.allow_multiple_teams ?? true}
-            />
-            <SidebarInset>
-                <div className="flex flex-col h-screen min-h-0 overflow-hidden">
-                    <div className="flex flex-1 flex-col gap-4 p-4 pt-0 min-h-0 overflow-y-auto">
-                        {children}
+        <QueryProvider>
+            <SidebarProvider>
+                <AppSidebar
+                    user={user ? { ...user, email: user.email || '', role: user.role } : null}
+                    teams={teams}
+                    activeTeam={activeTeam}
+                    projects={projects}
+                    allowMultipleProjects={settings?.allow_multiple_projects ?? true}
+                    allowMultipleTeams={settings?.allow_multiple_teams ?? true}
+                />
+                <SidebarInset>
+                    <div className="flex flex-col h-screen min-h-0 overflow-hidden">
+                        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 min-h-0 overflow-y-auto">
+                            {children}
+                        </div>
+                        <div className="sticky bottom-0 z-30 shrink-0">
+                            <SystemStatusBar />
+                        </div>
                     </div>
-                    <div className="sticky bottom-0 z-30 shrink-0">
-                        <SystemStatusBar />
-                    </div>
-                </div>
-            </SidebarInset>
-            {/* <AiBubble /> */}
-        </SidebarProvider>
+                </SidebarInset>
+                {/* <AiBubble /> */}
+            </SidebarProvider>
+        </QueryProvider>
     )
 }

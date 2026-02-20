@@ -5,7 +5,7 @@ import {
     SortableContext,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Plus, MoreHorizontal } from 'lucide-react'
+import { Plus, MoreHorizontal, Sparkles } from 'lucide-react'
 import type { Task, Category } from '@/types/task'
 import type { BoardStep } from '@/types/board'
 import { TaskCard } from '@/components/tasks/task-card'
@@ -26,26 +26,45 @@ export function BoardKanbanColumn({
 }: BoardKanbanColumnProps) {
     const { setNodeRef, isOver } = useDroppable({ id: step.id })
     const color = step.color || '#71717a'
+    const linkedCat = step.linked_category
 
     return (
         <div className="w-72 flex flex-col flex-shrink-0 min-h-0">
-            {/* Column Header */}
-            <div className="flex items-center justify-between px-2 mb-3 shrink-0">
-                <div className="flex items-center gap-2">
-                    <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: color }}
-                    />
-                    <span className="text-sm font-semibold text-foreground">
-                        {step.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-medium">
-                        {tasks.length}
-                    </span>
+            {/* Column Header — fixed height for consistency */}
+            <div className="px-2 mb-3 shrink-0 h-[52px]">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: color }}
+                        />
+                        <span className="text-sm font-semibold text-foreground truncate">
+                            {step.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium shrink-0">
+                            {tasks.length}
+                        </span>
+                    </div>
+                    <button className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0">
+                        <MoreHorizontal className="w-4 h-4" />
+                    </button>
                 </div>
-                <button className="text-muted-foreground hover:text-foreground transition-colors p-1">
-                    <MoreHorizontal className="w-4 h-4" />
-                </button>
+
+                {/* Linked category indicator — always reserves the line space */}
+                <div className="h-5 flex items-center ml-4">
+                    {linkedCat ? (
+                        <div className="flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3 text-primary/60 shrink-0" />
+                            <span
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: linkedCat.color || '#71717a' }}
+                            />
+                            <span className="text-[10px] text-primary/60 font-medium truncate">
+                                {linkedCat.name}
+                            </span>
+                        </div>
+                    ) : null}
+                </div>
             </div>
 
             {/* Droppable Area */}
