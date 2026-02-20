@@ -13,6 +13,7 @@ interface TaskFilters {
   status?: string;
   priority?: string;
   completed?: boolean;
+  board_id?: string;
 }
 
 @Injectable()
@@ -56,6 +57,12 @@ export class TasksService {
     }
     if (filters?.completed !== undefined) {
       query = query.eq('completed', filters.completed);
+    }
+    if (filters?.board_id) {
+      query = query.eq('board_instance_id', filters.board_id);
+    } else {
+      // Default: only show legacy (boardless) tasks unless board_id is specified
+      query = query.is('board_instance_id', null);
     }
 
     query = query.order('created_at', { ascending: false });
@@ -129,6 +136,19 @@ export class TasksService {
       }
     }
 
+    // Resolve status from board step if board context provided
+    let status = createTaskDto.status || 'To-Do';
+    if (createTaskDto.current_step_id) {
+      const { data: step } = await client
+        .from('board_steps')
+        .select('name')
+        .eq('id', createTaskDto.current_step_id)
+        .single();
+      if (step) {
+        status = step.name;
+      }
+    }
+
     const { data, error } = await client
       .from('tasks')
       .insert({
@@ -136,11 +156,13 @@ export class TasksService {
         category_id: createTaskDto.category_id || null,
         source_id: createTaskDto.source_id || null,
         title: createTaskDto.title,
-        status: createTaskDto.status || 'To-Do',
+        status,
         priority: createTaskDto.priority || 'Medium',
         completed: createTaskDto.completed || false,
         notes: createTaskDto.notes || '',
         due_date: createTaskDto.due_date || null,
+        board_instance_id: createTaskDto.board_instance_id || null,
+        current_step_id: createTaskDto.current_step_id || null,
       })
       .select('*, categories(id, name, color, icon), sources(id, provider)')
       .single();
@@ -190,6 +212,23 @@ export class TasksService {
       updateData.completed_at = new Date().toISOString();
     } else if (updateTaskDto.completed === false) {
       updateData.completed_at = null;
+    }
+
+    // Auto-sync status when current_step_id changes (board tasks)
+    if (updateTaskDto.current_step_id && updateTaskDto.current_step_id !== existingTask.current_step_id) {
+      const { data: step } = await client
+        .from('board_steps')
+        .select('name, step_type')
+        .eq('id', updateTaskDto.current_step_id)
+        .single();
+      if (step) {
+        updateData.status = step.name;
+        // Auto-complete when moved to "done" step
+        if (step.step_type === 'done' && !existingTask.completed) {
+          updateData.completed = true;
+          updateData.completed_at = new Date().toISOString();
+        }
+      }
     }
 
     const { data, error } = await client

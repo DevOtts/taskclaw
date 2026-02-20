@@ -7,6 +7,7 @@ import {
   IsNumber,
 } from 'class-validator';
 
+
 export class UpdateTaskDto {
   @IsOptional()
   @IsString()
@@ -39,4 +40,8 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsNumber()
   time_spent?: number;
+
+  @IsOptional()
+  @IsUUID()
+  current_step_id?: string;
 }
