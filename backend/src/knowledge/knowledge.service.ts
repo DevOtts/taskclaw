@@ -323,8 +323,12 @@ export class KnowledgeService {
         );
       }
 
-      // Validate MIME type
-      if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+      // Validate MIME type (allow application/octet-stream when extension is valid,
+      // as browsers often can't determine MIME type for drag-and-drop folder entries)
+      if (
+        !ALLOWED_FILE_TYPES.includes(file.mimetype) &&
+        file.mimetype !== 'application/octet-stream'
+      ) {
         throw new BadRequestException(
           `MIME type "${file.mimetype}" not allowed.`,
         );
@@ -447,6 +451,50 @@ export class KnowledgeService {
       return data;
     } catch (error) {
       this.logger.error('Error removing attachment:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get the content of a file attachment from storage
+   */
+  async getAttachmentContent(
+    accessToken: string,
+    accountId: string,
+    docId: string,
+    filename: string,
+  ): Promise<{ content: string; filename: string }> {
+    try {
+      // Verify doc exists and belongs to account
+      const doc = await this.findOne(accessToken, accountId, docId);
+
+      const existingAttachments = doc.file_attachments || [];
+      const attachment = existingAttachments.find(
+        (a: any) => a.name === filename,
+      );
+      if (!attachment) {
+        throw new NotFoundException(`Attachment "${filename}" not found`);
+      }
+
+      // Download from storage
+      const storagePath = `${accountId}/${docId}/${filename}`;
+      const adminClient = this.supabase.getAdminClient();
+
+      const { data, error } = await adminClient.storage
+        .from(STORAGE_BUCKET)
+        .download(storagePath);
+
+      if (error || !data) {
+        this.logger.error(
+          `Failed to read file content: ${error?.message}`,
+        );
+        throw new Error(`Failed to read file content: ${error?.message}`);
+      }
+
+      const content = await data.text();
+      return { content, filename };
+    } catch (error) {
+      this.logger.error('Error fetching attachment content:', error);
       throw error;
     }
   }
