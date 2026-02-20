@@ -88,6 +88,21 @@ export class SkillsController {
     );
   }
 
+  @Get(':id/attachments/:filename/content')
+  getAttachmentContent(
+    @Request() req,
+    @Param('accountId') accountId: string,
+    @Param('id') skillId: string,
+    @Param('filename') filename: string,
+  ) {
+    return this.skillsService.getAttachmentContent(
+      req.accessToken,
+      accountId,
+      skillId,
+      filename,
+    );
+  }
+
   @Get(':id')
   findOne(@Request() req, @Param('accountId') accountId: string, @Param('id') id: string) {
     return this.skillsService.findOne(req.accessToken, accountId, id);

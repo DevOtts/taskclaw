@@ -278,6 +278,36 @@ export async function uploadSkillAttachment(skillId: string, formData: FormData)
   }
 }
 
+export async function getAttachmentContent(
+  skillId: string,
+  filename: string,
+): Promise<{ content: string; filename: string }> {
+  try {
+    const accountId = await getCurrentAccountId();
+    if (!accountId) {
+      throw new Error('No account ID found');
+    }
+
+    const response = await fetch(
+      `${API_URL}/accounts/${accountId}/skills/${skillId}/attachments/${encodeURIComponent(filename)}/content`,
+      {
+        headers: await getAuthHeaders(),
+        cache: 'no-store',
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch attachment content');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching attachment content:', error);
+    throw error;
+  }
+}
+
 export async function removeSkillAttachment(skillId: string, filename: string) {
   try {
     const accountId = await getCurrentAccountId();

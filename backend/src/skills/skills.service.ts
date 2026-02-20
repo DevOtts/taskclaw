@@ -502,6 +502,38 @@ export class SkillsService {
   }
 
   /**
+   * Read text content of a file attachment from Supabase Storage
+   */
+  async getAttachmentContent(
+    accessToken: string,
+    accountId: string,
+    skillId: string,
+    filename: string,
+  ): Promise<{ content: string; filename: string }> {
+    const skill = await this.findOne(accessToken, accountId, skillId);
+
+    const existingAttachments = skill.file_attachments || [];
+    const attachment = existingAttachments.find((a: any) => a.name === filename);
+    if (!attachment) {
+      throw new NotFoundException(`Attachment "${filename}" not found`);
+    }
+
+    const storagePath = `${accountId}/${skillId}/${filename}`;
+    const adminClient = this.supabase.getAdminClient();
+    const { data, error } = await adminClient.storage
+      .from(STORAGE_BUCKET)
+      .download(storagePath);
+
+    if (error || !data) {
+      this.logger.error(`Failed to download attachment ${storagePath}: ${error?.message}`);
+      throw new Error(`Failed to read file content: ${error?.message}`);
+    }
+
+    const content = await data.text();
+    return { content, filename };
+  }
+
+  /**
    * Remove a file attachment from a skill
    */
   async removeAttachment(

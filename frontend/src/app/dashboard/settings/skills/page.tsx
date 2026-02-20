@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getSkills, createSkill, updateSkill, deleteSkill,
   getCategorySkillsMap, linkSkillToCategory, unlinkSkillFromCategory,
-  uploadSkillAttachment, removeSkillAttachment,
+  uploadSkillAttachment, removeSkillAttachment, getAttachmentContent,
 } from './actions';
 import { getCategories } from '../categories/actions';
 import { Plus, Edit, Trash2, Save, X, Power, PowerOff, Tag, Link2, FileText, Download, PenLine, FolderUp } from 'lucide-react';
@@ -66,6 +66,23 @@ export default function SkillsPage() {
     is_active: true,
   });
 
+  // File editor sidebar state
+  const [activeFile, setActiveFile] = useState<string>('__SKILL_MD__');
+  const [fileContents, setFileContents] = useState<Map<string, string>>(new Map());
+  const [modifiedFiles, setModifiedFiles] = useState<Set<string>>(new Set());
+  const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
+
+  const TEXT_EXTENSIONS = new Set([
+    'md', 'txt', 'csv', 'json', 'xml', 'yaml', 'yml',
+    'js', 'ts', 'py', 'sh', 'html', 'css', 'sql',
+    'toml', 'ini', 'cfg', 'conf', 'env', 'log',
+  ]);
+
+  function isTextFile(filename: string): boolean {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    return TEXT_EXTENSIONS.has(ext);
+  }
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -100,6 +117,13 @@ export default function SkillsPage() {
     loadData();
   }, [loadData]);
 
+  function resetFileEditor() {
+    setActiveFile('__SKILL_MD__');
+    setFileContents(new Map());
+    setModifiedFiles(new Set());
+    setLoadingFiles(new Set());
+  }
+
   function startCreate() {
     setFormData({
       name: '',
@@ -110,6 +134,7 @@ export default function SkillsPage() {
     setAttachments([]);
     setPendingFiles([]);
     setActiveTab('write');
+    resetFileEditor();
     setIsCreating(true);
     setEditingSkill(null);
   }
@@ -124,6 +149,7 @@ export default function SkillsPage() {
     setAttachments(skill.file_attachments || []);
     setPendingFiles([]);
     setActiveTab('write');
+    resetFileEditor();
     setEditingSkill(skill);
     setIsCreating(false);
   }
@@ -134,8 +160,62 @@ export default function SkillsPage() {
     setAttachments([]);
     setPendingFiles([]);
     setActiveTab('write');
+    resetFileEditor();
     setFormData({ name: '', description: '', instructions: '', is_active: true });
   }
+
+  async function handleSelectFile(filename: string) {
+    if (filename === '__SKILL_MD__') {
+      setActiveFile(filename);
+      return;
+    }
+    if (fileContents.has(filename)) {
+      setActiveFile(filename);
+      return;
+    }
+    // For new skills, load from pendingFiles
+    if (!editingSkill) {
+      const pending = pendingFiles.find((f) => f.path === filename);
+      if (pending) {
+        setFileContents((prev) => new Map(prev).set(filename, pending.content));
+        setActiveFile(filename);
+      }
+      return;
+    }
+    // Fetch from backend
+    setLoadingFiles((prev) => new Set(prev).add(filename));
+    try {
+      const result = await getAttachmentContent(editingSkill.id, filename);
+      setFileContents((prev) => new Map(prev).set(filename, result.content));
+      setActiveFile(filename);
+    } catch (error: any) {
+      toast.error(`Failed to load ${filename}: ${error.message}`);
+    } finally {
+      setLoadingFiles((prev) => {
+        const next = new Set(prev);
+        next.delete(filename);
+        return next;
+      });
+    }
+  }
+
+  function handleEditorChange(value: string) {
+    if (activeFile === '__SKILL_MD__') {
+      setFormData((prev) => ({ ...prev, instructions: value }));
+    } else {
+      setFileContents((prev) => new Map(prev).set(activeFile, value));
+      setModifiedFiles((prev) => new Set(prev).add(activeFile));
+    }
+  }
+
+  const currentEditorContent = activeFile === '__SKILL_MD__'
+    ? formData.instructions
+    : (fileContents.get(activeFile) ?? '');
+
+  // Files for the sidebar (attachments for existing, pendingFiles for new)
+  const sidebarFiles = editingSkill
+    ? attachments
+    : pendingFiles.map((f) => ({ name: f.path, size: f.file.size, type: f.file.type, url: '', uploaded_at: '' }));
 
   async function handleSave() {
     try {
@@ -156,6 +236,21 @@ export default function SkillsPage() {
       };
 
       if (editingSkill) {
+        // Upload modified reference files first
+        for (const filename of modifiedFiles) {
+          const content = fileContents.get(filename);
+          if (content === undefined) continue;
+          try {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const file = new File([blob], filename, { type: 'text/plain' });
+            const fd = new FormData();
+            fd.append('file', file, filename);
+            await uploadSkillAttachment(editingSkill.id, fd);
+          } catch (err: any) {
+            toast.error(`Failed to save ${filename}: ${err.message}`);
+            return;
+          }
+        }
         await updateSkill(editingSkill.id, data);
       } else {
         const newSkill = await createSkill(data);
@@ -164,8 +259,15 @@ export default function SkillsPage() {
           for (const droppedFile of pendingFiles) {
             try {
               const fd = new FormData();
-              // Use path to preserve folder structure (e.g. "references/guide.md")
-              fd.append('file', droppedFile.file, droppedFile.path);
+              // Check if this file was edited in the Write tab
+              const modifiedContent = fileContents.get(droppedFile.path);
+              if (modifiedContent !== undefined) {
+                const blob = new Blob([modifiedContent], { type: 'text/plain' });
+                const file = new File([blob], droppedFile.path, { type: 'text/plain' });
+                fd.append('file', file, droppedFile.path);
+              } else {
+                fd.append('file', droppedFile.file, droppedFile.path);
+              }
               await uploadSkillAttachment(newSkill.id, fd);
             } catch (err: any) {
               console.error(`Failed to upload ${droppedFile.path}:`, err);
@@ -279,6 +381,10 @@ export default function SkillsPage() {
       // Remove from pending queue (match by path to support folder structure)
       setPendingFiles((prev) => prev.filter((f) => f.path !== filename));
     }
+    // Clean up file editor caches
+    if (activeFile === filename) setActiveFile('__SKILL_MD__');
+    setFileContents((prev) => { const n = new Map(prev); n.delete(filename); return n; });
+    setModifiedFiles((prev) => { const n = new Set(prev); n.delete(filename); return n; });
   }
 
   function formatFileSize(bytes: number): string {
@@ -482,7 +588,7 @@ export default function SkillsPage() {
       {/* Editor Modal */}
       {(editingSkill || isCreating) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="border-b p-4 flex justify-between items-center">
               <h2 className="text-xl font-bold">
@@ -548,14 +654,81 @@ export default function SkillsPage() {
                 {/* Write Tab */}
                 {activeTab === 'write' && (
                   <div className="pt-4">
-                    <label className="block text-sm font-medium mb-1">Instructions *</label>
-                    <textarea
-                      value={formData.instructions}
-                      onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 font-mono text-sm"
-                      rows={15}
-                      placeholder="When reviewing code, check for:&#10;1. Security vulnerabilities&#10;2. Performance bottlenecks&#10;3. Clean code principles..."
-                    />
+                    <label className="block text-sm font-medium mb-1">
+                      {activeFile === '__SKILL_MD__' ? 'Instructions *' : activeFile}
+                      {activeFile !== '__SKILL_MD__' && modifiedFiles.has(activeFile) && (
+                        <span className="ml-2 text-xs text-amber-500">(modified)</span>
+                      )}
+                    </label>
+
+                    <div className="flex gap-0 border rounded-md overflow-hidden" style={{ height: '400px' }}>
+                      {/* File Sidebar */}
+                      {sidebarFiles.length > 0 && (
+                        <div className="w-48 flex-shrink-0 border-r bg-gray-50 dark:bg-gray-900 overflow-y-auto">
+                          <button
+                            onClick={() => handleSelectFile('__SKILL_MD__')}
+                            className={cn(
+                              'w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                              activeFile === '__SKILL_MD__' && 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 border-r-2 border-blue-600',
+                            )}
+                          >
+                            <PenLine className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate">SKILL.md</span>
+                          </button>
+
+                          <div className="px-3 py-1.5">
+                            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
+                              Reference Files
+                            </p>
+                          </div>
+
+                          {sidebarFiles.map((att) => {
+                            const editable = isTextFile(att.name);
+                            const isActive = activeFile === att.name;
+                            const isLoading = loadingFiles.has(att.name);
+                            const isModified = modifiedFiles.has(att.name);
+
+                            return (
+                              <button
+                                key={att.name}
+                                onClick={() => editable && handleSelectFile(att.name)}
+                                disabled={!editable || isLoading}
+                                className={cn(
+                                  'w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors',
+                                  editable
+                                    ? 'hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'
+                                    : 'opacity-50 cursor-not-allowed',
+                                  isActive && 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 border-r-2 border-blue-600',
+                                )}
+                                title={editable ? att.name : `${att.name} (binary, not editable)`}
+                              >
+                                {isLoading ? (
+                                  <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                                ) : (
+                                  <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                                )}
+                                <span className="truncate">{att.name}</span>
+                                {isModified && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 ml-auto" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Editor */}
+                      <textarea
+                        value={currentEditorContent}
+                        onChange={(e) => handleEditorChange(e.target.value)}
+                        className="flex-1 px-3 py-2 dark:bg-gray-700 font-mono text-sm resize-none focus:outline-none min-w-0"
+                        placeholder={
+                          activeFile === '__SKILL_MD__'
+                            ? 'When reviewing code, check for:\n1. Security vulnerabilities\n2. Performance bottlenecks\n3. Clean code principles...'
+                            : `Edit ${activeFile}...`
+                        }
+                      />
+                    </div>
                   </div>
                 )}
 
