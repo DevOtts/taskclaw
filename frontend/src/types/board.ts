@@ -13,6 +13,13 @@ export interface Board {
   settings_override: Record<string, any>
   installed_version: string | null
   latest_available_version: string | null
+  default_category_id: string | null
+  default_category?: {
+    id: string
+    name: string
+    color: string | null
+    icon: string | null
+  } | null
   board_steps?: BoardStep[]
   task_count?: number
   created_at: string
@@ -85,6 +92,22 @@ export interface BoardManifest {
   version: string
   steps: ManifestStep[]
   settings?: Record<string, any>
+}
+
+export interface AgentDashboardItem {
+  id: string
+  name: string
+  color: string | null
+  icon: string | null
+  description: string | null
+  status: 'working' | 'idle' | 'error' | 'not_synced'
+  skill_count: number
+  skill_names: string[]
+  sync_status: string
+  last_synced_at: string | null
+  active_task_count: number
+  active_conversations: number
+  boards: string[]
 }
 
 export interface ManifestStep {

@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsISO8601,
   IsNumber,
+  ValidateIf,
 } from 'class-validator';
 
 
@@ -44,4 +45,9 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsUUID()
   current_step_id?: string;
+
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsUUID()
+  override_category_id?: string | null;
 }

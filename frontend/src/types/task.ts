@@ -14,6 +14,9 @@ export interface Task {
   external_id: string | null
   external_url: string | null
   account_id: string
+  current_step_id?: string
+  board_instance_id?: string
+  override_category_id?: string | null
   created_at: string
   updated_at: string
   metadata?: Record<string, any>
@@ -24,6 +27,13 @@ export interface Task {
   } | null
   // Joined from categories table
   categories?: {
+    id: string
+    name: string
+    color: string | null
+    icon: string | null
+  } | null
+  // Joined from override category
+  override_category?: {
     id: string
     name: string
     color: string | null

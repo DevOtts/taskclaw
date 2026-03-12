@@ -176,6 +176,7 @@ export async function updateTask(
         due_date: string
         time_spent: number
         current_step_id: string
+        override_category_id: string | null
     }>
 ): Promise<{ success?: boolean; task?: Task; error?: string }> {
     const headers = await getAuthHeaders()

@@ -613,4 +613,169 @@ export class SkillsService {
       this.logger.warn(`Failed to sync linked categories: ${err.message}`);
     }
   }
+
+  /**
+   * Get agents dashboard data — categories that have skills linked,
+   * with skill count, sync status, task counts, and board assignments.
+   */
+  async getAgentsDashboard(accessToken: string, accountId: string) {
+    const client = this.supabaseAdmin.getClient();
+
+    // 1. Get all categories that have at least one linked skill
+    const { data: categorySkills, error: csError } = await client
+      .from('category_skills')
+      .select('category_id, skill:skills(id, name, is_active)')
+      .eq('skills.account_id', accountId);
+
+    if (csError) {
+      this.logger.error(`Failed to fetch category skills: ${csError.message}`);
+      return [];
+    }
+
+    // Group skills by category
+    const categorySkillMap: Record<string, { skillCount: number; skillNames: string[] }> = {};
+    for (const cs of categorySkills || []) {
+      const skill = (cs as any).skill;
+      if (!skill || !skill.is_active) continue;
+      if (!categorySkillMap[cs.category_id]) {
+        categorySkillMap[cs.category_id] = { skillCount: 0, skillNames: [] };
+      }
+      categorySkillMap[cs.category_id].skillCount++;
+      categorySkillMap[cs.category_id].skillNames.push(skill.name);
+    }
+
+    const categoryIds = Object.keys(categorySkillMap);
+    if (categoryIds.length === 0) return [];
+
+    // 2. Get category details
+    const { data: categories } = await client
+      .from('categories')
+      .select('id, name, color, icon, description')
+      .eq('account_id', accountId)
+      .in('id', categoryIds);
+
+    // 3. Get provider_agents sync status
+    const { data: providerAgents } = await client
+      .from('provider_agents')
+      .select('category_id, sync_status, last_synced_at')
+      .eq('account_id', accountId)
+      .in('category_id', categoryIds);
+
+    const syncMap: Record<string, { sync_status: string; last_synced_at: string | null }> = {};
+    for (const pa of providerAgents || []) {
+      syncMap[pa.category_id] = {
+        sync_status: pa.sync_status,
+        last_synced_at: pa.last_synced_at,
+      };
+    }
+
+    // 4. Count active tasks per agent category
+    // Tasks where override_category_id = this category
+    const { data: overrideTasks } = await client
+      .from('tasks')
+      .select('override_category_id')
+      .eq('account_id', accountId)
+      .eq('completed', false)
+      .in('override_category_id', categoryIds);
+
+    // Tasks where category_id = this category (legacy/direct)
+    const { data: directTasks } = await client
+      .from('tasks')
+      .select('category_id')
+      .eq('account_id', accountId)
+      .eq('completed', false)
+      .in('category_id', categoryIds);
+
+    const taskCountMap: Record<string, number> = {};
+    for (const t of overrideTasks || []) {
+      if (t.override_category_id) {
+        taskCountMap[t.override_category_id] = (taskCountMap[t.override_category_id] || 0) + 1;
+      }
+    }
+    for (const t of directTasks || []) {
+      if (t.category_id) {
+        taskCountMap[t.category_id] = (taskCountMap[t.category_id] || 0) + 1;
+      }
+    }
+
+    // 5. Get board assignments for each category
+    // Board-level defaults
+    const { data: boardDefaults } = await client
+      .from('board_instances')
+      .select('id, name, default_category_id')
+      .eq('account_id', accountId)
+      .eq('is_archived', false)
+      .in('default_category_id', categoryIds);
+
+    // Step-level links
+    const { data: stepLinks } = await client
+      .from('board_steps')
+      .select('linked_category_id, board_instance_id, board:board_instances!board_instance_id(id, name)')
+      .in('linked_category_id', categoryIds);
+
+    const boardAssignmentMap: Record<string, string[]> = {};
+    for (const b of boardDefaults || []) {
+      if (b.default_category_id) {
+        if (!boardAssignmentMap[b.default_category_id]) boardAssignmentMap[b.default_category_id] = [];
+        if (!boardAssignmentMap[b.default_category_id].includes(b.name)) {
+          boardAssignmentMap[b.default_category_id].push(b.name);
+        }
+      }
+    }
+    for (const s of stepLinks || []) {
+      const board = (s as any).board;
+      if (s.linked_category_id && board?.name) {
+        if (!boardAssignmentMap[s.linked_category_id]) boardAssignmentMap[s.linked_category_id] = [];
+        if (!boardAssignmentMap[s.linked_category_id].includes(board.name)) {
+          boardAssignmentMap[s.linked_category_id].push(board.name);
+        }
+      }
+    }
+
+    // 6. Count active conversations per agent category (last 30 min = "working")
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recentConvos } = await client
+      .from('conversations')
+      .select('task:tasks!inner(category_id, override_category_id)')
+      .eq('account_id', accountId)
+      .gte('updated_at', thirtyMinAgo);
+
+    const activeConvoMap: Record<string, number> = {};
+    for (const c of recentConvos || []) {
+      const task = (c as any).task;
+      const catId = task?.override_category_id || task?.category_id;
+      if (catId && categoryIds.includes(catId)) {
+        activeConvoMap[catId] = (activeConvoMap[catId] || 0) + 1;
+      }
+    }
+
+    // 7. Build response
+    return (categories || []).map((cat: any) => {
+      const skills = categorySkillMap[cat.id] || { skillCount: 0, skillNames: [] };
+      const sync = syncMap[cat.id] || { sync_status: 'none', last_synced_at: null };
+      const activeConversations = activeConvoMap[cat.id] || 0;
+
+      let status: string;
+      if (sync.sync_status === 'error') status = 'error';
+      else if (activeConversations > 0) status = 'working';
+      else if (sync.sync_status === 'synced') status = 'idle';
+      else status = 'not_synced';
+
+      return {
+        id: cat.id,
+        name: cat.name,
+        color: cat.color,
+        icon: cat.icon,
+        description: cat.description,
+        status,
+        skill_count: skills.skillCount,
+        skill_names: skills.skillNames,
+        sync_status: sync.sync_status,
+        last_synced_at: sync.last_synced_at,
+        active_task_count: taskCountMap[cat.id] || 0,
+        active_conversations: activeConversations,
+        boards: boardAssignmentMap[cat.id] || [],
+      };
+    });
+  }
 }

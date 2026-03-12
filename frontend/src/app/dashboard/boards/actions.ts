@@ -75,6 +75,7 @@ export async function createBoard(data: {
     color?: string
     tags?: string[]
     is_favorite?: boolean
+    default_category_id?: string
     steps?: { step_key: string; name: string; step_type?: string; color?: string }[]
 }): Promise<{ success?: boolean; board?: Board; error?: string }> {
     const headers = await getAuthHeaders()
@@ -115,6 +116,7 @@ export async function updateBoard(
         is_favorite: boolean
         display_order: number
         is_archived: boolean
+        default_category_id: string | null
     }>
 ): Promise<{ success?: boolean; board?: Board; error?: string }> {
     const headers = await getAuthHeaders()
@@ -409,6 +411,34 @@ export async function installTemplate(data: {
         if (!res.ok) {
             const err = await res.json()
             return { error: err.message || 'Failed to install template' }
+        }
+
+        const board = await res.json()
+        revalidatePath('/dashboard/boards')
+        revalidatePath('/dashboard')
+        return { success: true, board }
+    } catch (error: any) {
+        return { error: error.message }
+    }
+}
+
+export async function importManifest(manifest: any): Promise<{ success?: boolean; board?: Board; error?: string }> {
+    const headers = await getAuthHeaders()
+    if (!headers) return { error: 'Not authenticated' }
+
+    const accountId = await getActiveAccountId()
+    if (!accountId) return { error: 'No active account' }
+
+    try {
+        const res = await fetch(`${API_URL}/accounts/${accountId}/boards/import`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(manifest),
+        })
+
+        if (!res.ok) {
+            const err = await res.json()
+            return { error: err.message || 'Failed to import board' }
         }
 
         const board = await res.json()

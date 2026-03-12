@@ -10,6 +10,8 @@ import {
     Wand2,
     Plug,
     Tags,
+    Bot,
+    Import,
 } from "lucide-react"
 
 import { isCloudEdition } from "@/lib/edition"
@@ -53,6 +55,18 @@ const data = {
             title: "Skills",
             url: "/dashboard/settings/skills",
             icon: Wand2,
+            items: [],
+        },
+        {
+            title: "Agents",
+            url: "/dashboard/agents",
+            icon: Bot,
+            items: [],
+        },
+        {
+            title: "Import",
+            url: "/dashboard/import",
+            icon: Import,
             items: [],
         },
         {

@@ -9,6 +9,8 @@ import {
     updateBoard,
     deleteBoard,
     duplicateBoard,
+    getTemplates,
+    installTemplate,
 } from '@/app/dashboard/boards/actions'
 import { updateTask } from '@/app/dashboard/tasks/actions'
 import type { Board } from '@/types/board'
@@ -77,6 +79,24 @@ export function useDuplicateBoard() {
     const qc = useQueryClient()
     return useMutation({
         mutationFn: duplicateBoard,
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['boards'] })
+        },
+    })
+}
+
+export function useTemplates() {
+    return useQuery({
+        queryKey: ['boardTemplates'],
+        queryFn: () => getTemplates(),
+        staleTime: 300000, // 5 min
+    })
+}
+
+export function useInstallTemplate() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: installTemplate,
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['boards'] })
         },

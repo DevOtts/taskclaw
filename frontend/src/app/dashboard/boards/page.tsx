@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBoards, useUpdateBoard, useDeleteBoard, useDuplicateBoard, useCreateBoard } from '@/hooks/use-boards'
-import { exportBoard } from '@/app/dashboard/boards/actions'
+import { exportBoard, importManifest } from '@/app/dashboard/boards/actions'
 import { BoardCard } from '@/components/boards/board-card'
 import { CreateBoardDialog } from '@/components/boards/create-board-dialog'
 import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog'
@@ -131,23 +131,34 @@ export default function BoardsPage() {
             const text = await file.text()
             const manifest = JSON.parse(text)
 
-            const steps = manifest.steps?.map((s: any, i: number) => ({
-                step_key: s.id || s.name.toLowerCase().replace(/\s+/g, '_'),
-                name: s.name,
-                step_type: s.type,
-                color: s.color,
-            })) || []
-
-            const result = await createBoard.mutateAsync({
-                name: manifest.name || file.name.replace('.json', ''),
-                description: manifest.description,
-                steps,
-            })
-
-            if (result.error) {
-                toast.error(result.error)
+            // Full manifest import (with categories, skills, rich config)
+            if (manifest.categories?.length || manifest.manifest_version) {
+                const result = await importManifest(manifest)
+                if (result.error) {
+                    toast.error(result.error)
+                } else {
+                    toast.success(`Board "${manifest.name}" imported with ${manifest.categories?.length || 0} categories and ${manifest.steps?.length || 0} steps`)
+                }
             } else {
-                toast.success('Board imported from JSON')
+                // Simple import (steps only, no categories)
+                const steps = manifest.steps?.map((s: any) => ({
+                    step_key: s.id || s.name.toLowerCase().replace(/\s+/g, '_'),
+                    name: s.name,
+                    step_type: s.type,
+                    color: s.color,
+                })) || []
+
+                const result = await createBoard.mutateAsync({
+                    name: manifest.name || file.name.replace('.json', ''),
+                    description: manifest.description,
+                    steps,
+                })
+
+                if (result.error) {
+                    toast.error(result.error)
+                } else {
+                    toast.success('Board imported from JSON')
+                }
             }
         } catch {
             toast.error('Invalid JSON file')

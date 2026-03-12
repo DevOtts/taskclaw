@@ -39,7 +39,7 @@ export class TasksService {
 
     let query = client
       .from('tasks')
-      .select('*, categories(id, name, color, icon), sources(id, provider)')
+      .select('*, categories:categories!category_id(id, name, color, icon), sources(id, provider), override_category:categories!override_category_id(id, name, color, icon)')
       .eq('account_id', accountId);
 
     // Apply filters
@@ -87,7 +87,7 @@ export class TasksService {
 
     const { data, error } = await client
       .from('tasks')
-      .select('*, categories(id, name, color, icon), sources(id, provider)')
+      .select('*, categories:categories!category_id(id, name, color, icon), sources(id, provider), override_category:categories!override_category_id(id, name, color, icon)')
       .eq('id', id)
       .eq('account_id', accountId)
       .single();
@@ -164,7 +164,7 @@ export class TasksService {
         board_instance_id: createTaskDto.board_instance_id || null,
         current_step_id: createTaskDto.current_step_id || null,
       })
-      .select('*, categories(id, name, color, icon), sources(id, provider)')
+      .select('*, categories:categories!category_id(id, name, color, icon), sources(id, provider), override_category:categories!override_category_id(id, name, color, icon)')
       .single();
 
     if (error) {
@@ -236,7 +236,7 @@ export class TasksService {
       .update(updateData)
       .eq('id', id)
       .eq('account_id', accountId)
-      .select('*, categories(id, name, color, icon), sources(id, provider)')
+      .select('*, categories:categories!category_id(id, name, color, icon), sources(id, provider), override_category:categories!override_category_id(id, name, color, icon)')
       .single();
 
     if (error) {
@@ -385,7 +385,7 @@ export class TasksService {
       })
       .eq('id', taskId)
       .eq('account_id', accountId)
-      .select('*, categories(id, name, color, icon), sources(id, provider)')
+      .select('*, categories:categories!category_id(id, name, color, icon), sources(id, provider), override_category:categories!override_category_id(id, name, color, icon)')
       .single();
 
     if (error) {

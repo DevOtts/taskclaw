@@ -12,6 +12,8 @@ import {
 } from '@nestjs/common';
 import { BoardsService } from './boards.service';
 import { BoardStepsService } from './board-steps.service';
+import { BoardTemplatesService } from './board-templates.service';
+import { BundleImportService } from './bundle-import.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { CreateBoardStepDto } from './dto/create-board-step.dto';
@@ -24,6 +26,8 @@ export class BoardsController {
   constructor(
     private readonly boardsService: BoardsService,
     private readonly boardStepsService: BoardStepsService,
+    private readonly boardTemplatesService: BoardTemplatesService,
+    private readonly bundleImportService: BundleImportService,
   ) {}
 
   // ─── Board Instance CRUD ───────────────────────────────────
@@ -40,6 +44,24 @@ export class BoardsController {
     if (favorite !== undefined) filters.favorite = favorite === 'true';
 
     return this.boardsService.findAll(req.user.id, accountId, filters);
+  }
+
+  @Post('import')
+  importManifest(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Body() manifest: any,
+  ) {
+    return this.boardTemplatesService.importManifest(req.user.id, accountId, manifest);
+  }
+
+  @Post('bundle-import')
+  importBundle(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Body() bundle: any,
+  ) {
+    return this.bundleImportService.importBundle(req.user.id, accountId, bundle);
   }
 
   @Get(':boardId')

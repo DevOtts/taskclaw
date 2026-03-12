@@ -35,6 +35,14 @@ export class SkillsController {
     return this.skillsService.findAll(req.accessToken, accountId, activeOnly === 'true');
   }
 
+  @Get('agents/dashboard')
+  getAgentsDashboard(
+    @Request() req,
+    @Param('accountId') accountId: string,
+  ) {
+    return this.skillsService.getAgentsDashboard(req.accessToken, accountId);
+  }
+
   @Get('category-map')
   getCategorySkillsMap(
     @Request() req,

@@ -95,6 +95,7 @@ export function BoardKanbanView({ board, categories }: BoardKanbanViewProps) {
                                 boardId={board.id}
                                 tasks={getTasksByStep(step.id) as Task[]}
                                 categories={categories}
+                                boardDefaultCategory={board.default_category}
                                 onAddTask={() => setShowNewTask(step)}
                             />
                         ))}

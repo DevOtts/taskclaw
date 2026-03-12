@@ -140,6 +140,11 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
         updateTask.mutate({ id: selectedTaskId, category_id: categoryId || '' })
     }
 
+    const handleAgentOverride = (categoryId: string | null) => {
+        if (!selectedTaskId) return
+        updateTask.mutate({ id: selectedTaskId, override_category_id: categoryId } as any)
+    }
+
     const handleDelete = () => {
         if (!selectedTaskId) return
         deleteTask.mutate(selectedTaskId, {
@@ -396,6 +401,60 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
                                 >
                                     {task.priority || 'None'}
                                 </div>
+                            </div>
+
+                            {/* Agent Override */}
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                    Agent
+                                </label>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button
+                                            className={cn(
+                                                'flex items-center gap-1.5 text-xs px-2 py-1 rounded w-fit cursor-pointer hover:opacity-80 transition-opacity',
+                                                task.override_category_id
+                                                    ? 'bg-primary/10 text-primary border border-primary/20'
+                                                    : 'bg-accent/50 text-muted-foreground border border-border',
+                                            )}
+                                        >
+                                            <Bot className="w-3 h-3" />
+                                            {task.override_category?.name || task.categories?.name || 'Auto'}
+                                            {task.override_category_id && (
+                                                <span className="text-[9px] bg-primary/20 px-1 rounded">Card</span>
+                                            )}
+                                            <ChevronDown className="w-3 h-3 opacity-60" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="min-w-[180px]">
+                                        <DropdownMenuItem
+                                            onClick={() => handleAgentOverride(null)}
+                                            className={cn(
+                                                'flex items-center gap-2 text-xs cursor-pointer',
+                                                !task.override_category_id && 'bg-accent',
+                                            )}
+                                        >
+                                            <span className="w-2 h-2 rounded-full shrink-0 bg-muted-foreground/40" />
+                                            Auto (inherit from column/board)
+                                        </DropdownMenuItem>
+                                        {categories.map((cat) => (
+                                            <DropdownMenuItem
+                                                key={cat.id}
+                                                onClick={() => handleAgentOverride(cat.id)}
+                                                className={cn(
+                                                    'flex items-center gap-2 text-xs cursor-pointer',
+                                                    task.override_category_id === cat.id && 'bg-accent',
+                                                )}
+                                            >
+                                                <span
+                                                    className="w-2 h-2 rounded-full shrink-0"
+                                                    style={{ backgroundColor: cat.color || '#71717a' }}
+                                                />
+                                                {cat.name}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
 
                             {task.time_spent !== null && task.time_spent > 0 && (

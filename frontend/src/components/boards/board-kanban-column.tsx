@@ -30,6 +30,7 @@ interface BoardKanbanColumnProps {
     boardId: string
     tasks: Task[]
     categories?: Category[]
+    boardDefaultCategory?: { id: string; name: string; color: string | null; icon: string | null } | null
     onAddTask?: () => void
 }
 
@@ -39,6 +40,7 @@ export function BoardKanbanColumn({
     boardId,
     tasks,
     categories = [],
+    boardDefaultCategory,
     onAddTask,
 }: BoardKanbanColumnProps) {
     const qc = useQueryClient()
@@ -107,7 +109,7 @@ export function BoardKanbanColumn({
                     </DropdownMenu>
                 </div>
 
-                {/* Linked category indicator — always reserves the line space */}
+                {/* Linked category / agent indicator — always reserves the line space */}
                 <div className="h-5 flex items-center ml-4">
                     {linkedCat ? (
                         <div className="flex items-center gap-1.5">
@@ -119,6 +121,18 @@ export function BoardKanbanColumn({
                             <span className="text-[10px] text-primary/60 font-medium truncate">
                                 {linkedCat.name}
                             </span>
+                        </div>
+                    ) : boardDefaultCategory ? (
+                        <div className="flex items-center gap-1.5 opacity-50">
+                            <Sparkles className="w-3 h-3 text-muted-foreground shrink-0" />
+                            <span
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: boardDefaultCategory.color || '#71717a' }}
+                            />
+                            <span className="text-[10px] text-muted-foreground font-medium truncate italic">
+                                {boardDefaultCategory.name}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground/60">(board)</span>
                         </div>
                     ) : null}
                 </div>

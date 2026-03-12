@@ -24,7 +24,7 @@ export class BoardsService {
 
     let query = client
       .from('board_instances')
-      .select('*, board_steps(id, step_key, name, step_type, position, color, linked_category_id, linked_category:categories!linked_category_id(id, name, color, icon))')
+      .select('*, default_category:categories!default_category_id(id, name, color, icon), board_steps(id, step_key, name, step_type, position, color, linked_category_id, linked_category:categories!linked_category_id(id, name, color, icon))')
       .eq('account_id', accountId);
 
     if (filters?.archived !== undefined) {
@@ -83,7 +83,7 @@ export class BoardsService {
 
     const { data, error } = await client
       .from('board_instances')
-      .select('*, board_steps(id, step_key, name, step_type, position, color, linked_category_id, trigger_type, ai_first, input_schema, output_schema, on_success_step_id, on_error_step_id, webhook_url, webhook_auth_header, schedule_cron, system_prompt, linked_category:categories!linked_category_id(id, name, color, icon))')
+      .select('*, default_category:categories!default_category_id(id, name, color, icon), board_steps(id, step_key, name, step_type, position, color, linked_category_id, trigger_type, ai_first, input_schema, output_schema, on_success_step_id, on_error_step_id, webhook_url, webhook_auth_header, schedule_cron, system_prompt, linked_category:categories!linked_category_id(id, name, color, icon))')
       .eq('id', boardId)
       .eq('account_id', accountId)
       .single();
@@ -136,6 +136,7 @@ export class BoardsService {
         color: dto.color || '#6366f1',
         tags: dto.tags || [],
         is_favorite: dto.is_favorite || false,
+        default_category_id: dto.default_category_id || null,
       })
       .select()
       .single();
@@ -246,6 +247,7 @@ export class BoardsService {
         settings_override: original.settings_override,
         installed_manifest: original.installed_manifest,
         installed_version: original.installed_version,
+        default_category_id: original.default_category_id || null,
       })
       .select()
       .single();
@@ -284,12 +286,13 @@ export class BoardsService {
     const client = this.supabaseAdmin.getClient();
     const board = await this.findOne(userId, accountId, boardId);
 
-    // Collect unique linked category IDs
+    // Collect unique linked category IDs (from steps + board default)
     const categoryIds = [
       ...new Set(
-        (board.board_steps || [])
-          .map((s: any) => s.linked_category_id)
-          .filter(Boolean),
+        [
+          board.default_category_id,
+          ...(board.board_steps || []).map((s: any) => s.linked_category_id),
+        ].filter(Boolean),
       ),
     ];
 
@@ -310,12 +313,21 @@ export class BoardsService {
 
       if (cats) {
         for (const cat of cats) {
+          const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
           categoriesMap[cat.id] = {
             id: cat.id,
+            slug,
             name: cat.name,
             color: cat.color,
             icon: cat.icon,
-            skills: (cat.category_skills || []).map((cs: any) => cs.skill).filter(Boolean),
+            skills: (cat.category_skills || []).map((cs: any) => {
+              const skill = cs.skill;
+              if (!skill) return null;
+              return {
+                ...skill,
+                slug: skill.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+              };
+            }).filter(Boolean),
             knowledge_docs: (knowledgeDocs || [])
               .filter((d: any) => d.category_id === cat.id)
               .map((d: any) => ({
@@ -336,11 +348,21 @@ export class BoardsService {
       stepIdToKey[s.id] = s.step_key;
     });
 
+    // Build category ID → slug map for export
+    const categoryIdToSlug: Record<string, string> = {};
+    for (const cat of Object.values(categoriesMap) as any[]) {
+      categoryIdToSlug[cat.id] = cat.slug;
+    }
+
     const manifest = {
       manifest_version: '1.0',
       id: board.name.toLowerCase().replace(/\s+/g, '-'),
       name: board.name,
       description: board.description,
+      default_category_id: board.default_category_id || null,
+      default_category_slug: board.default_category_id
+        ? categoryIdToSlug[board.default_category_id] || null
+        : null,
       version: '1.0.0',
       icon: board.icon,
       color: board.color,
@@ -354,6 +376,9 @@ export class BoardsService {
         position: step.position,
         color: step.color,
         linked_category_id: step.linked_category_id || null,
+        linked_category_slug: step.linked_category_id
+          ? categoryIdToSlug[step.linked_category_id] || null
+          : null,
         linked_category_name: step.linked_category?.name || null,
         trigger_type: step.trigger_type || 'on_entry',
         ai_first: step.ai_first || false,

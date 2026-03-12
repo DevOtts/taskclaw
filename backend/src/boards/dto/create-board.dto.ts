@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
+  IsUUID,
   ValidateNested,
   IsNotEmpty,
 } from 'class-validator';
@@ -55,6 +56,10 @@ export class CreateBoardDto {
   @IsOptional()
   @IsBoolean()
   is_favorite?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  default_category_id?: string;
 
   @IsOptional()
   @IsArray()

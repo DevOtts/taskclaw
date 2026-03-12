@@ -4,6 +4,8 @@ import {
   IsBoolean,
   IsArray,
   IsInt,
+  IsUUID,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateBoardDto {
@@ -39,4 +41,9 @@ export class UpdateBoardDto {
   @IsOptional()
   @IsBoolean()
   is_archived?: boolean;
+
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsUUID()
+  default_category_id?: string | null;
 }
