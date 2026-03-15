@@ -25,6 +25,7 @@ import { PRIORITY_COLORS, STATUS_COLORS, KANBAN_COLUMNS } from '@/types/task'
 import type { Category } from '@/types/task'
 import type { BoardStep } from '@/types/board'
 import { cn } from '@/lib/utils'
+import { hasTaskConversation } from '@/app/dashboard/chat/actions'
 import { TaskAIChat } from './task-ai-chat'
 import { MarkdownEditor } from './markdown-editor'
 import {
@@ -78,6 +79,16 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
         setEditingTitle(false)
         setShowDeleteDialog(false)
     }, [selectedTaskId])
+
+    // Auto-show chat when the task already has a conversation
+    useEffect(() => {
+        if (!selectedTaskId || !aiConfigured) return
+        let cancelled = false
+        hasTaskConversation(selectedTaskId).then((exists) => {
+            if (!cancelled && exists) setShowAIChat(true)
+        })
+        return () => { cancelled = true }
+    }, [selectedTaskId, aiConfigured])
 
     // Sync title with task data
     useEffect(() => {
@@ -596,6 +607,7 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
                                 <TaskAIChat
                                     taskId={task.id}
                                     taskTitle={task.title}
+                                    taskDescription={task.notes || null}
                                     sourceProvider={task.sources?.provider || null}
                                     onClose={() => setShowAIChat(false)}
                                 />

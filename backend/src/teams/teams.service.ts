@@ -114,7 +114,7 @@ export class TeamsService {
         }
 
         // TODO: Send email via Resend
-        console.log(`Invitation link: http://localhost:3000/invite?token=${token}`);
+        console.log(`Invitation link: http://localhost:3002/invite?token=${token}`);
 
         return { success: true };
     }

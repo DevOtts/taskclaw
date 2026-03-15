@@ -386,7 +386,7 @@ Send password reset email.
 ```json
 {
   "email": "user@example.com",
-  "redirectTo": "http://localhost:3000/update-password"
+  "redirectTo": "http://localhost:3002/update-password"
 }
 ```
 
@@ -476,7 +476,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
 # Backend API
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:3003
 ```
 
 ### Initial Setup

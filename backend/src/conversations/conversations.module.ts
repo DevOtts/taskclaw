@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 import { OpenClawService } from './openclaw.service';
@@ -12,7 +12,7 @@ import { AgentSyncModule } from '../agent-sync/agent-sync.module';
 import { CommToolsModule } from '../comm-tools/comm-tools.module';
 
 @Module({
-  imports: [SupabaseModule, CommonModule, AiProviderModule, KnowledgeModule, SkillsModule, AdaptersModule, AgentSyncModule, CommToolsModule],
+  imports: [SupabaseModule, CommonModule, forwardRef(() => AiProviderModule), forwardRef(() => KnowledgeModule), forwardRef(() => SkillsModule), AdaptersModule, forwardRef(() => AgentSyncModule), forwardRef(() => CommToolsModule)],
   controllers: [ConversationsController],
   providers: [ConversationsService, OpenClawService],
   exports: [ConversationsService, OpenClawService],

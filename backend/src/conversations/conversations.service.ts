@@ -104,6 +104,7 @@ export class ConversationsService {
     accessToken: string,
     page: number = 1,
     limit: number = 20,
+    taskId?: string,
   ) {
     const client = this.supabaseAdmin.getClient();
 
@@ -112,16 +113,28 @@ export class ConversationsService {
 
     const offset = (page - 1) * limit;
 
-    const { data, error, count } = await client
+    let query = client
       .from('conversations')
       .select('*, task:tasks(id, title)', { count: 'exact' })
       .eq('user_id', userId)
-      .eq('account_id', accountId)
+      .eq('account_id', accountId);
+
+    if (taskId) {
+      query = query.eq('task_id', taskId);
+    }
+
+    const { data, error, count } = await query
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
       throw new Error(`Failed to fetch conversations: ${error.message}`);
+    }
+
+    if (taskId) {
+      this.logger.debug(
+        `findAll(task_id=${taskId}): found ${data?.length || 0} conversations (total: ${count})`,
+      );
     }
 
     return {
@@ -194,6 +207,10 @@ export class ConversationsService {
     if (error) {
       throw new Error(`Failed to fetch messages: ${error.message}`);
     }
+
+    this.logger.debug(
+      `getMessages(conv=${conversationId.slice(0, 8)}): ${data?.length || 0} messages (total: ${count})`,
+    );
 
     return {
       data,
@@ -413,43 +430,59 @@ export class ConversationsService {
     userContent: string,
     accessToken: string,
   ): void {
+    const startTime = Date.now();
+    const taskId = conversation.task_id;
+    const logPrefix = `[BG-AI conv=${conversationId.slice(0, 8)} task=${taskId?.slice(0, 8) || 'none'}]`;
+
     (async () => {
       const client = this.supabaseAdmin.getClient();
       try {
-        // Get AI provider config
+        this.logger.log(`${logPrefix} Starting background AI processing`);
+
+        // Step 1: Get AI provider config
+        this.logger.debug(`${logPrefix} Step 1/5: Fetching AI provider config`);
         const aiConfig = await this.aiProviderService.getDecryptedConfig(
           accountId,
           accessToken,
         );
+        this.logger.debug(`${logPrefix} Provider: ${aiConfig.api_url}`);
 
-        // Get conversation history
+        // Step 2: Get conversation history
+        this.logger.debug(`${logPrefix} Step 2/5: Fetching conversation history`);
         const history = await this.getConversationHistory(
           conversationId,
           accessToken,
         );
+        this.logger.debug(`${logPrefix} History: ${history.length} messages`);
 
-        // Build system prompt with context
+        // Step 3: Build system prompt with context
+        this.logger.debug(`${logPrefix} Step 3/5: Building system prompt`);
         const systemPrompt = await this.buildSystemPrompt(
           conversation,
           accessToken,
         );
 
-        // Build message array for OpenClaw
+        // Step 4: Send to OpenClaw
         const messages = this.openClawService.buildMessageHistory(
           systemPrompt,
           history,
           userContent,
         );
+        this.logger.log(`${logPrefix} Step 4/5: Sending ${messages.length} messages to OpenClaw`);
 
-        // Send to OpenClaw
         const aiResponse = await this.openClawService.sendMessage(
           aiConfig,
           messages,
           { userId, accountId, conversationId },
         );
 
-        // Store AI response
-        await client
+        this.logger.log(
+          `${logPrefix} AI responded (${aiResponse.response.length} chars, model: ${aiResponse.metadata?.model || 'unknown'})`,
+        );
+
+        // Step 5: Store AI response
+        this.logger.debug(`${logPrefix} Step 5/5: Storing response and updating task`);
+        const { error: insertError } = await client
           .from('messages')
           .insert({
             conversation_id: conversationId,
@@ -457,6 +490,10 @@ export class ConversationsService {
             content: aiResponse.response,
             metadata: aiResponse.metadata || {},
           });
+
+        if (insertError) {
+          this.logger.error(`${logPrefix} Failed to store AI response: ${insertError.message}`);
+        }
 
         // Auto-generate conversation title if needed
         if (!conversation.title || conversation.title === 'New Conversation') {
@@ -467,37 +504,65 @@ export class ConversationsService {
         this.mirrorToNotion(conversation, userContent, aiResponse.response);
 
         // Move the task to "In Review" status
-        if (conversation.task_id) {
+        if (taskId) {
           const { error: updateError } = await client
             .from('tasks')
             .update({ status: 'In Review' })
-            .eq('id', conversation.task_id)
+            .eq('id', taskId)
             .eq('account_id', accountId);
 
           if (updateError) {
             this.logger.error(
-              `Failed to move task ${conversation.task_id} to "In Review": ${updateError.message}`,
+              `${logPrefix} Failed to move task to "In Review": ${updateError.message}`,
             );
           } else {
-            this.logger.log(
-              `Task ${conversation.task_id} moved to "In Review" after AI response`,
-            );
+            this.logger.log(`${logPrefix} Task moved to "In Review"`);
           }
         }
 
-        this.logger.log(`Background AI processing completed for conversation ${conversationId}`);
+        const durationMs = Date.now() - startTime;
+        this.logger.log(`${logPrefix} Completed in ${durationMs}ms`);
       } catch (err) {
+        const durationMs = Date.now() - startTime;
+        const errorMessage = (err as Error).message || 'Unknown error';
+        const errorStack = (err as Error).stack || '';
+
         this.logger.error(
-          `Background AI processing failed for conversation ${conversationId}: ${(err as Error).message}`,
+          `${logPrefix} FAILED after ${durationMs}ms: ${errorMessage}`,
         );
+        this.logger.debug(`${logPrefix} Stack: ${errorStack}`);
 
         // Store error message for user feedback
-        await client.from('messages').insert({
-          conversation_id: conversationId,
-          role: 'system',
-          content: `Error: ${(err as Error).message}`,
-          metadata: { error: true },
-        });
+        try {
+          await client.from('messages').insert({
+            conversation_id: conversationId,
+            role: 'system',
+            content: `AI processing failed: ${errorMessage}`,
+            metadata: { error: true, duration_ms: durationMs },
+          });
+        } catch (storeErr) {
+          this.logger.error(`${logPrefix} Failed to store error message: ${(storeErr as Error).message}`);
+        }
+
+        // Revert task status from "AI Running" back to previous status on failure
+        if (taskId) {
+          try {
+            const previousStatus = conversation.task?.status || 'Idea';
+            const { error: revertError } = await client
+              .from('tasks')
+              .update({ status: previousStatus })
+              .eq('id', taskId)
+              .eq('account_id', accountId);
+
+            if (revertError) {
+              this.logger.error(`${logPrefix} Failed to revert task status: ${revertError.message}`);
+            } else {
+              this.logger.log(`${logPrefix} Task status reverted to "${previousStatus}"`);
+            }
+          } catch (revertErr) {
+            this.logger.error(`${logPrefix} Failed to revert task status: ${(revertErr as Error).message}`);
+          }
+        }
       }
     })();
   }
