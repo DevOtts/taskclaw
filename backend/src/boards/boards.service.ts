@@ -3,6 +3,11 @@ import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { AccessControlHelper } from '../common/helpers/access-control.helper';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
+import {
+  encrypt,
+  decrypt,
+  maskSensitiveValue,
+} from '../common/utils/encryption.util';
 
 interface BoardFilters {
   archived?: boolean;
@@ -232,7 +237,16 @@ export class BoardsService {
 
     const original = await this.findOne(userId, accountId, boardId);
 
-    // Create copy of board
+    // Create copy of board — clear integration credentials
+    const cleanedSettings = { ...(original.settings_override || {}) };
+    if (cleanedSettings.integrations) {
+      const cleaned: Record<string, any> = {};
+      for (const [slug, cfg] of Object.entries(cleanedSettings.integrations as Record<string, any>)) {
+        cleaned[slug] = { enabled: false, config: {}, test_status: 'untested' };
+      }
+      cleanedSettings.integrations = cleaned;
+    }
+
     const { data: copy, error } = await client
       .from('board_instances')
       .insert({
@@ -244,7 +258,7 @@ export class BoardsService {
         color: original.color,
         tags: original.tags,
         is_favorite: false,
-        settings_override: original.settings_override,
+        settings_override: cleanedSettings,
         installed_manifest: original.installed_manifest,
         installed_version: original.installed_version,
         default_category_id: original.default_category_id || null,
@@ -354,11 +368,12 @@ export class BoardsService {
       categoryIdToSlug[cat.id] = cat.slug;
     }
 
-    const manifest = {
+    const manifest: any = {
       manifest_version: '1.0',
       id: board.name.toLowerCase().replace(/\s+/g, '-'),
       name: board.name,
       description: board.description,
+      integrations: (board as any).installed_manifest?.integrations || [],
       default_category_id: board.default_category_id || null,
       default_category_slug: board.default_category_id
         ? categoryIdToSlug[board.default_category_id] || null
@@ -394,5 +409,148 @@ export class BoardsService {
     };
 
     return manifest;
+  }
+
+  // ─── Board Integrations ──────────────────────────────────────────
+
+  async getIntegrationStatuses(
+    userId: string,
+    accountId: string,
+    boardId: string,
+  ) {
+    const client = this.supabaseAdmin.getClient();
+    await this.accessControl.verifyAccountAccess(client, accountId, userId);
+
+    const { data: board, error } = await client
+      .from('board_instances')
+      .select('installed_manifest, settings_override')
+      .eq('id', boardId)
+      .eq('account_id', accountId)
+      .single();
+
+    if (error || !board) {
+      throw new NotFoundException(`Board with ID ${boardId} not found`);
+    }
+
+    const definitions: any[] = board.installed_manifest?.integrations || [];
+    const runtimeConfigs: Record<string, any> =
+      board.settings_override?.integrations || {};
+
+    return definitions.map((def: any) => {
+      const runtime = runtimeConfigs[def.slug] || {
+        enabled: false,
+        config: {},
+        test_status: 'untested',
+      };
+
+      // Mask password-type fields
+      const maskedConfig: Record<string, string> = {};
+      for (const field of def.config_fields || []) {
+        const value = runtime.config?.[field.key];
+        if (value && field.type === 'password') {
+          try {
+            maskedConfig[field.key] = maskSensitiveValue(decrypt(value));
+          } catch {
+            maskedConfig[field.key] = '****';
+          }
+        } else {
+          maskedConfig[field.key] = value || '';
+        }
+      }
+
+      return {
+        ...def,
+        enabled: runtime.enabled || false,
+        config: maskedConfig,
+        has_config: Object.values(runtime.config || {}).some(
+          (v) => v && String(v).length > 0,
+        ),
+        last_tested_at: runtime.last_tested_at || null,
+        test_status: runtime.test_status || 'untested',
+      };
+    });
+  }
+
+  async updateIntegrationConfig(
+    userId: string,
+    accountId: string,
+    boardId: string,
+    slug: string,
+    data: { enabled: boolean; config: Record<string, string> },
+  ) {
+    const client = this.supabaseAdmin.getClient();
+    await this.accessControl.verifyAccountAccess(client, accountId, userId);
+
+    const { data: board, error } = await client
+      .from('board_instances')
+      .select('installed_manifest, settings_override')
+      .eq('id', boardId)
+      .eq('account_id', accountId)
+      .single();
+
+    if (error || !board) {
+      throw new NotFoundException(`Board with ID ${boardId} not found`);
+    }
+
+    const definitions: any[] = board.installed_manifest?.integrations || [];
+    const integrationDef = definitions.find((i: any) => i.slug === slug);
+    if (!integrationDef) {
+      throw new NotFoundException(
+        `Integration "${slug}" not declared in board manifest`,
+      );
+    }
+
+    // Get existing runtime config for this integration
+    const existingRuntime =
+      board.settings_override?.integrations?.[slug] || {};
+
+    // Encrypt password fields, preserve masked values
+    const encryptedConfig: Record<string, string> = {};
+    for (const field of integrationDef.config_fields || []) {
+      const value = data.config?.[field.key];
+      if (value === undefined || value === null || value === '') {
+        continue;
+      }
+      // Skip masked values — keep existing encrypted value
+      if (value.includes('****')) {
+        if (existingRuntime.config?.[field.key]) {
+          encryptedConfig[field.key] = existingRuntime.config[field.key];
+        }
+        continue;
+      }
+      encryptedConfig[field.key] =
+        field.type === 'password' ? encrypt(value) : value;
+    }
+
+    // Merge into settings_override
+    const currentSettings = board.settings_override || {};
+    const currentIntegrations = currentSettings.integrations || {};
+    currentIntegrations[slug] = {
+      enabled: data.enabled,
+      config: encryptedConfig,
+      last_tested_at: null,
+      test_status: 'untested',
+    };
+
+    const { data: updated, error: updateError } = await client
+      .from('board_instances')
+      .update({
+        settings_override: {
+          ...currentSettings,
+          integrations: currentIntegrations,
+        },
+      })
+      .eq('id', boardId)
+      .eq('account_id', accountId)
+      .select()
+      .single();
+
+    if (updateError) {
+      throw new Error(
+        `Failed to update integration config: ${updateError.message}`,
+      );
+    }
+
+    return { success: true };
   }
 }
