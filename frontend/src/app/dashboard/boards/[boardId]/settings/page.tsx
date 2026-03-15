@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
     ChevronRight,
@@ -8,16 +8,22 @@ import {
     Archive,
     Trash2,
     Loader2,
+    CheckCircle2,
+    AlertCircle,
+    Circle,
 } from 'lucide-react'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useBoard, useUpdateBoard, useDeleteBoard } from '@/hooks/use-boards'
-import { exportBoard } from '@/app/dashboard/boards/actions'
+import { exportBoard, getBoardIntegrations } from '@/app/dashboard/boards/actions'
 import { BoardSettingsForm } from '@/components/boards/board-settings-form'
 import { StepEditor } from '@/components/boards/step-editor'
+import { BoardIntegrationDialog } from '@/components/boards/board-integration-dialog'
 import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog'
 import { toast } from 'sonner'
+import type { IntegrationStatus } from '@/types/board'
 
 export default function BoardSettingsPage() {
     const params = useParams()
@@ -28,6 +34,18 @@ export default function BoardSettingsPage() {
     const deleteBoard = useDeleteBoard()
     const [showDelete, setShowDelete] = useState(false)
     const [deleteLoading, setDeleteLoading] = useState(false)
+    const [integrations, setIntegrations] = useState<IntegrationStatus[]>([])
+    const [selectedIntegration, setSelectedIntegration] = useState<IntegrationStatus | null>(null)
+
+    const loadIntegrations = useCallback(async () => {
+        if (!boardId) return
+        const data = await getBoardIntegrations(boardId)
+        setIntegrations(data)
+    }, [boardId])
+
+    useEffect(() => {
+        loadIntegrations()
+    }, [loadIntegrations])
 
     const handleExport = async () => {
         if (!board) return
@@ -142,6 +160,53 @@ export default function BoardSettingsPage() {
                         </div>
                     </section>
 
+                    {/* Integrations */}
+                    {integrations.length > 0 && (
+                        <section>
+                            <h2 className="text-sm font-bold mb-4">Integrations</h2>
+                            <div className="bg-card border border-border rounded-xl divide-y divide-border">
+                                {integrations.map((integration) => (
+                                    <button
+                                        key={integration.slug}
+                                        onClick={() => setSelectedIntegration(integration)}
+                                        className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-accent/50 transition-colors text-left"
+                                    >
+                                        <span className="text-xl">{integration.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-xs font-semibold">{integration.name}</p>
+                                                {integration.required && (
+                                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+                                                        Required
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground truncate">
+                                                {integration.description}
+                                            </p>
+                                        </div>
+                                        {integration.enabled && integration.has_config ? (
+                                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-[10px] shrink-0">
+                                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                                Connected
+                                            </Badge>
+                                        ) : integration.required ? (
+                                            <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px] shrink-0">
+                                                <AlertCircle className="w-3 h-3 mr-1" />
+                                                Setup needed
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px] shrink-0">
+                                                <Circle className="w-3 h-3 mr-1" />
+                                                Not configured
+                                            </Badge>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
                     {/* Export */}
                     <section>
                         <h2 className="text-sm font-bold mb-4">Export</h2>
@@ -215,6 +280,18 @@ export default function BoardSettingsPage() {
                 description="This will permanently delete this board. All tasks will become unassigned. This action cannot be undone."
                 loading={deleteLoading}
             />
+
+            {selectedIntegration && (
+                <BoardIntegrationDialog
+                    integration={selectedIntegration}
+                    boardId={boardId}
+                    open={!!selectedIntegration}
+                    onOpenChange={(open) => {
+                        if (!open) setSelectedIntegration(null)
+                    }}
+                    onSaved={loadIntegrations}
+                />
+            )}
         </div>
     )
 }

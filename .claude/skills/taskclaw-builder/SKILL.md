@@ -107,6 +107,21 @@ Ask:
 - "Which steps should have AI automation?"
 - "On failure, should cards go back to a previous step or stay?"
 
+### Phase 3b: Integration Dependencies
+
+For each board, ask:
+- "What external services or APIs does this board need?" (e.g., X API, Slack, SendGrid, image generation, CRM)
+- "Which are required vs. optional?"
+
+For each integration, define:
+- `slug`, `name`, `description`, `icon` (emoji), `required` (boolean)
+- `setup_guide`: step-by-step setup instructions for the user
+- `config_fields`: credential fields (key, label, type, required, placeholder, help_text)
+
+Common patterns: Social APIs (X, LinkedIn), Image gen (Nano Banana), Email (SendGrid), Webhooks (Slack, Discord), CRM (HubSpot, Salesforce).
+
+If the board has no external dependencies, skip this phase.
+
 ### Phase 4: Agent Design
 
 For each agent in the scope:
@@ -215,6 +230,26 @@ Output **one unified JSON bundle** that can be imported in a single drop:
         "allow_manual_column_move": true,
         "card_retention_days": null
       },
+      "integrations": [
+        {
+          "slug": "service-slug",
+          "name": "Service Name",
+          "description": "What this service does for the board",
+          "icon": "🔌",
+          "required": true,
+          "setup_guide": "Step-by-step setup instructions...",
+          "config_fields": [
+            {
+              "key": "api_key",
+              "label": "API Key",
+              "type": "password",
+              "required": true,
+              "placeholder": "xxx_xxxxx",
+              "help_text": "Where to find this key"
+            }
+          ]
+        }
+      ],
       "categories": [
         {
           "slug": "agent-slug",

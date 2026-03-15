@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getAuthToken, isTokenExpired } from '@/lib/auth'
 import { cookies } from 'next/headers'
-import type { Board, BoardStep, BoardTemplate } from '@/types/board'
+import type { Board, BoardStep, BoardTemplate, IntegrationStatus } from '@/types/board'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
 
@@ -446,6 +446,61 @@ export async function importManifest(manifest: any): Promise<{ success?: boolean
         revalidatePath('/dashboard/boards')
         revalidatePath('/dashboard')
         return { success: true, board }
+    } catch (error: any) {
+        return { error: error.message }
+    }
+}
+
+// ─── Board Integrations ──────────────────────────────────────────────
+
+export async function getBoardIntegrations(boardId: string): Promise<IntegrationStatus[]> {
+    const headers = await getAuthHeaders()
+    if (!headers) return []
+
+    const accountId = await getActiveAccountId()
+    if (!accountId) return []
+
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/boards/${boardId}/integrations`,
+            { headers, cache: 'no-store' }
+        )
+        if (!res.ok) return []
+        return await res.json()
+    } catch {
+        return []
+    }
+}
+
+export async function updateBoardIntegration(
+    boardId: string,
+    slug: string,
+    data: { enabled: boolean; config: Record<string, string> }
+): Promise<{ success?: boolean; error?: string }> {
+    const headers = await getAuthHeaders()
+    if (!headers) return { error: 'Not authenticated' }
+
+    const accountId = await getActiveAccountId()
+    if (!accountId) return { error: 'No active account' }
+
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/boards/${boardId}/integrations/${slug}`,
+            {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify(data),
+            }
+        )
+
+        if (!res.ok) {
+            const err = await res.json()
+            return { error: err.message || 'Failed to update integration' }
+        }
+
+        revalidatePath(`/dashboard/boards/${boardId}`)
+        revalidatePath(`/dashboard/boards/${boardId}/settings`)
+        return { success: true }
     } catch (error: any) {
         return { error: error.message }
     }

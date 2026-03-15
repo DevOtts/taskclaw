@@ -119,6 +119,38 @@ export class BoardsController {
     return this.boardsService.exportManifest(req.user.id, accountId, boardId);
   }
 
+  // ─── Board Integrations ──────────────────────────────────
+
+  @Get(':boardId/integrations')
+  getIntegrations(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Param('boardId') boardId: string,
+  ) {
+    return this.boardsService.getIntegrationStatuses(
+      req.user.id,
+      accountId,
+      boardId,
+    );
+  }
+
+  @Patch(':boardId/integrations/:slug')
+  updateIntegration(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Param('boardId') boardId: string,
+    @Param('slug') slug: string,
+    @Body() body: { enabled: boolean; config: Record<string, string> },
+  ) {
+    return this.boardsService.updateIntegrationConfig(
+      req.user.id,
+      accountId,
+      boardId,
+      slug,
+      body,
+    );
+  }
+
   // ─── Board Steps CRUD ─────────────────────────────────────
 
   @Get(':boardId/steps')
