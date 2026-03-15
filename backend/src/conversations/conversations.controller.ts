@@ -35,6 +35,7 @@ export class ConversationsController {
     @Param('accountId') accountId: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('task_id') taskId?: string,
   ) {
     return this.conversationsService.findAll(
       req.user.id,
@@ -42,6 +43,7 @@ export class ConversationsController {
       req.accessToken,
       page,
       limit,
+      taskId,
     );
   }
 

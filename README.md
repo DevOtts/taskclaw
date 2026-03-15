@@ -47,7 +47,7 @@ cp frontend/.env.example frontend/.env
 docker compose up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3002](http://localhost:3002)
 
 **Option 2: All-in-one (includes local Supabase)**
 
@@ -65,7 +65,7 @@ cp frontend/.env.example frontend/.env
 docker compose --profile supabase up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000) | Supabase Studio: [http://localhost:7430](http://localhost:7430)
+Open [http://localhost:3002](http://localhost:3002) | Supabase Studio: [http://localhost:7430](http://localhost:7430)
 
 ### Local Development
 

@@ -97,9 +97,9 @@ pnpm run dev
 ```
 
 Once running:
-- **Frontend**: [http://localhost:3000](http://localhost:3000)
-- **Backend API**: [http://localhost:3001](http://localhost:3001)
-- **Health check**: [http://localhost:3001/health](http://localhost:3001/health)
+- **Frontend**: [http://localhost:3002](http://localhost:3002)
+- **Backend API**: [http://localhost:3003](http://localhost:3003)
+- **Health check**: [http://localhost:3003/health](http://localhost:3003/health)
 
 ## Project Structure
 
