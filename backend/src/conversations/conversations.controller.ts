@@ -12,12 +12,14 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConversationsService } from './conversations.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 
+@ApiTags('Conversations')
 @Controller('accounts/:accountId/conversations')
 @UseGuards(AuthGuard)
 export class ConversationsController {
@@ -30,6 +32,7 @@ export class ConversationsController {
    * List user's conversations with pagination
    */
   @Get()
+  @ApiOperation({ summary: 'List conversations with pagination' })
   findAll(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -54,6 +57,7 @@ export class ConversationsController {
    * Get conversation details
    */
   @Get(':id')
+  @ApiOperation({ summary: 'Get conversation by ID' })
   findOne(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -72,6 +76,7 @@ export class ConversationsController {
    * Create a new conversation
    */
   @Post()
+  @ApiOperation({ summary: 'Create a new conversation' })
   create(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -90,6 +95,7 @@ export class ConversationsController {
    * Get messages for a conversation
    */
   @Get(':id/messages')
+  @ApiOperation({ summary: 'Get messages for a conversation' })
   getMessages(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -113,6 +119,7 @@ export class ConversationsController {
    * Returns immediately after storing user message. Task moves to "AI Running" then "In Review" when AI responds.
    */
   @Post(':id/messages/background')
+  @ApiOperation({ summary: 'Send message with background AI processing' })
   sendMessageBackground(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -133,6 +140,7 @@ export class ConversationsController {
    * Send a message and get AI response
    */
   @Post(':id/messages')
+  @ApiOperation({ summary: 'Send message and get AI response' })
   sendMessage(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -153,6 +161,7 @@ export class ConversationsController {
    * Update conversation (e.g., change title)
    */
   @Patch(':id')
+  @ApiOperation({ summary: 'Update conversation' })
   update(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -173,6 +182,7 @@ export class ConversationsController {
    * Delete conversation and all messages
    */
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete conversation and messages' })
   remove(
     @Req() req,
     @Param('accountId') accountId: string,

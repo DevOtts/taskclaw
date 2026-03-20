@@ -10,18 +10,21 @@ import {
   Req,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { BulkCreateBoardTasksDto } from './dto/bulk-create-board-tasks.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 
+@ApiTags('Tasks')
 @Controller('accounts/:accountId/tasks')
 @UseGuards(AuthGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List tasks with optional filters' })
   findAll(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -44,6 +47,7 @@ export class TasksController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get task by ID' })
   findOne(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -53,6 +57,7 @@ export class TasksController {
   }
 
   @Get(':id/content')
+  @ApiOperation({ summary: 'Get task content' })
   getContent(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -62,6 +67,7 @@ export class TasksController {
   }
 
   @Get(':id/comments')
+  @ApiOperation({ summary: 'Get task comments' })
   getComments(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -71,6 +77,7 @@ export class TasksController {
   }
 
   @Get(':id/sync-status')
+  @ApiOperation({ summary: 'Get task sync status' })
   getSyncStatus(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -80,6 +87,7 @@ export class TasksController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create a new task' })
   create(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -88,10 +96,8 @@ export class TasksController {
     return this.tasksService.create(req.user.id, accountId, createTaskDto, req.accessToken);
   }
 
-  /**
-   * Bulk-create tasks for a board (used by Board AI Chat after user confirms)
-   */
   @Post('bulk/:boardId')
+  @ApiOperation({ summary: 'Bulk create tasks for a board' })
   bulkCreateForBoard(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -108,6 +114,7 @@ export class TasksController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update a task' })
   update(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -118,6 +125,7 @@ export class TasksController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete a task' })
   remove(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -126,10 +134,8 @@ export class TasksController {
     return this.tasksService.remove(req.user.id, accountId, id, req.accessToken);
   }
 
-  /**
-   * Sprint 7: Save AI findings to task notes and trigger outbound sync
-   */
   @Post(':id/ai-update')
+  @ApiOperation({ summary: 'Save AI findings to task notes' })
   aiUpdate(
     @Req() req,
     @Param('accountId') accountId: string,
@@ -139,10 +145,8 @@ export class TasksController {
     return this.tasksService.aiUpdate(req.user.id, accountId, id, body, req.accessToken);
   }
 
-  /**
-   * Sprint 7: Manually push task changes to external source
-   */
   @Post(':id/sync')
+  @ApiOperation({ summary: 'Sync task to external source' })
   syncToSource(
     @Req() req,
     @Param('accountId') accountId: string,

@@ -7,6 +7,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { OutboundSyncService } from '../sync/outbound-sync.service';
 import { NotionAdapter } from '../adapters/notion/notion.adapter';
 import { ConversationsService } from '../conversations/conversations.service';
+import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
 
 interface TaskFilters {
   category_id?: string;
@@ -29,6 +30,7 @@ export class TasksService {
     private readonly notionAdapter: NotionAdapter,
     @Inject(forwardRef(() => ConversationsService))
     private readonly conversationsService: ConversationsService,
+    private readonly webhookEmitter: WebhookEmitterService,
   ) {}
 
   async findAll(userId: string, accountId: string, filters?: TaskFilters, accessToken?: string) {
@@ -174,6 +176,8 @@ export class TasksService {
     if (error) {
       throw new Error(`Failed to create task: ${error.message}`);
     }
+
+    this.webhookEmitter.emit(accountId, 'task.created', { task: data });
 
     return data;
   }
@@ -356,6 +360,9 @@ export class TasksService {
       );
     }
 
+    const webhookEvent = data.completed ? 'task.completed' : 'task.updated';
+    this.webhookEmitter.emit(accountId, webhookEvent, { task: data });
+
     return data;
   }
 
@@ -380,6 +387,8 @@ export class TasksService {
     if (error) {
       throw new Error(`Failed to delete task: ${error.message}`);
     }
+
+    this.webhookEmitter.emit(accountId, 'task.deleted', { task_id: id });
 
     return { message: 'Task deleted successfully' };
   }

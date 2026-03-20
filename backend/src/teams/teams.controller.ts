@@ -1,7 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards, Request } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { TeamsService } from './teams.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 
+@ApiTags('Teams')
 @Controller('accounts/:accountId')
 @UseGuards(AuthGuard)
 export class TeamsController {
