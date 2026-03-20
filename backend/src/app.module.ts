@@ -28,6 +28,7 @@ import { AgentSyncModule } from './agent-sync/agent-sync.module';
 import { BoardsModule } from './boards/boards.module';
 
 import { IntegrationsModule } from './integrations/integrations.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 // Edition-gated modules (cloud-only)
 import { LangfuseModule } from './ee/langfuse/langfuse.module';
@@ -74,6 +75,7 @@ const editionModules = isCloudEdition
     AgentSyncModule,
     BoardsModule,
     IntegrationsModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

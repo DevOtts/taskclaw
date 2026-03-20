@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { AccessControlHelper } from '../common/helpers/access-control.helper';
+import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import {
@@ -21,6 +22,7 @@ export class BoardsService {
   constructor(
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly accessControl: AccessControlHelper,
+    private readonly webhookEmitter: WebhookEmitterService,
   ) {}
 
   async findAll(userId: string, accountId: string, filters?: BoardFilters) {
@@ -182,6 +184,8 @@ export class BoardsService {
       }
     }
 
+    this.webhookEmitter.emit(accountId, 'board.created', { board });
+
     // Return full board with steps
     return this.findOne(userId, accountId, board.id);
   }
@@ -210,6 +214,8 @@ export class BoardsService {
       throw new Error(`Failed to update board: ${error.message}`);
     }
 
+    this.webhookEmitter.emit(accountId, 'board.updated', { board: data });
+
     return data;
   }
 
@@ -228,6 +234,8 @@ export class BoardsService {
     if (error) {
       throw new Error(`Failed to delete board: ${error.message}`);
     }
+
+    this.webhookEmitter.emit(accountId, 'board.deleted', { board_id: boardId });
 
     return { message: 'Board deleted successfully' };
   }

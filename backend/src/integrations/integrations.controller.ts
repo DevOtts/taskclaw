@@ -12,6 +12,7 @@ import {
   HttpStatus,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { IntegrationsService } from './integrations.service';
 import { CreateDefinitionDto } from './dto/create-definition.dto';
 import { UpdateDefinitionDto } from './dto/update-definition.dto';
@@ -19,6 +20,7 @@ import { CreateConnectionDto } from './dto/create-connection.dto';
 import { UpdateConnectionDto } from './dto/update-connection.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 
+@ApiTags('Integrations')
 @Controller('accounts/:accountId/integrations')
 @UseGuards(AuthGuard)
 export class IntegrationsController {
@@ -155,6 +157,7 @@ export class IntegrationsController {
 }
 
 // Separate controller for board-level integration refs
+@ApiTags('Board Integration Refs')
 @Controller('accounts/:accountId/boards/:boardId/integration-refs')
 @UseGuards(AuthGuard)
 export class BoardIntegrationRefsController {

@@ -15,6 +15,7 @@ import { NotionAdapter } from '../adapters/notion/notion.adapter';
 import { AgentSyncService } from '../agent-sync/agent-sync.service';
 
 import { IntegrationsService } from '../integrations/integrations.service';
+import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
@@ -34,6 +35,7 @@ export class ConversationsService {
     private readonly notionAdapter: NotionAdapter,
     private readonly agentSyncService: AgentSyncService,
     private readonly integrationsService: IntegrationsService,
+    private readonly webhookEmitter: WebhookEmitterService,
   ) {}
 
   /**
@@ -112,6 +114,8 @@ export class ConversationsService {
     }
 
     this.logger.log(`Conversation created: ${data.id} with ${dto.skill_ids?.length || 0} skills`);
+
+    this.webhookEmitter.emit(accountId, 'conversation.created', { conversation: data });
 
     return data;
   }
@@ -290,6 +294,11 @@ export class ConversationsService {
       throw new Error(`Failed to store user message: ${userMsgError.message}`);
     }
 
+    this.webhookEmitter.emit(accountId, 'message.created', {
+      message: userMessage,
+      conversation_id: conversationId,
+    });
+
     try {
       // Get conversation history
       const history = await this.getConversationHistory(
@@ -337,6 +346,11 @@ export class ConversationsService {
           `Failed to store AI response: ${aiMsgError.message}`,
         );
       }
+
+      this.webhookEmitter.emit(accountId, 'message.created', {
+        message: assistantMessage,
+        conversation_id: conversationId,
+      });
 
       // Auto-generate conversation title from first user message if needed
       if (!conversation.title || conversation.title === 'New Conversation') {
@@ -412,6 +426,11 @@ export class ConversationsService {
     if (userMsgError) {
       throw new Error(`Failed to store user message: ${userMsgError.message}`);
     }
+
+    this.webhookEmitter.emit(accountId, 'message.created', {
+      message: userMessage,
+      conversation_id: conversationId,
+    });
 
     // Move task to "AI Running" immediately
     if (conversation.task_id) {

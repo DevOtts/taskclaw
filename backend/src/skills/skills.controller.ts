@@ -15,12 +15,14 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SkillsService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 
+@ApiTags('Skills')
 @Controller('accounts/:accountId/skills')
 @UseGuards(AuthGuard)
 export class SkillsController {
