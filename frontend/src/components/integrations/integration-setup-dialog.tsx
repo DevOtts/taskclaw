@@ -101,7 +101,7 @@ export function IntegrationSetupDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[90vw] w-[90vw] max-h-[88vh] h-[88vh] flex flex-col">
+            <DialogContent className="sm:max-w-[90vw] w-[90vw] max-h-[88vh] h-[88vh] flex flex-col">
                 <DialogHeader>
                     <div className="flex items-center gap-3">
                         <span className="text-2xl">{definition.icon || '🔌'}</span>
@@ -122,8 +122,8 @@ export function IntegrationSetupDialog({
                 </DialogHeader>
 
                 <div className="flex-1 min-h-0 flex gap-4 overflow-hidden">
-                    {/* Left: Credentials & Config */}
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                    {/* Left: Credentials & Config (60%) */}
+                    <div className="w-[60%] overflow-y-auto space-y-4 pr-2">
                         {/* Setup Guide */}
                         {definition.setup_guide && (
                             <div className="bg-accent/50 rounded-lg p-3 text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
@@ -320,8 +320,8 @@ export function IntegrationSetupDialog({
                         </div>
                     </div>
 
-                    {/* Right: Test Chat */}
-                    <div className="w-[400px] shrink-0 flex flex-col min-h-0">
+                    {/* Right: Test Chat (40%) */}
+                    <div className="w-[40%] shrink-0 flex flex-col min-h-0">
                         <IntegrationTestChat
                             integrationName={definition.name}
                             connectionId={connection?.id}

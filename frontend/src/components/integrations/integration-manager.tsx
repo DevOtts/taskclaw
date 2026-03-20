@@ -372,8 +372,8 @@ export function IntegrationManager({ mode, boardId, onClose, embedded, size = 'd
     }
 
     const dialogClassName = size === 'full'
-        ? 'max-w-[95vw] w-[95vw] max-h-[92vh] h-[92vh] flex flex-col'
-        : 'max-w-4xl max-h-[85vh] flex flex-col'
+        ? 'sm:max-w-[95vw] w-[95vw] max-h-[92vh] h-[92vh] flex flex-col'
+        : 'sm:max-w-4xl max-h-[85vh] flex flex-col'
 
     return (
         <Dialog open={true} onOpenChange={(open) => { if (!open) onClose?.() }}>
