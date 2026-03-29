@@ -8,13 +8,31 @@ This guide walks you through deploying TaskClaw on your own infrastructure using
 - A **Supabase instance** -- either [Supabase Cloud](https://supabase.com) (easiest) or the local Supabase profile included in this repo
 - An **OpenRouter API key** (optional, required only for AI chat features -- get one at [openrouter.ai/keys](https://openrouter.ai/keys))
 
+## Fastest Start (Zero Config)
+
+Get TaskClaw running with a single command -- no cloning, no configuration:
+
+```bash
+npx taskclaw
+```
+
+Or without Node.js:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taskclaw/taskclaw/main/scripts/install.sh | sh
+```
+
+This downloads the quickstart compose file, pulls Docker images, and starts everything on **http://localhost:3000**. Login with `super@admin.com` / `password123`.
+
+Manage with: `npx taskclaw stop`, `npx taskclaw logs`, `npx taskclaw upgrade`, `npx taskclaw reset`.
+
 ## Quick Start -- BYO Supabase
 
 Use this path if you already have a Supabase Cloud project or an existing self-hosted Supabase instance.
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-org/taskclaw.git
+git clone https://github.com/taskclaw/taskclaw.git
 cd taskclaw
 
 # 2. Copy and fill in environment files
@@ -53,7 +71,7 @@ Use this path if you want zero external dependencies. Docker Compose will spin u
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-org/taskclaw.git
+git clone https://github.com/taskclaw/taskclaw.git
 cd taskclaw
 
 # 2. Copy the root .env (configures Supabase containers)

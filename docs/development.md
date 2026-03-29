@@ -12,7 +12,7 @@ This guide covers how to set up a local development environment for TaskClaw.
 ## Clone and Install
 
 ```bash
-git clone https://github.com/your-org/taskclaw.git
+git clone https://github.com/taskclaw/taskclaw.git
 cd taskclaw
 
 # Install dependencies for the entire monorepo
