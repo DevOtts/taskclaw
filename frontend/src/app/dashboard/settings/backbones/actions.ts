@@ -37,7 +37,7 @@ export async function getBackboneDefinitions(): Promise<BackboneDefinition[]> {
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/definitions`,
+            `${API_URL}/accounts/${accountId}/backbone/definitions`,
             { headers, cache: 'no-store' }
         )
         if (!res.ok) return []
@@ -58,7 +58,7 @@ export async function getBackboneConnections(): Promise<BackboneConnection[]> {
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/connections`,
+            `${API_URL}/accounts/${accountId}/backbone/connections`,
             { headers, cache: 'no-store' }
         )
         if (!res.ok) return []
@@ -77,7 +77,7 @@ export async function getBackboneConnection(
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/connections/${connectionId}`,
+            `${API_URL}/accounts/${accountId}/backbone/connections/${connectionId}`,
             { headers, cache: 'no-store' }
         )
         if (!res.ok) {
@@ -99,7 +99,7 @@ export async function createBackboneConnection(
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/connections`,
+            `${API_URL}/accounts/${accountId}/backbone/connections`,
             {
                 method: 'POST',
                 headers,
@@ -127,7 +127,7 @@ export async function updateBackboneConnection(
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/connections/${connectionId}`,
+            `${API_URL}/accounts/${accountId}/backbone/connections/${connectionId}`,
             {
                 method: 'PATCH',
                 headers,
@@ -154,7 +154,7 @@ export async function deleteBackboneConnection(
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/connections/${connectionId}`,
+            `${API_URL}/accounts/${accountId}/backbone/connections/${connectionId}`,
             { method: 'DELETE', headers }
         )
         if (!res.ok) {
@@ -177,7 +177,7 @@ export async function verifyBackboneConnection(
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/connections/${connectionId}/verify`,
+            `${API_URL}/accounts/${accountId}/backbone/connections/${connectionId}/verify`,
             { method: 'POST', headers }
         )
         if (!res.ok) {
@@ -200,7 +200,7 @@ export async function setDefaultBackboneConnection(
 
     try {
         const res = await fetch(
-            `${API_URL}/accounts/${accountId}/backbones/connections/${connectionId}/set-default`,
+            `${API_URL}/accounts/${accountId}/backbone/connections/${connectionId}/default`,
             { method: 'POST', headers }
         )
         if (!res.ok) {

@@ -14,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
     Select,
     SelectContent,
@@ -26,6 +25,7 @@ import { toast } from 'sonner'
 import { useBackboneDefinitions } from '@/hooks/use-backbone-definitions'
 import type {
     BackboneDefinition,
+    BackboneConfigSchemaField,
     BackboneConnection,
     CreateBackboneConnectionPayload,
     UpdateBackboneConnectionPayload,
@@ -46,7 +46,7 @@ interface BackboneConnectionDialogProps {
 }
 
 interface FormValues {
-    definition_id: string
+    backbone_type: string
     name: string
     description: string
     is_default: boolean
@@ -54,84 +54,36 @@ interface FormValues {
 }
 
 // ============================================================================
-// JSON Schema → form field renderer
+// Single config field renderer
 // ============================================================================
 
-interface SchemaProperty {
-    type?: string
-    format?: string
-    description?: string
-    default?: any
-    enum?: string[]
-    title?: string
-}
-
-function SchemaField({
-    fieldKey,
-    property,
-    required,
+function ConfigField({
+    field,
     value,
     onChange,
 }: {
-    fieldKey: string
-    property: SchemaProperty
-    required: boolean
+    field: BackboneConfigSchemaField
     value: any
     onChange: (val: any) => void
 }) {
-    const label = property.title || fieldKey
-    const isPassword = property.format === 'password'
-    const isObject = property.type === 'object'
-    const isEnum = Array.isArray(property.enum) && property.enum.length > 0
-    const isNumber = property.type === 'number' || property.type === 'integer'
+    const isPassword = field.type === 'secret'
+    const isNumber = field.type === 'number'
 
     return (
         <div className="space-y-1.5">
             <Label className="text-xs">
-                {label}
-                {required && <span className="text-red-500 ml-0.5">*</span>}
+                {field.label}
+                {field.required && <span className="text-red-500 ml-0.5">*</span>}
             </Label>
-            {isEnum ? (
-                <Select value={value ?? ''} onValueChange={onChange}>
-                    <SelectTrigger className="text-sm">
-                        <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {property.enum!.map((opt) => (
-                            <SelectItem key={opt} value={opt}>
-                                {opt}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            ) : isObject ? (
-                <Textarea
-                    value={typeof value === 'string' ? value : JSON.stringify(value ?? {}, null, 2)}
-                    onChange={(e) => {
-                        try {
-                            onChange(JSON.parse(e.target.value))
-                        } catch {
-                            onChange(e.target.value)
-                        }
-                    }}
-                    placeholder="{}"
-                    rows={4}
-                    className="text-sm font-mono"
-                />
-            ) : (
-                <Input
-                    type={isPassword ? 'password' : isNumber ? 'number' : 'text'}
-                    value={value ?? ''}
-                    onChange={(e) =>
-                        onChange(isNumber ? Number(e.target.value) : e.target.value)
-                    }
-                    placeholder={property.description || `Enter ${label.toLowerCase()}...`}
-                    className="text-sm"
-                />
-            )}
-            {property.description && !isObject && (
-                <p className="text-[10px] text-muted-foreground">{property.description}</p>
-            )}
+            <Input
+                type={isPassword ? 'password' : isNumber ? 'number' : 'text'}
+                value={value ?? ''}
+                onChange={(e) =>
+                    onChange(isNumber ? Number(e.target.value) : e.target.value)
+                }
+                placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+                className="text-sm"
+            />
         </div>
     )
 }
@@ -152,9 +104,9 @@ export function BackboneConnectionDialog({
     const { data: definitions = [] } = useBackboneDefinitions()
     const isEdit = !!connection
 
-    const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormValues>({
+    const { control, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
         defaultValues: {
-            definition_id: '',
+            backbone_type: '',
             name: '',
             description: '',
             is_default: false,
@@ -162,38 +114,27 @@ export function BackboneConnectionDialog({
         },
     })
 
-    const selectedDefinitionId = watch('definition_id')
+    const selectedSlug = watch('backbone_type')
     const configValues = watch('config')
 
     const selectedDefinition = useMemo(
-        () => definitions.find((d) => d.id === selectedDefinitionId) ?? null,
-        [definitions, selectedDefinitionId]
+        () => definitions.find((d) => d.slug === selectedSlug) ?? null,
+        [definitions, selectedSlug]
     )
-
-    // Extract config_schema properties
-    const schemaProperties = useMemo(() => {
-        if (!selectedDefinition?.config_schema?.properties) return {}
-        return selectedDefinition.config_schema.properties as Record<string, SchemaProperty>
-    }, [selectedDefinition])
-
-    const requiredFields = useMemo(() => {
-        if (!selectedDefinition?.config_schema?.required) return [] as string[]
-        return selectedDefinition.config_schema.required as string[]
-    }, [selectedDefinition])
 
     // Populate form when editing
     useEffect(() => {
         if (open && connection) {
             reset({
-                definition_id: connection.definition_id,
+                backbone_type: connection.backbone_type,
                 name: connection.name,
                 description: connection.description ?? '',
                 is_default: connection.is_default,
-                config: connection.config_preview ?? {},
+                config: connection.config ?? {},
             })
         } else if (open) {
             reset({
-                definition_id: '',
+                backbone_type: '',
                 name: '',
                 description: '',
                 is_default: false,
@@ -206,14 +147,15 @@ export function BackboneConnectionDialog({
     useEffect(() => {
         if (!isEdit && selectedDefinition) {
             setValue('config', {})
-            if (!watch('name')) {
-                setValue('name', `My ${selectedDefinition.name}`)
+            const currentName = watch('name')
+            if (!currentName) {
+                setValue('name', `My ${selectedDefinition.label}`)
             }
         }
-    }, [selectedDefinitionId]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedSlug]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const onSubmit = async (values: FormValues) => {
-        if (!values.definition_id) {
+        if (!values.backbone_type) {
             toast.error('Please select a backbone type')
             return
         }
@@ -233,7 +175,7 @@ export function BackboneConnectionDialog({
                 })
             } else {
                 await onSave({
-                    definition_id: values.definition_id,
+                    backbone_type: values.backbone_type,
                     name: values.name.trim(),
                     description: values.description.trim() || undefined,
                     config: values.config,
@@ -267,7 +209,7 @@ export function BackboneConnectionDialog({
                             Backbone Type <span className="text-red-500">*</span>
                         </Label>
                         <Controller
-                            name="definition_id"
+                            name="backbone_type"
                             control={control}
                             rules={{ required: true }}
                             render={({ field }) => (
@@ -281,12 +223,12 @@ export function BackboneConnectionDialog({
                                     </SelectTrigger>
                                     <SelectContent>
                                         {definitions
-                                            .filter((d) => d.is_active)
+                                            .filter((d) => d.available)
                                             .map((def) => (
-                                                <SelectItem key={def.id} value={def.id}>
+                                                <SelectItem key={def.slug} value={def.slug}>
                                                     <div className="flex items-center gap-2">
                                                         <span>{def.icon || '🧠'}</span>
-                                                        <span className="font-medium">{def.name}</span>
+                                                        <span className="font-medium">{def.label}</span>
                                                         <span className="text-xs text-muted-foreground capitalize">
                                                             ({def.protocol})
                                                         </span>
@@ -335,27 +277,25 @@ export function BackboneConnectionDialog({
                     </div>
 
                     {/* Dynamic config fields from schema */}
-                    {selectedDefinition && Object.keys(schemaProperties).length > 0 && (
+                    {selectedDefinition && selectedDefinition.configSchema.length > 0 && (
                         <div className="space-y-3">
                             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 Configuration
                             </h4>
-                            {Object.entries(schemaProperties).map(([key, property]) => (
-                                <SchemaField
-                                    key={key}
-                                    fieldKey={key}
-                                    property={property}
-                                    required={requiredFields.includes(key)}
-                                    value={configValues[key]}
+                            {selectedDefinition.configSchema.map((schemaField) => (
+                                <ConfigField
+                                    key={schemaField.key}
+                                    field={schemaField}
+                                    value={configValues[schemaField.key]}
                                     onChange={(val) => {
-                                        setValue('config', { ...configValues, [key]: val })
+                                        setValue('config', { ...configValues, [schemaField.key]: val })
                                     }}
                                 />
                             ))}
                         </div>
                     )}
 
-                    {selectedDefinition && Object.keys(schemaProperties).length === 0 && (
+                    {selectedDefinition && selectedDefinition.configSchema.length === 0 && (
                         <p className="text-xs text-muted-foreground italic">
                             No additional configuration required for this backbone type.
                         </p>
@@ -387,7 +327,7 @@ export function BackboneConnectionDialog({
                         <Button
                             size="sm"
                             onClick={handleSubmit(onSubmit)}
-                            disabled={saving || !selectedDefinitionId}
+                            disabled={saving || !selectedSlug}
                         >
                             {saving && <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />}
                             {isEdit ? 'Save Changes' : 'Create Connection'}

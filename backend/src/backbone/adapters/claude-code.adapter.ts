@@ -1,5 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import {
+import { spawn, execSync } from 'child_process';
+import * as fs from 'fs';
+import type {
   BackboneAdapter,
   BackboneSendOptions,
   BackboneSendResult,
@@ -7,212 +9,263 @@ import {
 } from './backbone-adapter.interface';
 
 /**
- * ClaudeCodeAdapter (F025)
+ * ClaudeCodeAdapter (F202, F203, F204, F206)
  *
- * Adapter for the Anthropic Messages API (Claude models).
- * Uses the /v1/messages endpoint with Anthropic-specific headers.
+ * Local subprocess adapter for the Claude Code CLI.
+ * Uses `claude --print --output-format json` — NOT an HTTP API.
+ * The `claude` binary must be installed and available in PATH.
+ *
+ * Protocol: cli
+ * Config fields (all optional):
+ *   - model            — Claude model slug (default: claude-sonnet-4-6)
+ *   - workspace_path   — Working directory for the subprocess
+ *   - system_prompt_prefix — Prefix prepended to all system prompts
+ *   - timeout_seconds  — Max seconds to wait for response (default: 120)
  */
 @Injectable()
 export class ClaudeCodeAdapter implements BackboneAdapter {
   readonly slug = 'claude-code';
   private readonly logger = new Logger(ClaudeCodeAdapter.name);
 
-  validateConfig(config: Record<string, any>): void {
-    if (!config.api_url) {
-      throw new BadRequestException(
-        'claude-code: "api_url" is required (e.g. https://api.anthropic.com)',
-      );
-    }
-    if (!config.api_key) {
-      throw new BadRequestException('claude-code: "api_key" is required');
-    }
-  }
-
-  supportsNativeSkillInjection(): boolean {
-    return false;
-  }
-
-  transformSystemPrompt(
-    prompt: string,
-    config: Record<string, any>,
-  ): string {
-    const skills: { name: string }[] = config._skills ?? [];
-    const references: { name: string }[] = config._references ?? [];
-
-    let transformed = `# TaskClaw Context\n\n${prompt}`;
-
-    for (const skill of skills) {
-      transformed += `\n\n## Skill: ${skill.name}`;
-    }
-
-    for (const ref of references) {
-      transformed += `\n\n## Reference: ${ref.name}`;
-    }
-
-    return transformed;
-  }
+  // ── sendMessage (F202, F206) ──────────────────────────────────────
 
   async sendMessage(options: BackboneSendOptions): Promise<BackboneSendResult> {
     const { config, systemPrompt, message, history = [], onToken, signal } =
       options;
 
-    const model = config.model ?? 'claude-sonnet-4-20250514';
-    const maxTokens = config.max_tokens ?? 4096;
-    const streaming = typeof onToken === 'function';
+    const timeoutMs = (config.timeout_seconds ?? 120) * 1000;
+    const model = config.model || 'claude-sonnet-4-6';
+    const workspaceDir = config.workspace_path || process.cwd();
 
-    const messages = [
-      ...history
-        .filter((m) => m.role !== 'system')
-        .map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user', content: message },
-    ];
+    // Build full conversation prompt for --print mode
+    const fullPrompt = this.buildPrompt(systemPrompt, history, message, config);
 
-    const body: Record<string, any> = {
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages,
-      stream: streaming,
-    };
+    this.logger.debug(
+      `Claude Code CLI: spawning claude --print (model=${model})`,
+    );
+    const startTime = Date.now();
 
-    const url = `${config.api_url.replace(/\/+$/, '')}/v1/messages`;
+    return new Promise((resolve, reject) => {
+      const args = [
+        '--print',
+        '--output-format',
+        'json',
+        '--model',
+        model,
+        '--dangerously-skip-permissions',
+        fullPrompt,
+      ];
 
-    this.logger.debug(`POST ${url} (model=${model}, stream=${streaming})`);
+      if (config.workspace_path) {
+        args.push('--cwd', config.workspace_path);
+      }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': config.api_key,
-        'anthropic-version': config.anthropic_version ?? '2023-06-01',
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
+      let stdout = '';
+      let stderr = '';
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'unknown error');
-      throw new Error(
-        `claude-code: API returned ${response.status} — ${errorText}`,
-      );
-    }
-
-    if (streaming) {
-      return this.handleStream(response, onToken!);
-    }
-
-    const json = await response.json();
-    const text =
-      json.content
-        ?.filter((b: any) => b.type === 'text')
-        .map((b: any) => b.text)
-        .join('') ?? '';
-
-    return {
-      text,
-      usage: json.usage
-        ? {
-            prompt_tokens: json.usage.input_tokens,
-            completion_tokens: json.usage.output_tokens,
-            total_tokens:
-              (json.usage.input_tokens ?? 0) +
-              (json.usage.output_tokens ?? 0),
-          }
-        : undefined,
-      model: json.model,
-      raw: json,
-    };
-  }
-
-  async healthCheck(config: Record<string, any>): Promise<BackboneHealthResult> {
-    const start = Date.now();
-    try {
-      const url = `${config.api_url.replace(/\/+$/, '')}/v1/models`;
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'x-api-key': config.api_key,
-          'anthropic-version': config.anthropic_version ?? '2023-06-01',
-        },
-        signal: AbortSignal.timeout(10_000),
+      const child = spawn('claude', args, {
+        cwd: workspaceDir,
+        env: { ...process.env },
+        timeout: timeoutMs,
       });
 
+      child.stdout.on('data', (data: Buffer) => {
+        stdout += data.toString();
+        // Forward raw chunks when caller wants streaming tokens
+        if (onToken) {
+          onToken(data.toString());
+        }
+      });
+
+      child.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', (code) => {
+        const latencyMs = Date.now() - startTime;
+        this.logger.debug(
+          `Claude Code CLI: exit code ${code} in ${latencyMs}ms`,
+        );
+
+        if (code !== 0) {
+          reject(
+            new Error(
+              `claude CLI exited with code ${code}: ${stderr || stdout}`,
+            ),
+          );
+          return;
+        }
+
+        // Parse JSON output from --output-format json
+        try {
+          const text = this.parseClaudeOutput(stdout);
+          resolve({
+            text,
+            model,
+            usage: { total_tokens: Math.ceil(text.length / 4) }, // best-effort estimate
+          });
+        } catch {
+          // Fallback: return raw stdout if JSON parse fails
+          resolve({ text: stdout.trim(), model });
+        }
+      });
+
+      child.on('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'ENOENT') {
+          reject(
+            new Error(
+              'claude CLI not found in PATH. Install Claude Code: https://claude.ai/code',
+            ),
+          );
+        } else {
+          reject(err);
+        }
+      });
+
+      // Honour AbortSignal for cancellation (F206)
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          child.kill('SIGTERM');
+          reject(new Error('Request aborted'));
+        });
+      }
+    });
+  }
+
+  // ── healthCheck (F203) ───────────────────────────────────────────
+
+  async healthCheck(
+    _config: Record<string, any>,
+  ): Promise<BackboneHealthResult> {
+    const start = Date.now();
+    try {
+      const output = execSync('claude --version', {
+        timeout: 5000,
+        encoding: 'utf8',
+      });
+      const version = output.trim();
       return {
-        healthy: response.ok,
+        healthy: true,
         latencyMs: Date.now() - start,
-        error: response.ok
-          ? undefined
-          : `HTTP ${response.status}`,
+        metadata: { version, type: 'local-cli' },
       };
     } catch (err: any) {
       return {
         healthy: false,
         latencyMs: Date.now() - start,
-        error: err.message ?? String(err),
+        error:
+          err.code === 'ENOENT'
+            ? 'claude CLI not found in PATH. Install Claude Code.'
+            : `claude --version failed: ${err.message}`,
       };
     }
   }
 
-  // ── Private helpers ──────────────────────────────────────────────
+  // ── validateConfig (F204) ─────────────────────────────────────────
 
-  private async handleStream(
-    response: Response,
-    onToken: (token: string) => void,
-  ): Promise<BackboneSendResult> {
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullText = '';
-    let usage: BackboneSendResult['usage'];
-    let model: string | undefined;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop()!; // keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-
-          try {
-            const event = JSON.parse(data);
-
-            if (event.type === 'content_block_delta') {
-              const text = event.delta?.text ?? '';
-              if (text) {
-                fullText += text;
-                onToken(text);
-              }
-            }
-
-            if (event.type === 'message_start') {
-              model = event.message?.model;
-            }
-
-            if (event.type === 'message_delta' && event.usage) {
-              usage = {
-                prompt_tokens: event.usage.input_tokens,
-                completion_tokens: event.usage.output_tokens,
-                total_tokens:
-                  (event.usage.input_tokens ?? 0) +
-                  (event.usage.output_tokens ?? 0),
-              };
-            }
-          } catch {
-            // non-JSON line, skip
-          }
-        }
+  validateConfig(config: Record<string, any>): void {
+    // All fields are optional for the local CLI adapter
+    if (config.workspace_path && !fs.existsSync(config.workspace_path)) {
+      throw new BadRequestException(
+        `workspace_path does not exist: ${config.workspace_path}`,
+      );
+    }
+    if (config.timeout_seconds !== undefined) {
+      const t = Number(config.timeout_seconds);
+      if (isNaN(t) || t < 5 || t > 600) {
+        throw new BadRequestException(
+          'timeout_seconds must be between 5 and 600',
+        );
       }
-    } finally {
-      reader.releaseLock();
+    }
+  }
+
+  // ── transformSystemPrompt ─────────────────────────────────────────
+
+  transformSystemPrompt(prompt: string, _config: Record<string, any>): string {
+    // Format as CLAUDE.md-style instructions for the subprocess
+    return `# TaskClaw Agent Instructions\n\n${prompt}`;
+  }
+
+  // ── supportsNativeSkillInjection ──────────────────────────────────
+
+  supportsNativeSkillInjection(): boolean {
+    return false;
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────
+
+  /**
+   * Build a single prompt string from system prompt, history, and the
+   * current user message.  Passed as the positional argument to
+   * `claude --print`.  (F206)
+   */
+  private buildPrompt(
+    systemPrompt: string,
+    history: Array<{ role: string; content: string }>,
+    message: string,
+    config: Record<string, any>,
+  ): string {
+    const parts: string[] = [];
+
+    const prefix = config.system_prompt_prefix as string | undefined;
+    if (prefix) {
+      parts.push(prefix);
     }
 
-    return { text: fullText, usage, model };
+    if (systemPrompt) {
+      parts.push(systemPrompt);
+    }
+
+    if (history.length > 0) {
+      const historyText = history
+        .map(
+          (h) =>
+            `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`,
+        )
+        .join('\n\n');
+      parts.push(`Previous conversation:\n${historyText}`);
+    }
+
+    parts.push(`User: ${message}`);
+    parts.push('Assistant:');
+
+    return parts.join('\n\n');
+  }
+
+  /**
+   * Parse `--output-format json` output.
+   *
+   * Claude CLI emits one JSON object per line; the final result line has
+   * `{ "type": "result", "subtype": "success", "result": "<text>" }`.
+   * We scan from the end to find it.
+   */
+  private parseClaudeOutput(stdout: string): string {
+    const lines = stdout.trim().split('\n').filter(Boolean);
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const parsed = JSON.parse(lines[i]);
+        if (parsed.type === 'result' && parsed.result) {
+          return parsed.result as string;
+        }
+        if (parsed.result) {
+          return parsed.result as string;
+        }
+      } catch {
+        // Not JSON — continue scanning upward
+      }
+    }
+
+    // Fallback: concatenate any non-JSON lines
+    const textLines = lines.filter((line) => {
+      try {
+        JSON.parse(line);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    return textLines.join('\n').trim() || stdout.trim();
   }
 }

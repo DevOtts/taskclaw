@@ -183,29 +183,19 @@ export default function BackbonesSettingsPage() {
                     </p>
                     <div className="flex flex-wrap gap-3">
                         {definitions
-                            .filter((d) => d.is_active)
+                            .filter((d) => d.available)
                             .map((def) => (
                                 <div
-                                    key={def.id}
+                                    key={def.slug}
                                     className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-card"
                                 >
                                     <span className="text-lg">{def.icon || '🧠'}</span>
                                     <div>
-                                        <p className="text-xs font-medium">{def.name}</p>
+                                        <p className="text-xs font-medium">{def.label}</p>
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
                                                 {def.protocol}
                                             </Badge>
-                                            {def.supports_streaming && (
-                                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                                                    streaming
-                                                </Badge>
-                                            )}
-                                            {def.supports_tool_use && (
-                                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                                                    tools
-                                                </Badge>
-                                            )}
                                         </div>
                                     </div>
                                 </div>

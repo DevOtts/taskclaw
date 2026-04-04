@@ -83,7 +83,7 @@ export function BackbonePicker({
                     <SelectItem key={conn.id} value={conn.id}>
                         <div className="flex items-center gap-2">
                             <HealthDot status={conn.health_status} />
-                            <span>{conn.definition?.icon || '🧠'}</span>
+                            <span>🧠</span>
                             <span>{conn.name}</span>
                             {conn.is_default && (
                                 <span className="text-[10px] text-amber-600 ml-1">(default)</span>

@@ -6,22 +6,25 @@ export type BackboneProtocol = 'websocket' | 'http' | 'mcp' | 'cli'
 
 export type BackboneHealthStatus = 'healthy' | 'unhealthy' | 'checking' | 'unknown'
 
+export interface BackboneConfigSchemaField {
+    key: string
+    label: string
+    type: 'string' | 'number' | 'secret' | 'boolean'
+    required: boolean
+    placeholder?: string
+    default?: any
+}
+
+/** Shape returned by GET /accounts/:id/backbone/definitions */
 export interface BackboneDefinition {
-    id: string
-    name: string
     slug: string
+    label: string
     description: string | null
     icon: string
     color: string
     protocol: BackboneProtocol
-    supports_streaming: boolean
-    supports_heartbeat: boolean
-    supports_agent_mode: boolean
-    supports_tool_use: boolean
-    supports_file_access: boolean
-    supports_code_execution: boolean
-    config_schema: Record<string, any>
-    is_active: boolean
+    configSchema: BackboneConfigSchemaField[]
+    available: boolean
 }
 
 // ============================================================================
@@ -31,20 +34,19 @@ export interface BackboneDefinition {
 export interface BackboneConnection {
     id: string
     account_id: string
-    definition_id: string
-    definition?: BackboneDefinition
+    backbone_type: string   // slug of the adapter (e.g. 'openclaw', 'claude-code')
     name: string
     description: string | null
+    config: Record<string, any>  // masked values for secrets
     is_active: boolean
     is_default: boolean
     health_status: BackboneHealthStatus
-    last_health_check: string | null
+    health_checked_at: string | null
     verified_at: string | null
-    total_messages_sent: number
-    total_tokens_used: number
-    last_used_at: string | null
+    total_requests: number
+    total_tokens: number
     created_at: string
-    config_preview?: Record<string, string>
+    updated_at: string
 }
 
 // ============================================================================
@@ -52,7 +54,7 @@ export interface BackboneConnection {
 // ============================================================================
 
 export interface CreateBackboneConnectionPayload {
-    definition_id: string
+    backbone_type: string   // adapter slug (e.g. 'openclaw', 'claude-code')
     name: string
     description?: string
     config: Record<string, any>

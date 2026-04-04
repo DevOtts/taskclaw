@@ -26,22 +26,22 @@ CREATE TABLE backbone_definitions (
 CREATE TABLE backbone_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  definition_id UUID NOT NULL REFERENCES backbone_definitions(id),
+  backbone_type TEXT NOT NULL,          -- adapter slug (e.g. 'openclaw', 'openrouter')
   name TEXT NOT NULL,
   description TEXT,
-  config_encrypted TEXT NOT NULL,
+  config JSONB NOT NULL DEFAULT '{}',   -- per-field-encrypted key/value pairs
   is_active BOOLEAN DEFAULT TRUE,
   is_default BOOLEAN DEFAULT FALSE,
-  health_status TEXT DEFAULT 'unknown' CHECK (health_status IN ('healthy', 'unhealthy', 'checking', 'unknown')),
-  last_health_check TIMESTAMPTZ,
+  health_status TEXT DEFAULT 'unknown' CHECK (health_status IN ('healthy', 'degraded', 'down', 'unknown')),
+  health_checked_at TIMESTAMPTZ,
+  health_error TEXT,
   verified_at TIMESTAMPTZ,
-  total_messages_sent BIGINT DEFAULT 0,
-  total_tokens_used BIGINT DEFAULT 0,
-  last_used_at TIMESTAMPTZ,
+  total_requests BIGINT DEFAULT 0,
+  total_tokens BIGINT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (account_id, is_default) WHERE is_default = TRUE
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_backbone_connections_account ON backbone_connections(account_id);
-CREATE INDEX idx_backbone_connections_definition ON backbone_connections(definition_id);
+CREATE INDEX idx_backbone_connections_type ON backbone_connections(backbone_type);
+CREATE INDEX idx_backbone_connections_default ON backbone_connections(account_id, is_default) WHERE is_default = TRUE;

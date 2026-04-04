@@ -21,9 +21,9 @@ import type { BackboneConnection } from '@/types/backbone'
 interface BackboneConnectionCardProps {
     connection: BackboneConnection
     onEdit: () => void
-    onTest: () => void
+    onTest: () => void | Promise<void>
     onDelete: () => void
-    onSetDefault: () => void
+    onSetDefault: () => void | Promise<void>
     testLoading?: boolean
     deleteLoading?: boolean
 }
@@ -43,9 +43,8 @@ export function BackboneConnectionCard({
     testLoading,
     deleteLoading,
 }: BackboneConnectionCardProps) {
-    const definition = connection.definition
-    const lastUsed = connection.last_used_at
-        ? new Date(connection.last_used_at).toLocaleString()
+    const checkedAt = connection.health_checked_at
+        ? new Date(connection.health_checked_at).toLocaleString()
         : 'Never'
 
     return (
@@ -57,9 +56,7 @@ export function BackboneConnectionCard({
             <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                     {/* Icon */}
-                    <span className="text-2xl shrink-0 mt-0.5">
-                        {definition?.icon || '🧠'}
-                    </span>
+                    <span className="text-2xl shrink-0 mt-0.5">🧠</span>
 
                     <div className="flex-1 min-w-0">
                         {/* Name + badges */}
@@ -79,28 +76,24 @@ export function BackboneConnectionCard({
                             )}
                         </div>
 
-                        {/* Definition slug + protocol */}
-                        {definition && (
-                            <p className="text-xs text-muted-foreground truncate">
-                                {definition.name}
-                                <span className="mx-1.5 opacity-40">|</span>
-                                <span className="capitalize">{definition.protocol}</span>
-                            </p>
-                        )}
+                        {/* Backbone type slug */}
+                        <p className="text-xs text-muted-foreground truncate capitalize">
+                            {connection.backbone_type}
+                        </p>
 
                         {/* Usage stats */}
                         <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-1.5">
                             <span className="flex items-center gap-1">
                                 <MessageSquare className="w-2.5 h-2.5" />
-                                {formatNumber(connection.total_messages_sent)} msgs
+                                {formatNumber(connection.total_requests)} reqs
                             </span>
                             <span className="flex items-center gap-1">
                                 <Coins className="w-2.5 h-2.5" />
-                                {formatNumber(connection.total_tokens_used)} tokens
+                                {formatNumber(connection.total_tokens)} tokens
                             </span>
                             <span className="flex items-center gap-1">
                                 <Clock className="w-2.5 h-2.5" />
-                                {lastUsed}
+                                {checkedAt}
                             </span>
                         </div>
                     </div>

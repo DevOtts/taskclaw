@@ -56,6 +56,8 @@ export interface BackboneHealthResult {
   healthy: boolean;
   latencyMs?: number;
   error?: string;
+  /** Optional additional metadata reported by the adapter (e.g. version, type) */
+  metadata?: Record<string, any>;
 }
 
 export interface BackboneAdapter {

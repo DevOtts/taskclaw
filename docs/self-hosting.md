@@ -22,7 +22,7 @@ Or without Node.js:
 curl -fsSL https://raw.githubusercontent.com/taskclaw/taskclaw/main/scripts/install.sh | sh
 ```
 
-This downloads the quickstart compose file, pulls Docker images, and starts everything on **http://localhost:3000**. Login with `super@admin.com` / `password123`.
+This downloads the quickstart compose file, pulls Docker images, and starts everything on **http://localhost:3002**. Login with `super@admin.com` / `password123`.
 
 Manage with: `npx taskclaw stop`, `npx taskclaw logs`, `npx taskclaw upgrade`, `npx taskclaw reset`.
 
@@ -61,8 +61,8 @@ The BYO Supabase stack starts three containers:
 
 | Service   | Port | Description              |
 |-----------|------|--------------------------|
-| frontend  | 3000 | Next.js web app          |
-| backend   | 3001 | NestJS API server        |
+| frontend  | 3002 | Next.js web app          |
+| backend   | 3003 | NestJS API server        |
 | redis     | 6379 | BullMQ job queue (internal) |
 
 ## Quick Start -- All-in-One (Local Supabase)
@@ -107,8 +107,8 @@ The All-in-One stack starts the following services:
 
 | Service   | Port | Description                        |
 |-----------|------|------------------------------------|
-| frontend  | 3000 | Next.js web app                    |
-| backend   | 3001 | NestJS API server                  |
+| frontend  | 3002 | Next.js web app                    |
+| backend   | 3003 | NestJS API server                  |
 | redis     | 6379 | BullMQ job queue (internal)        |
 | kong      | 7431 | Supabase API gateway               |
 | studio    | 7430 | Supabase Studio (database admin)   |
@@ -212,14 +212,14 @@ If you place TaskClaw behind nginx, Caddy, or Traefik:
 
 **Frontend shows "Failed to fetch" errors**
 - Verify `NEXT_PUBLIC_API_URL` points to the backend from the browser's perspective
-- In Docker, the frontend container uses `http://backend:3001` internally, but your browser needs `http://localhost:3003`
+- In Docker, the frontend container uses `http://backend:3003` internally, but your browser needs `http://localhost:3003`
 
 **Supabase Studio won't load (All-in-One)**
 - Check that the `db` container is healthy: `docker compose ps`
 - Verify `POSTGRES_PASSWORD` matches across `.env` and all services
 
 **Port conflicts**
-- Another process may be using port 3000, 3001, or 5432
+- Another process may be using port 3002, 3003, or 5432
 - Use the custom port variables described above, or stop conflicting services
 
 ## Configuration Reference
