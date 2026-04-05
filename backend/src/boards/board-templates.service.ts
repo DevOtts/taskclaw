@@ -213,7 +213,7 @@ export class BoardTemplatesService {
         latest_available_version: template.version,
         settings_override: manifest.settings || {},
         default_category_id: defaultCategoryId,
-        backbone_connection_id: backboneSlugMap.boardDefault || null,
+        default_backbone_connection_id: backboneSlugMap.boardDefault || null,
       })
       .select()
       .single();
@@ -374,7 +374,7 @@ export class BoardTemplatesService {
         installed_manifest: manifest,
         settings_override: manifest.settings || {},
         default_category_id: defaultCategoryId,
-        backbone_connection_id: backboneSlugMap.boardDefault || null,
+        default_backbone_connection_id: backboneSlugMap.boardDefault || null,
       })
       .select()
       .single();
