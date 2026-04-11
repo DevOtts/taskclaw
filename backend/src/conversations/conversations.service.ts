@@ -20,6 +20,7 @@ import { BackboneRouterService } from '../backbone/backbone-router.service';
 import { IntegrationsService } from '../integrations/integrations.service';
 import { ToolRegistryService } from '../integrations/tool-registry.service';
 import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
+import { MemoryRouterService } from '../memory/memory-router.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
@@ -43,6 +44,7 @@ export class ConversationsService {
     private readonly integrationsService: IntegrationsService,
     private readonly toolRegistry: ToolRegistryService,
     private readonly webhookEmitter: WebhookEmitterService,
+    private readonly memoryRouter: MemoryRouterService,
   ) {}
 
   /**
@@ -751,6 +753,17 @@ export class ConversationsService {
 
         // Mirror messages to Notion
         this.mirrorToNotion(conversation, userContent, aiResponseText);
+
+        // BE07: Fire-and-forget memory extraction — never awaited, never blocks response
+        this.extractAndStoreMemories(accountId, {
+          userMessage: userContent,
+          assistantResponse: aiResponseText,
+          conversationId,
+          taskId: taskId || undefined,
+          categoryId: resolvedCategoryId || undefined,
+        }).catch((err: any) => {
+          this.logger.warn(`Memory extraction failed (non-blocking): ${err.message}`);
+        });
 
         // Extract structured output from AI response and save to card_data
         if (taskId) {
@@ -1701,6 +1714,22 @@ Current Context:
     }
 
     // ═══════════════════════════════════════════════════════════
+    // AGENT MEMORY RECALL (BE06) — 200ms timeout, never blocks chat
+    // ═══════════════════════════════════════════════════════════
+    try {
+      const memCtx = await this.memoryRouter.buildMemoryContext(
+        conversation.account_id,
+        conversation.task?.title || '',
+        conversation.task_id || undefined,
+      );
+      if (memCtx) {
+        prompt += memCtx;
+      }
+    } catch (memErr: any) {
+      this.logger.warn(`Memory recall for prompt failed: ${memErr.message}`);
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // COMMUNICATION TOOLS AVAILABILITY (unified via IntegrationsService)
     // ═══════════════════════════════════════════════════════════
     try {
@@ -1972,6 +2001,96 @@ Rules:
    * Mirror user and AI messages to Notion as page comments.
    * Fire-and-forget — errors are logged but don't block the response.
    */
+  /**
+   * BE07: Extract key facts from a conversation exchange and store them as memories.
+   * This is ALWAYS called as fire-and-forget — it must NEVER be awaited in sendMessage().
+   */
+  private async extractAndStoreMemories(
+    accountId: string,
+    opts: {
+      userMessage: string;
+      assistantResponse: string;
+      conversationId: string;
+      taskId?: string;
+      categoryId?: string;
+    },
+  ): Promise<void> {
+    try {
+      const { userMessage, assistantResponse, conversationId, taskId, categoryId } = opts;
+
+      // Build extraction prompt
+      const maxLen = 500;
+      const userSnippet = userMessage.substring(0, maxLen);
+      const assistantSnippet = assistantResponse.substring(0, maxLen);
+      const extractionPrompt = [
+        'Extract up to 3 key facts, decisions, or insights from this conversation exchange.',
+        'Return ONLY a JSON array of objects with keys content and type.',
+        'Type must be one of: episodic, semantic, procedural.',
+        '- episodic: specific events, decisions, user preferences',
+        '- semantic: general facts, concepts, domain knowledge',
+        '- procedural: how-to instructions, workflows',
+        '',
+        'Conversation:',
+        'User: ' + userSnippet,
+        'Assistant: ' + assistantSnippet,
+        '',
+        'JSON array:',
+      ].join('\n');
+
+      // Send extraction request via backbone router
+      const result = await this.backboneRouter.send({
+        accountId,
+        categoryId,
+        sendOptions: {
+          systemPrompt: `You are a memory extraction assistant. Extract key facts as JSON only.`,
+          message: extractionPrompt,
+          metadata: { accountId, conversationId },
+        },
+      });
+
+      if (!result?.text) return;
+
+      // Parse JSON array from response
+      let facts: Array<{ content: string; type: string }> = [];
+      try {
+        // Extract JSON array from response (may have surrounding text)
+        const jsonMatch = result.text.match(/\[.*\]/s);
+        if (jsonMatch) {
+          facts = JSON.parse(jsonMatch[0]);
+        }
+      } catch {
+        this.logger.debug(`Memory extraction: could not parse JSON from response`);
+        return;
+      }
+
+      if (!Array.isArray(facts) || facts.length === 0) return;
+
+      // Store each fact as a memory (up to 3)
+      const validTypes = new Set(['episodic', 'semantic', 'procedural', 'working']);
+      for (const fact of facts.slice(0, 3)) {
+        if (!fact?.content || typeof fact.content !== 'string') continue;
+        const memType = validTypes.has(fact.type) ? fact.type : 'episodic';
+
+        await this.memoryRouter.remember({
+          content: fact.content,
+          type: memType as any,
+          source: 'agent',
+          metadata: {
+            account_id: accountId,
+            conversation_id: conversationId,
+            task_id: taskId,
+            category_id: categoryId,
+          },
+        });
+      }
+
+      this.logger.debug(`Memory extraction: stored ${Math.min(facts.length, 3)} facts for conversation ${conversationId}`);
+    } catch (err: any) {
+      // Errors are caught by the fire-and-forget caller — log and propagate
+      throw err;
+    }
+  }
+
   private mirrorToNotion(
     conversation: any,
     userContent: string,

@@ -12,6 +12,7 @@ import { AgentSyncModule } from '../agent-sync/agent-sync.module';
 import { BackboneModule } from '../backbone/backbone.module';
 
 import { IntegrationsModule } from '../integrations/integrations.module';
+import { MemoryModule } from '../memory/memory.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     forwardRef(() => AgentSyncModule),
     forwardRef(() => BackboneModule),
     IntegrationsModule,
+    forwardRef(() => MemoryModule),
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService, OpenClawService],
