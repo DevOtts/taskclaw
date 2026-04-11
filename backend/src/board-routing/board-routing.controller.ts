@@ -10,11 +10,14 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { BoardRoutingService } from './board-routing.service';
 import { CoordinatorService } from './coordinator.service';
+import { DagApprovalService } from './dag-approval.service';
 import { CreateBoardRouteDto } from './dto/create-board-route.dto';
 import { UpdateBoardRouteDto } from './dto/update-board-route.dto';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
@@ -26,6 +29,7 @@ export class BoardRoutingController {
   constructor(
     private readonly routingService: BoardRoutingService,
     private readonly coordinatorService: CoordinatorService,
+    private readonly dagApprovalService: DagApprovalService,
     private readonly supabaseAdmin: SupabaseAdminService,
   ) {}
 
@@ -143,5 +147,42 @@ export class BoardRoutingController {
       .eq('dag_id', dagId);
 
     return { ...dag, tasks: tasks ?? [], dependencies: deps ?? [] };
+  }
+
+  // ─── DAG Approval Endpoints (BE11) ──────────────────────────────────────
+
+  @Get('dags/:dagId/approval')
+  @ApiOperation({ summary: 'Get the approval record for a DAG' })
+  getDagApproval(
+    @Param('accountId') accountId: string,
+    @Param('dagId') dagId: string,
+  ) {
+    return this.dagApprovalService.getApproval(dagId);
+  }
+
+  @Post('dags/:dagId/approve')
+  @ApiOperation({ summary: 'Approve a pending DAG and start execution' })
+  @HttpCode(HttpStatus.OK)
+  approveDag(
+    @Param('accountId') accountId: string,
+    @Param('dagId') dagId: string,
+    @Body() body: { notes?: string },
+    @Req() req: Request,
+  ) {
+    const userId = (req as any)['user']?.id ?? 'system';
+    return this.dagApprovalService.approve(dagId, userId, body.notes);
+  }
+
+  @Post('dags/:dagId/reject')
+  @ApiOperation({ summary: 'Reject a pending DAG' })
+  @HttpCode(HttpStatus.OK)
+  rejectDag(
+    @Param('accountId') accountId: string,
+    @Param('dagId') dagId: string,
+    @Body() body: { notes?: string },
+    @Req() req: Request,
+  ) {
+    const userId = (req as any)['user']?.id ?? 'system';
+    return this.dagApprovalService.reject(dagId, userId, body.notes);
   }
 }
