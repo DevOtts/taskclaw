@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
@@ -12,10 +13,15 @@ import { CreateHeartbeatDto } from './dto/create-heartbeat.dto';
 import { UpdateHeartbeatDto } from './dto/update-heartbeat.dto';
 import { BackboneRouterService } from '../backbone/backbone-router.service';
 
+// PilotService is injected lazily to avoid circular dependency at module load time
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PilotServiceLike = { runPodPilot(accountId: string, podId: string): Promise<any> };
+
 @Injectable()
 export class HeartbeatService {
   private readonly logger = new Logger(HeartbeatService.name);
   private heartbeatQueue?: Queue;
+  private pilotService?: PilotServiceLike;
 
   constructor(
     private readonly supabaseAdmin: SupabaseAdminService,
@@ -23,6 +29,14 @@ export class HeartbeatService {
     private readonly executionLog: ExecutionLogService,
     private readonly backboneRouter: BackboneRouterService,
   ) {}
+
+  /**
+   * BE15: Allow PilotModule to inject PilotService after boot to avoid circular deps.
+   */
+  setPilotService(pilotService: PilotServiceLike) {
+    this.pilotService = pilotService;
+    this.logger.log('PilotService wired into HeartbeatService.');
+  }
 
   /**
    * Called by HeartbeatModule.onModuleInit to inject the BullMQ queue
@@ -342,6 +356,22 @@ export class HeartbeatService {
 
       if (config.dry_run) {
         summary = `[DRY RUN] Would send: ${taskListContext}`;
+      } else if (config.pilot_enabled && config.pod_id && this.pilotService) {
+        // BE15: Delegate to PilotService when pilot_enabled + pod_id configured
+        try {
+          const pilotResult = await this.pilotService.runPodPilot(
+            config.account_id,
+            config.pod_id,
+          );
+          summary = pilotResult
+            ? `Pilot: ${pilotResult.actions_taken} actions — ${pilotResult.summary}`
+            : `Pilot ran but no active config found for pod ${config.pod_id}`;
+        } catch (pilotErr) {
+          this.logger.warn(
+            `Heartbeat "${config.name}" pilot run failed: ${(pilotErr as Error).message}`,
+          );
+          summary = `Pilot failed: ${(pilotErr as Error).message}`;
+        }
       } else if (config.prompt) {
         // Call backbone with task list as user context
         try {
