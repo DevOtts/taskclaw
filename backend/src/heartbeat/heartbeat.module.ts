@@ -1,4 +1,4 @@
-import { Module, OnModuleInit, Logger } from '@nestjs/common';
+import { Module, OnModuleInit, Logger, forwardRef } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Queue } from 'bullmq';
 import { getQueueToken } from '@nestjs/bullmq';
@@ -10,6 +10,7 @@ import { HeartbeatProcessor } from './heartbeat.processor';
 import { CircuitBreakerService } from './circuit-breaker.service';
 import { ExecutionLogService } from './execution-log.service';
 import { HeartbeatController } from './heartbeat.controller';
+import { BackboneModule } from '../backbone/backbone.module';
 
 /**
  * HeartbeatModule (A01-A05)
@@ -23,6 +24,7 @@ import { HeartbeatController } from './heartbeat.controller';
     SupabaseModule,
     CommonModule,
     HeartbeatQueueModule.register(),
+    forwardRef(() => BackboneModule),
   ],
   controllers: [HeartbeatController],
   providers: [

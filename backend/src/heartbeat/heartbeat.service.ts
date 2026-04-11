@@ -10,6 +10,7 @@ import { ExecutionLogService } from './execution-log.service';
 import { HEARTBEAT_QUEUE_NAME } from './heartbeat-queue.module';
 import { CreateHeartbeatDto } from './dto/create-heartbeat.dto';
 import { UpdateHeartbeatDto } from './dto/update-heartbeat.dto';
+import { BackboneRouterService } from '../backbone/backbone-router.service';
 
 @Injectable()
 export class HeartbeatService {
@@ -20,6 +21,7 @@ export class HeartbeatService {
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly executionLog: ExecutionLogService,
+    private readonly backboneRouter: BackboneRouterService,
   ) {}
 
   /**
@@ -325,9 +327,45 @@ export class HeartbeatService {
 
       const { data: tasks } = await tasksQuery;
 
-      const summary = config.dry_run
-        ? `[DRY RUN] Would process ${tasks?.length ?? 0} tasks`
-        : `Processed ${tasks?.length ?? 0} tasks`;
+      // Build task list context for backbone
+      const taskListContext =
+        tasks && tasks.length > 0
+          ? tasks
+              .map(
+                (t: any) =>
+                  `- [${t.priority ?? 'Medium'}] ${t.title} (status: ${t.status ?? 'unknown'})`,
+              )
+              .join('\n')
+          : 'No pending tasks found.';
+
+      let summary: string;
+
+      if (config.dry_run) {
+        summary = `[DRY RUN] Would send: ${taskListContext}`;
+      } else if (config.prompt) {
+        // Call backbone with task list as user context
+        try {
+          const result = await this.backboneRouter.send({
+            accountId: config.account_id,
+            podId: config.pod_id ?? undefined,
+            boardId: config.board_id ?? undefined,
+            sendOptions: {
+              message: config.prompt,
+              history: [
+                { role: 'user', content: taskListContext },
+              ],
+            },
+          });
+          summary = result.text ?? `Processed ${tasks?.length ?? 0} tasks`;
+        } catch (backboneErr) {
+          this.logger.warn(
+            `Heartbeat "${config.name}" backbone call failed: ${(backboneErr as Error).message}`,
+          );
+          summary = `Processed ${tasks?.length ?? 0} tasks (backbone unavailable: ${(backboneErr as Error).message})`;
+        }
+      } else {
+        summary = `Processed ${tasks?.length ?? 0} tasks`;
+      }
 
       // Update config with success
       this.circuitBreaker.recordSuccess(configId);
