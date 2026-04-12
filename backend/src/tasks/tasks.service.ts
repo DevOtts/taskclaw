@@ -110,7 +110,7 @@ export class TasksService {
     const { data, error } = await client
       .from('tasks')
       .select(
-        '*, categories:categories!category_id(id, name, color, icon), sources(id, provider), override_category:categories!override_category_id(id, name, color, icon)',
+        '*, categories:categories!category_id(id, name, color, icon), sources(id, provider), override_category:categories!override_category_id(id, name, color, icon), dag:task_dags!dag_id(id, goal, status, pod_id, pods!pod_id(slug))',
       )
       .eq('id', id)
       .eq('account_id', accountId)

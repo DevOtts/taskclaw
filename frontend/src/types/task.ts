@@ -18,7 +18,15 @@ export interface Task {
   board_instance_id?: string
   override_category_id?: string | null
   dag_id?: string | null
-  result?: Record<string, any> | null
+  // Joined from task_dags when fetching a single task
+  dag?: {
+    id: string
+    goal: string
+    status: string
+    pod_id?: string | null
+    pods?: { slug: string } | null
+  } | null
+  result?: string | Record<string, any> | null
   backbone_connection_id?: string | null
   created_at: string
   updated_at: string
@@ -56,10 +64,10 @@ export interface Category {
   preferred_backbone_connection_id?: string | null
 }
 
-export type TaskStatus = 'To-Do' | 'Today' | 'In Progress' | 'AI Running' | 'In Review' | 'Done'
+export type TaskStatus = 'To-Do' | 'Today' | 'In Progress' | 'AI Running' | 'In Review' | 'Needs Review' | 'Done'
 export type TaskPriority = 'High' | 'Medium' | 'Low'
 
-export const KANBAN_COLUMNS: TaskStatus[] = ['To-Do', 'Today', 'In Progress', 'AI Running', 'In Review', 'Done']
+export const KANBAN_COLUMNS: TaskStatus[] = ['To-Do', 'Today', 'In Progress', 'AI Running', 'In Review', 'Needs Review', 'Done']
 
 export const STATUS_COLORS: Record<string, string> = {
   'To-Do': '#71717a',
@@ -67,6 +75,7 @@ export const STATUS_COLORS: Record<string, string> = {
   'In Progress': '#F06050',
   'AI Running': '#E63B3B',
   'In Review': '#a855f7',
+  'Needs Review': '#f97316',
   Done: '#22c55e',
 }
 
