@@ -5,6 +5,8 @@ import {
   BackboneSendResult,
   BackboneHealthResult,
   BackboneMessage,
+  ToolCallRequest,
+  ToolContextDefinition,
 } from './backbone-adapter.interface';
 import WebSocket from 'ws';
 import { v4 as uuid } from 'uuid';
@@ -45,9 +47,25 @@ export class OpenClawAdapter implements BackboneAdapter {
     messages.push({ role: 'user', content: message });
 
     // Build a single input string for OpenClaw (same as original buildOpenClawInput)
-    const userInput = this.buildOpenClawInput(messages);
+    let userInput = this.buildOpenClawInput(messages);
 
-    return this.executeOpenClawWebSocket(config, userInput, onToken, signal);
+    // Append text-based tool definitions if provided
+    if (options.tool_context?.length) {
+      userInput += `\n\n=== TASKCLAW TOOLS ===
+You can execute TaskClaw actions by outputting tool calls in this EXACT XML format (one per line):
+<tool_call name="TOOL_NAME">{"arg1": "value"}</tool_call>
+
+Available tools:
+${options.tool_context.map((t) => `- ${t.name}: ${t.description}. Schema: ${JSON.stringify(t.input_schema)}`).join('\n')}
+
+IMPORTANT:
+- Only use tools when you need to CREATE or MODIFY something in TaskClaw
+- Do NOT use tools for research or listing (unless asked)
+- After your tool calls are output, they will be executed and results returned
+- Always explain what you're doing alongside tool calls`;
+    }
+
+    return this.executeOpenClawWebSocket(config, userInput, onToken, signal, options.tool_context);
   }
 
   // ── BackboneAdapter: healthCheck ──
@@ -92,6 +110,12 @@ export class OpenClawAdapter implements BackboneAdapter {
     return true;
   }
 
+  // ── BackboneAdapter: supportsTextBasedToolCalling ──
+
+  supportsTextBasedToolCalling(): boolean {
+    return true;
+  }
+
   // ── Private: WebSocket execution (faithfully copied from openclaw.service.ts) ──
 
   private async executeOpenClawWebSocket(
@@ -99,6 +123,7 @@ export class OpenClawAdapter implements BackboneAdapter {
     userInput: string,
     onToken?: (token: string) => void,
     signal?: AbortSignal,
+    toolContext?: ToolContextDefinition[],
   ): Promise<BackboneSendResult> {
     // Convert HTTP URL to WebSocket URL
     const wsUrl = (config.api_url as string)
@@ -340,6 +365,16 @@ export class OpenClawAdapter implements BackboneAdapter {
           }
 
           cleanup();
+
+          // Parse text-based tool calls if tool context was provided
+          if (toolContext?.length) {
+            const { cleanText, toolCalls } = this.parseTextBasedToolCalls(fullResponse);
+            if (toolCalls.length > 0) {
+              resolve({ text: cleanText, model: 'openclaw', tool_calls: toolCalls, raw: { runId } });
+              return;
+            }
+          }
+
           resolve({
             text: fullResponse,
             model: 'openclaw',
@@ -406,6 +441,27 @@ export class OpenClawAdapter implements BackboneAdapter {
         }
       });
     });
+  }
+
+  // ── Private: Parse text-based tool calls from response ──
+
+  private parseTextBasedToolCalls(text: string): { cleanText: string; toolCalls: ToolCallRequest[] } {
+    const toolCallRegex = /<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g;
+    const toolCalls: ToolCallRequest[] = [];
+    let match;
+    let id = 0;
+    while ((match = toolCallRegex.exec(text)) !== null) {
+      const name = match[1];
+      const argsStr = match[2].trim();
+      try {
+        const input = JSON.parse(argsStr);
+        toolCalls.push({ id: `text-tool-${++id}`, name, input });
+      } catch {
+        // skip malformed tool call
+      }
+    }
+    const cleanText = text.replace(toolCallRegex, '').trim();
+    return { cleanText, toolCalls };
   }
 
   // ── Private: Build input string (faithfully copied from openclaw.service.ts) ──

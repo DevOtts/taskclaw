@@ -5,6 +5,7 @@ import {
   BackboneSendResult,
   BackboneHealthResult,
   BackboneMessage,
+  ToolCallRequest,
 } from './backbone-adapter.interface';
 
 /**
@@ -98,7 +99,13 @@ export class OpenRouterAdapter implements BackboneAdapter {
 
     const requestBody: any = {
       model,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: messages.map((m) => {
+        if (m.role === 'tool') {
+          // OpenAI format: tool results go as role=tool with tool_call_id
+          return { role: 'tool', tool_call_id: m.tool_call_id, content: m.content };
+        }
+        return { role: m.role, content: m.content };
+      }),
     };
 
     if (toolContext?.length) {
@@ -135,8 +142,9 @@ export class OpenRouterAdapter implements BackboneAdapter {
     const data = await response.json();
 
     if (data.choices && data.choices[0]) {
-      return {
-        text: data.choices[0].message.content,
+      const msg = data.choices[0].message;
+      const result: BackboneSendResult = {
+        text: msg.content || '',
         model: data.model,
         usage: data.usage
           ? {
@@ -147,6 +155,17 @@ export class OpenRouterAdapter implements BackboneAdapter {
           : undefined,
         raw: data,
       };
+
+      // Extract tool calls if present (OpenAI format)
+      if (msg.tool_calls?.length) {
+        result.tool_calls = msg.tool_calls.map((tc: any): ToolCallRequest => ({
+          id: tc.id,
+          name: tc.function.name,
+          input: JSON.parse(tc.function.arguments),
+        }));
+      }
+
+      return result;
     }
 
     throw new Error('Unexpected response format from OpenRouter');

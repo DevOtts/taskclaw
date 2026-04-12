@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { usePod, usePodBoards } from '@/hooks/use-pods'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
@@ -34,16 +34,25 @@ import { PodPilotSheet } from '@/components/pods/pod-pilot-sheet'
 import { DagApprovalBanner } from '@/components/dag/dag-approval-banner'
 import type { Board } from '@/types/board'
 import { getPodDags, type TaskDag } from '@/app/dashboard/pods/actions'
+import { useTaskStore } from '@/hooks/use-task-store'
+import { TaskDetailPanel } from '@/components/tasks/task-detail-panel'
 
 export default function PodCockpitPage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = use(params)
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { data: pod, isLoading: podLoading } = usePod(slug)
     const { data: boards = [], isLoading: boardsLoading } = usePodBoards(pod?.id ?? null)
     const [assignOpen, setAssignOpen] = useState(false)
     const [chatOpen, setChatOpen] = useState(false)
     const [settingsOpen, setSettingsOpen] = useState(false)
     const [dags, setDags] = useState<TaskDag[]>([])
+    const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'canvas')
+    const selectedTaskId = useTaskStore((s) => s.selectedTaskId)
+
+    const refreshDags = () => {
+        if (pod?.id) getPodDags(pod.id).then(setDags).catch(() => {})
+    }
 
     // Load DAGs for Goals tab
     useEffect(() => {
@@ -51,6 +60,13 @@ export default function PodCockpitPage({ params }: { params: Promise<{ slug: str
             getPodDags(pod.id).then(setDags).catch(() => setDags([]))
         }
     }, [pod?.id])
+
+    // Refresh DAGs when Goals tab becomes active
+    useEffect(() => {
+        if (activeTab === 'goals' && pod?.id) {
+            getPodDags(pod.id).then(setDags).catch(() => {})
+        }
+    }, [activeTab, pod?.id])
 
     if (podLoading) {
         return (
@@ -142,7 +158,7 @@ export default function PodCockpitPage({ params }: { params: Promise<{ slug: str
 
             {/* Canvas / Goals tabs */}
             <div className="flex-1 min-h-0 px-4 pb-4">
-                <Tabs defaultValue="canvas" className="h-full flex flex-col">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
                     <TabsList className="w-fit mb-3">
                         <TabsTrigger value="canvas" className="text-xs">
                             <LayoutGrid className="w-3.5 h-3.5 mr-1.5" />
@@ -201,7 +217,7 @@ export default function PodCockpitPage({ params }: { params: Promise<{ slug: str
                     <TabsContent value="goals" className="flex-1 min-h-0 mt-0 overflow-y-auto">
                         <GoalsTab
                             dags={dags}
-                            onRefresh={() => pod?.id && getPodDags(pod.id).then(setDags).catch(() => {})}
+                            onRefresh={refreshDags}
                         />
                     </TabsContent>
                 </Tabs>
@@ -220,6 +236,7 @@ export default function PodCockpitPage({ params }: { params: Promise<{ slug: str
             <BoardAIChat
                 podId={pod.id}
                 podName={pod.name}
+                podSlug={slug}
                 open={chatOpen}
                 onOpenChange={setChatOpen}
             />
@@ -231,6 +248,9 @@ export default function PodCockpitPage({ params }: { params: Promise<{ slug: str
                 podId={pod.id}
                 podName={pod.name}
             />
+
+            {/* Task detail panel (opens when a DAG task is clicked) */}
+            {selectedTaskId && <TaskDetailPanel />}
         </div>
     )
 }
@@ -239,6 +259,7 @@ export default function PodCockpitPage({ params }: { params: Promise<{ slug: str
 
 function GoalsTab({ dags, onRefresh }: { dags: TaskDag[]; onRefresh: () => void }) {
     const [expandedId, setExpandedId] = useState<string | null>(null)
+    const setSelectedTaskId = useTaskStore((s) => s.setSelectedTaskId)
 
     if (dags.length === 0) {
         return (
@@ -289,7 +310,8 @@ function GoalsTab({ dags, onRefresh }: { dags: TaskDag[]; onRefresh: () => void 
                             {dag.tasks.map((task) => (
                                 <div
                                     key={task.id}
-                                    className="flex items-center gap-2 text-xs py-1 border-b last:border-0"
+                                    onClick={() => setSelectedTaskId(task.id)}
+                                    className="flex items-center gap-2 text-xs py-1 border-b last:border-0 cursor-pointer hover:bg-accent/30 transition-colors rounded px-1 -mx-1"
                                 >
                                     <div
                                         className={`w-2 h-2 rounded-full shrink-0 ${task.completed ? 'bg-green-500' : 'bg-muted-foreground/30'}`}

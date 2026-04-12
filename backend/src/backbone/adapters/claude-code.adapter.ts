@@ -6,6 +6,7 @@ import type {
   BackboneSendOptions,
   BackboneSendResult,
   BackboneHealthResult,
+  ToolCallRequest,
 } from './backbone-adapter.interface';
 
 /**
@@ -37,8 +38,18 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
     const model = config.model || 'claude-sonnet-4-6';
     const workspaceDir = config.workspace_path || process.cwd();
 
+    // Build tool instructions to inject into system prompt (before conversation)
+    const toolInstructions = options.tool_context?.length
+      ? this.buildToolInstructions(options.tool_context)
+      : '';
+
     // Build full conversation prompt for --print mode
-    const fullPrompt = this.buildPrompt(systemPrompt, history, message, config);
+    const fullPrompt = this.buildPrompt(
+      toolInstructions ? systemPrompt + '\n\n' + toolInstructions : systemPrompt,
+      history,
+      message,
+      config,
+    );
 
     this.logger.debug(
       `Claude Code CLI: spawning claude --print (model=${model})`,
@@ -100,11 +111,19 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
 
         // Parse JSON output from --output-format json
         try {
-          const text = this.parseClaudeOutput(stdout);
+          const rawText = this.parseClaudeOutput(stdout);
+          // Extract text-based tool calls if tool context was provided
+          if (options.tool_context?.length) {
+            const { cleanText, toolCalls } = this.parseTextBasedToolCalls(rawText);
+            if (toolCalls.length > 0) {
+              resolve({ text: cleanText, model, tool_calls: toolCalls, usage: { total_tokens: Math.ceil(rawText.length / 4) } });
+              return;
+            }
+          }
           resolve({
-            text,
+            text: rawText,
             model,
-            usage: { total_tokens: Math.ceil(text.length / 4) }, // best-effort estimate
+            usage: { total_tokens: Math.ceil(rawText.length / 4) },
           });
         } catch {
           // Fallback: return raw stdout if JSON parse fails
@@ -195,7 +214,70 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
     return false;
   }
 
+  // ── supportsTextBasedToolCalling ──────────────────────────────────
+
+  supportsTextBasedToolCalling(): boolean {
+    return true;
+  }
+
   // ── Private helpers ───────────────────────────────────────────────
+
+  /**
+   * Build tool instructions to be injected into the system prompt for text-based tool calling.
+   */
+  private buildToolInstructions(toolContext: BackboneSendOptions['tool_context']): string {
+    if (!toolContext?.length) return '';
+    const toolList = toolContext
+      .map((t) => {
+        const required = (t.input_schema as any)?.required ?? [];
+        const props = (t.input_schema as any)?.properties ?? {};
+        const args = Object.entries(props)
+          .map(([k, v]: [string, any]) => `  - ${k}${required.includes(k) ? ' (required)' : ' (optional)'}: ${v.description || v.type}`)
+          .join('\n');
+        return `**${t.name}**: ${t.description}\n${args}`;
+      })
+      .join('\n\n');
+    return `=== TASKCLAW ACTION TOOLS ===
+You have access to TaskClaw tools. When the user asks you to CREATE, ADD, or MODIFY something (goals, tasks, etc.), you MUST call the appropriate tool — do NOT just describe what you would do.
+
+To call a tool, output this XML format on its own line:
+<tool_call name="TOOL_NAME">{"arg1": "value1", "arg2": "value2"}</tool_call>
+
+EXAMPLE — if asked to create a goal "Grow revenue":
+<tool_call name="decompose_goal">{"goal": "Grow revenue"}</tool_call>
+
+Available tools:
+${toolList}
+
+RULES:
+- When asked to create/update something: OUTPUT the <tool_call> XML FIRST, then briefly describe what you did
+- Do NOT say "I'll create..." or "I would create..." — actually output the tool call
+- The system will execute your tool call and show results
+- You can chain multiple tool calls on separate lines`;
+  }
+
+  /**
+   * Parse text-based tool calls from response text.
+   * Extracts <tool_call name="...">{ args }</tool_call> blocks.
+   */
+  private parseTextBasedToolCalls(text: string): { cleanText: string; toolCalls: ToolCallRequest[] } {
+    const toolCallRegex = /<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g;
+    const toolCalls: ToolCallRequest[] = [];
+    let match;
+    let id = 0;
+    while ((match = toolCallRegex.exec(text)) !== null) {
+      const name = match[1];
+      const argsStr = match[2].trim();
+      try {
+        const input = JSON.parse(argsStr);
+        toolCalls.push({ id: `claude-code-tool-${++id}`, name, input });
+      } catch {
+        // skip malformed tool call
+      }
+    }
+    const cleanText = text.replace(toolCallRegex, '').trim();
+    return { cleanText, toolCalls };
+  }
 
   /**
    * Build a single prompt string from system prompt, history, and the
@@ -221,10 +303,14 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
 
     if (history.length > 0) {
       const historyText = history
-        .map(
-          (h) =>
-            `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`,
-        )
+        .map((h) => {
+          if (h.role === 'user') return `User: ${h.content}`;
+          if (h.role === 'tool') {
+            // Tool results — show as system feedback so the model knows the action succeeded
+            return `Tool Result: ${h.content}`;
+          }
+          return `Assistant: ${h.content}`;
+        })
         .join('\n\n');
       parts.push(`Previous conversation:\n${historyText}`);
     }

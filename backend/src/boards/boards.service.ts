@@ -68,18 +68,18 @@ export class BoardsService {
       throw new Error(`Failed to fetch boards: ${error.message}`);
     }
 
-    // Get task counts per board in a single query (select only the grouping key, not full rows)
+    // Get task counts per board using SQL aggregation (no full row transfer)
     const boardIds = data.map((b) => b.id);
     if (boardIds.length > 0) {
       const { data: taskCounts, error: countError } = await client
         .from('tasks')
-        .select('board_instance_id')
+        .select('board_instance_id, count()')
         .in('board_instance_id', boardIds);
 
       if (!countError && taskCounts) {
         const countMap: Record<string, number> = {};
-        for (const t of taskCounts) {
-          countMap[t.board_instance_id] = (countMap[t.board_instance_id] ?? 0) + 1;
+        for (const t of taskCounts as any[]) {
+          countMap[t.board_instance_id] = Number(t.count) ?? 0;
         }
         data.forEach((board) => {
           board.task_count = countMap[board.id] ?? 0;
@@ -119,19 +119,20 @@ export class BoardsService {
       data.board_steps.sort((a: any, b: any) => a.position - b.position);
     }
 
-    // Get task counts per step
-    const { data: taskCounts } = await client
+    // Get task counts per step using SQL aggregation (no full row transfer)
+    const { data: stepCounts } = await client
       .from('tasks')
-      .select('current_step_id')
-      .eq('board_instance_id', boardId);
+      .select('current_step_id, count()')
+      .eq('board_instance_id', boardId)
+      .not('current_step_id', 'is', null);
 
     const stepCountMap: Record<string, number> = {};
-    if (taskCounts) {
-      taskCounts.forEach((t) => {
-        if (t.current_step_id) {
-          stepCountMap[t.current_step_id] =
-            (stepCountMap[t.current_step_id] || 0) + 1;
-        }
+    let totalTaskCount = 0;
+    if (stepCounts) {
+      (stepCounts as any[]).forEach((t) => {
+        const n = Number(t.count) ?? 0;
+        stepCountMap[t.current_step_id] = n;
+        totalTaskCount += n;
       });
     }
 
@@ -139,7 +140,7 @@ export class BoardsService {
       step.task_count = stepCountMap[step.id] || 0;
     });
 
-    data.task_count = taskCounts?.length || 0;
+    data.task_count = totalTaskCount;
 
     return data;
   }

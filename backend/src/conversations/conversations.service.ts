@@ -21,6 +21,13 @@ import { IntegrationsService } from '../integrations/integrations.service';
 import { ToolRegistryService } from '../integrations/tool-registry.service';
 import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
 import { MemoryRouterService } from '../memory/memory-router.service';
+import { ChatToolsService } from './chat-tools.service';
+import {
+  BackboneAdapter,
+  BackboneSendOptions,
+  BackboneMessage,
+  ToolContextDefinition,
+} from '../backbone/adapters/backbone-adapter.interface';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
@@ -45,6 +52,7 @@ export class ConversationsService {
     private readonly toolRegistry: ToolRegistryService,
     private readonly webhookEmitter: WebhookEmitterService,
     private readonly memoryRouter: MemoryRouterService,
+    private readonly chatTools: ChatToolsService,
   ) {}
 
   /**
@@ -353,13 +361,18 @@ export class ConversationsService {
           resolvedCategoryId,
         );
 
-        const result = await this.backboneRouter.send({
+        // Use runWithTools for agentic tool loop
+        const chatToolCtx = {
           accountId,
-          taskId: conversation.task_id || undefined,
+          userId,
+          accessToken,
+          podId: conversation.pod_id || undefined,
           boardId: conversation.board_id || undefined,
-          stepId: task?.current_step_id || undefined,
-          categoryId: resolvedCategoryId || undefined,
-          sendOptions: {
+        };
+        const toolResult = await this.runWithTools(
+          backboneResolved.adapter,
+          {
+            config: backboneResolved.config,
             systemPrompt,
             message: dto.content,
             history: history.map((h) => ({
@@ -368,14 +381,19 @@ export class ConversationsService {
             })),
             metadata: { userId, accountId, conversationId },
           },
-        });
+          chatToolCtx,
+          conversation,
+        );
 
-        aiResponseText = result.text;
+        aiResponseText = toolResult.text;
         aiResponseMetadata = {
-          model: result.model,
-          ...(result.usage || {}),
+          model: toolResult.model,
+          ...(toolResult.usage || {}),
           backbone_connection_id: backboneConnectionId,
           resolved_from: backboneResolved.resolvedFrom,
+          ...(toolResult.entities.length > 0
+            ? { entities: toolResult.entities }
+            : {}),
         };
       } else {
         // ── Legacy fallback (F038) ──
@@ -637,19 +655,22 @@ export class ConversationsService {
             this.logger.warn(`${logPrefix} Failed to build tool context: ${toolErr.message}`);
           }
 
-          // Step 5: Send via backbone router
+          // Step 5: Send via backbone with agentic tool loop
           this.logger.log(
             `${logPrefix} Step 4/5: Sending to backbone ${backboneResolved.adapter.slug}`,
           );
 
-          const result = await this.backboneRouter.send({
+          const chatToolCtx = {
             accountId,
-            taskId: conversation.task_id || undefined,
-            boardId: conversation.board_id || undefined,
-            stepId: task?.current_step_id || undefined,
-            categoryId: resolvedCategoryId || undefined,
+            userId,
+            accessToken,
             podId: conversation.pod_id || undefined,
-            sendOptions: {
+            boardId: conversation.board_id || undefined,
+          };
+          const toolResult = await this.runWithTools(
+            backboneResolved.adapter,
+            {
+              config: backboneResolved.config,
               systemPrompt,
               message: userContent,
               history: history.map((h) => ({
@@ -659,14 +680,19 @@ export class ConversationsService {
               tool_context: toolContext,
               metadata: { userId, accountId, conversationId },
             },
-          });
+            chatToolCtx,
+            conversation,
+          );
 
-          aiResponseText = result.text;
+          aiResponseText = toolResult.text;
           aiResponseMetadata = {
-            model: result.model,
-            ...(result.usage || {}),
+            model: toolResult.model,
+            ...(toolResult.usage || {}),
             backbone_connection_id: backboneConnectionId,
             resolved_from: backboneResolved.resolvedFrom,
+            ...(toolResult.entities.length > 0
+              ? { entities: toolResult.entities }
+              : {}),
           };
         } else {
           // ── Legacy fallback (F038) ──
@@ -1421,6 +1447,133 @@ export class ConversationsService {
   }
 
   /**
+   * Run a backbone send with an agentic tool loop.
+   * If the adapter returns tool_calls, execute them via ChatToolsService and re-send.
+   */
+  private async runWithTools(
+    adapter: BackboneAdapter,
+    sendOptions: BackboneSendOptions,
+    chatToolCtx: {
+      accountId: string;
+      userId: string;
+      accessToken: string;
+      podId?: string;
+      boardId?: string;
+    },
+    conversation: any,
+  ): Promise<{
+    text: string;
+    entities: any[];
+    model?: string;
+    usage?: any;
+  }> {
+    const MAX_ITERATIONS = 5;
+    const entities: any[] = [];
+
+    const supportsTools =
+      adapter.supportsToolExecution?.() ||
+      adapter.supportsTextBasedToolCalling?.();
+
+    // Only pass tools if adapter supports them AND we have context
+    const hasChatContext = !!(
+      conversation.pod_id ||
+      conversation.board_id ||
+      conversation.task_id
+    );
+
+    let toolDefs: ToolContextDefinition[] | undefined;
+    if (supportsTools && hasChatContext) {
+      toolDefs = this.chatTools.getToolDefinitions(chatToolCtx);
+    }
+
+    let history = [...(sendOptions.history ?? [])];
+
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      const result = await adapter.sendMessage({
+        ...sendOptions,
+        history,
+        tool_context: toolDefs,
+      });
+
+      if (!result.tool_calls?.length) {
+        return {
+          text: result.text,
+          entities,
+          model: result.model,
+          usage: result.usage,
+        };
+      }
+
+      this.logger.log(
+        `[runWithTools] Iteration ${i + 1}: executing ${result.tool_calls.length} tool call(s)`,
+      );
+
+      // Build assistant message for history (with raw_content for Anthropic)
+      const assistantHistoryMsg: BackboneMessage = {
+        role: 'assistant',
+        content: result.text || '',
+        raw_content: result.raw?.content,
+      };
+      history = [...history, assistantHistoryMsg];
+
+      // Execute tool calls
+      const isTextBased = adapter.supportsTextBasedToolCalling?.() && !adapter.supportsToolExecution?.();
+      const toolResultParts: string[] = [];
+      for (const tc of result.tool_calls) {
+        let toolContent: string;
+        try {
+          const outcome = await this.chatTools.execute(
+            tc.name,
+            tc.input,
+            chatToolCtx,
+          );
+          if (outcome.entity) entities.push(outcome.entity);
+          toolContent = JSON.stringify(outcome.result);
+          this.logger.log(`[runWithTools] Tool ${tc.name} succeeded`);
+        } catch (err) {
+          toolContent = JSON.stringify({ error: (err as Error).message });
+          this.logger.warn(
+            `[runWithTools] Tool ${tc.name} failed: ${(err as Error).message}`,
+          );
+        }
+
+        if (isTextBased) {
+          // For text-based tool calling, collect results for a single user message
+          toolResultParts.push(`Tool "${tc.name}" executed successfully. Result: ${toolContent}`);
+        } else {
+          history = [
+            ...history,
+            {
+              role: 'tool' as const,
+              content: toolContent,
+              tool_call_id: tc.id,
+            },
+          ];
+        }
+      }
+
+      // For text-based adapters: inject all tool results as a single user message
+      // with explicit instruction to respond naturally now (no more tool calls)
+      if (isTextBased && toolResultParts.length > 0) {
+        const toolResultMsg = toolResultParts.join('\n') +
+          '\n\nAll actions completed successfully. Now write your final response to the user summarizing what was done. Do NOT call any more tools.';
+        history = [
+          ...history,
+          {
+            role: 'user' as const,
+            content: toolResultMsg,
+          },
+        ];
+      }
+    }
+
+    // Max iterations hit — return last text
+    const lastText =
+      history.findLast((m) => m.role === 'assistant')?.content ?? '';
+    return { text: lastText, entities, model: undefined };
+  }
+
+  /**
    * Build system prompt with native skill injection check (F020).
    * If the resolved backbone adapter supports native skill injection,
    * build a minimal prompt without inline skills (the adapter will handle them).
@@ -1473,6 +1626,24 @@ Current Context:
 - Platform: OTT Dashboard (Task & Project Management)
 - User: Authenticated and working in their personal account
 `;
+
+    // Inject pod context when this is a pod-scoped conversation
+    if (conversation.pod_id) {
+      const client = this.supabaseAdmin.getClient();
+      const { data: pod } = await client
+        .from('pods')
+        .select('id, name, description')
+        .eq('id', conversation.pod_id)
+        .single();
+      if (pod) {
+        prompt += `
+=== POD CONTEXT ===
+You are operating within the "${pod.name}" pod (id: ${pod.id}).
+${pod.description ? `Pod description: ${pod.description}` : ''}
+When creating goals or tasks, use pod_id="${pod.id}" unless the user specifies otherwise.
+`;
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════
     // SKILLS & KNOWLEDGE: Provider-synced or inline injection
@@ -1604,6 +1775,7 @@ Current Context:
     // ═══════════════════════════════════════════════════════════
     if (conversation.task_id && conversation.task) {
       prompt += `\n\n=== TASK CONTEXT ===\n`;
+      prompt += `Task ID: ${conversation.task_id} (use this as task_id when calling update_task)\n`;
       prompt += `Task: ${conversation.task.title}\n`;
       prompt += `Status: ${conversation.task.status || 'unknown'}\n`;
       if (conversation.task.priority) {

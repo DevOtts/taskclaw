@@ -35,11 +35,19 @@ export interface BackboneSendOptions {
   tool_context?: ToolContextDefinition[];
 }
 
+export interface ToolCallRequest {
+  id: string;
+  name: string;
+  input: Record<string, any>;
+}
+
 export interface BackboneMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
   /** Tool call metadata when role === 'tool' */
   tool_call_id?: string;
+  /** Anthropic raw content blocks (for tool_use round-trips) */
+  raw_content?: any[];
 }
 
 export interface BackboneSkillDefinition {
@@ -61,6 +69,8 @@ export interface BackboneSendResult {
   model?: string;
   /** Raw response from the backbone (for debugging / logging) */
   raw?: any;
+  /** Tool calls requested by the model */
+  tool_calls?: ToolCallRequest[];
 }
 
 export interface BackboneHealthResult {
@@ -102,4 +112,10 @@ export interface BackboneAdapter {
    * When true the router may pass tool definitions for the adapter to use.
    */
   supportsToolExecution?(): boolean;
+
+  /**
+   * Optional: whether this backbone supports text-based tool calling (e.g. OpenClaw).
+   * When true, tool definitions are injected as text instructions and responses are parsed for XML tool calls.
+   */
+  supportsTextBasedToolCalling?(): boolean;
 }

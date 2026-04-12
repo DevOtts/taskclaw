@@ -24,6 +24,7 @@ import {
     SheetDescription,
 } from '@/components/ui/sheet'
 import type { BackboneConnection } from '@/types/backbone'
+import { EntityCards, type ToolEntity } from '@/components/chat/entity-cards'
 
 interface Message {
     id?: string
@@ -45,6 +46,7 @@ interface BoardAIChatProps {
     // Pod mode
     podId?: string
     podName?: string
+    podSlug?: string
     // Workspace mode (cockpit chat — sees all pods/boards)
     isWorkspace?: boolean
     // Open at a specific conversation (e.g. from pilot activity "Continue session")
@@ -61,6 +63,7 @@ export function BoardAIChat({
     boardName,
     podId,
     podName,
+    podSlug,
     isWorkspace,
     initialConversationId,
     open,
@@ -347,7 +350,7 @@ export function BoardAIChat({
                         }
                         if (msg.role === 'system') return null
 
-                        const proposedTasks = !isPodMode && msg.role === 'assistant' ? extractTasksJson(msg.content) : null
+                        const proposedTasks = msg.role === 'assistant' ? extractTasksJson(msg.content) : null
                         const isCreated = createdMessageIds.has(messageId)
                         const isCreating = creatingTasks === messageId
 
@@ -415,6 +418,10 @@ export function BoardAIChat({
                                         </div>
                                     </div>
                                 )}
+
+                                {msg.role === 'assistant' && (msg.metadata?.entities as ToolEntity[] | undefined)?.length ? (
+                                    <EntityCards entities={msg.metadata!.entities as ToolEntity[]} podSlug={podSlug} />
+                                ) : null}
                             </div>
                         )
                     })}
