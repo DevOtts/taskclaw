@@ -12,6 +12,10 @@ import {
     resumeAgent,
     cloneAgent,
     getAgentActivity,
+    getAgentSkills,
+    addSkillToAgent,
+    removeSkillFromAgent,
+    getAgentKnowledge,
 } from '@/app/dashboard/agents/actions'
 import type { CreateAgentInput, UpdateAgentInput } from '@/types/agent'
 
@@ -117,5 +121,45 @@ export function useCloneAgent() {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['agents'] })
         },
+    })
+}
+
+export function useAgentSkills(agentId: string) {
+    return useQuery({
+        queryKey: ['agentSkills', agentId],
+        queryFn: () => getAgentSkills(agentId),
+        staleTime: 30000,
+        enabled: !!agentId,
+    })
+}
+
+export function useAddSkillToAgent() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ agentId, skillId }: { agentId: string; skillId: string }) =>
+            addSkillToAgent(agentId, skillId),
+        onSuccess: (_, { agentId }) => {
+            qc.invalidateQueries({ queryKey: ['agentSkills', agentId] })
+        },
+    })
+}
+
+export function useRemoveSkillFromAgent() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: ({ agentId, skillId }: { agentId: string; skillId: string }) =>
+            removeSkillFromAgent(agentId, skillId),
+        onSuccess: (_, { agentId }) => {
+            qc.invalidateQueries({ queryKey: ['agentSkills', agentId] })
+        },
+    })
+}
+
+export function useAgentKnowledge(agentId: string) {
+    return useQuery({
+        queryKey: ['agentKnowledge', agentId],
+        queryFn: () => getAgentKnowledge(agentId),
+        staleTime: 30000,
+        enabled: !!agentId,
     })
 }

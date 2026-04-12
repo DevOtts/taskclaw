@@ -5,9 +5,13 @@ import { useParams, useRouter } from 'next/navigation'
 import {
     Bot, ChevronLeft, Copy, Pause, Play, Trash2, Loader2,
     CheckCircle, XCircle, Zap, Clock, Activity, Settings2,
-    RefreshCw
+    RefreshCw, BookOpen, Plus, X as XIcon
 } from 'lucide-react'
-import { useAgent, useAgentActivity, useUpdateAgent, usePauseAgent, useResumeAgent, useCloneAgent, useDeleteAgent } from '@/hooks/use-agents'
+import {
+    useAgent, useAgentActivity, useUpdateAgent, usePauseAgent, useResumeAgent, useCloneAgent, useDeleteAgent,
+    useAgentSkills, useAddSkillToAgent, useRemoveSkillFromAgent, useAgentKnowledge,
+} from '@/hooks/use-agents'
+import { useQuery } from '@tanstack/react-query'
 import { useQueryClient } from '@tanstack/react-query'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
@@ -19,6 +23,7 @@ import { AgentStatusBadge } from '@/components/agents/AgentStatusBadge'
 import { AgentAvatar } from '@/components/agents/AgentAvatar'
 import { cn } from '@/lib/utils'
 import type { AgentActivity, UpdateAgentInput } from '@/types/agent'
+import { getSkills } from '@/app/dashboard/settings/skills/actions'
 
 const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
     task_completed: <CheckCircle className="w-3.5 h-3.5 text-green-400" />,
@@ -69,7 +74,7 @@ export default function AgentDetailPage() {
     const { agentId } = useParams<{ agentId: string }>()
     const router = useRouter()
     const qc = useQueryClient()
-    const [tab, setTab] = useState<'overview' | 'settings'>('overview')
+    const [tab, setTab] = useState<'overview' | 'skills' | 'knowledge' | 'settings'>('overview')
     const [activityPage, setActivityPage] = useState(1)
     const [deleteConfirm, setDeleteConfirm] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
@@ -81,6 +86,16 @@ export default function AgentDetailPage() {
     const resumeMutation = useResumeAgent()
     const cloneMutation = useCloneAgent()
     const deleteMutation = useDeleteAgent()
+    const { data: agentSkills = [] } = useAgentSkills(agentId)
+    const { data: agentKnowledge = [] } = useAgentKnowledge(agentId)
+    const addSkillMutation = useAddSkillToAgent()
+    const removeSkillMutation = useRemoveSkillFromAgent()
+    const { data: allSkills = [] } = useQuery({
+        queryKey: ['allSkills'],
+        queryFn: () => getSkills(),
+        staleTime: 60000,
+    })
+    const [skillSearch, setSkillSearch] = useState('')
 
     // Edit form state
     const [form, setForm] = useState<UpdateAgentInput | null>(null)
@@ -212,7 +227,7 @@ export default function AgentDetailPage() {
 
             {/* Tabs */}
             <div className="flex gap-4 px-6 border-b border-border">
-                {(['overview', 'settings'] as const).map((t) => (
+                {(['overview', 'skills', 'knowledge', 'settings'] as const).map((t) => (
                     <button
                         key={t}
                         onClick={() => setTab(t)}
@@ -325,6 +340,126 @@ export default function AgentDetailPage() {
                                 </>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {tab === 'skills' && (
+                    <div className="max-w-2xl space-y-6">
+                        {/* Linked skills */}
+                        <div>
+                            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                <Zap className="w-4 h-4" />
+                                Agent Skills ({agentSkills.length})
+                            </h3>
+                            {agentSkills.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No skills linked yet.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {agentSkills.map((skill: any) => (
+                                        <div key={skill.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-card">
+                                            <div>
+                                                <p className="text-sm font-medium">{skill.name}</p>
+                                                {skill.description && (
+                                                    <p className="text-xs text-muted-foreground">{skill.description}</p>
+                                                )}
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => removeSkillMutation.mutate({ agentId, skillId: skill.id })}
+                                                disabled={removeSkillMutation.isPending}
+                                            >
+                                                <XIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <Separator />
+
+                        {/* Add skill */}
+                        <div>
+                            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                <Plus className="w-4 h-4" />
+                                Add Skill
+                            </h3>
+                            <Input
+                                placeholder="Search skills..."
+                                value={skillSearch}
+                                onChange={(e) => setSkillSearch(e.target.value)}
+                                className="mb-3"
+                            />
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {allSkills
+                                    .filter((s: any) => {
+                                        const linked = agentSkills.some((as: any) => as.id === s.id)
+                                        const matchesSearch = !skillSearch || s.name.toLowerCase().includes(skillSearch.toLowerCase())
+                                        return !linked && matchesSearch
+                                    })
+                                    .map((skill: any) => (
+                                        <div key={skill.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                                            <div>
+                                                <p className="text-sm font-medium">{skill.name}</p>
+                                                {skill.description && (
+                                                    <p className="text-xs text-muted-foreground">{skill.description}</p>
+                                                )}
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => addSkillMutation.mutate({ agentId, skillId: skill.id })}
+                                                disabled={addSkillMutation.isPending}
+                                            >
+                                                <Plus className="w-3.5 h-3.5 mr-1" />
+                                                Add
+                                            </Button>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'knowledge' && (
+                    <div className="max-w-2xl space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold flex items-center gap-2">
+                                <BookOpen className="w-4 h-4" />
+                                Knowledge Documents ({agentKnowledge.length})
+                            </h3>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open('/dashboard/knowledge', '_self')}
+                            >
+                                <Plus className="w-3.5 h-3.5 mr-1" />
+                                Add Document
+                            </Button>
+                        </div>
+                        {agentKnowledge.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No knowledge documents linked. Add documents from the Knowledge Base and assign them to this agent.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {agentKnowledge.map((doc: any) => (
+                                    <div key={doc.id} className="rounded-lg border border-border px-4 py-3 bg-card">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-medium">{doc.title}</p>
+                                            {doc.is_master && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Master</span>
+                                            )}
+                                        </div>
+                                        {doc.content && (
+                                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{doc.content.substring(0, 150)}...</p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Updated {new Date(doc.updated_at || doc.created_at).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 

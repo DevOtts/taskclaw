@@ -133,4 +133,48 @@ export class AgentsController {
       limit ? parseInt(limit) : 20,
     );
   }
+
+  @Get(':agentId/skills')
+  @ApiOperation({ summary: 'Get skills linked to an agent' })
+  getSkills(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.agentsService.getAgentSkills(req.user.id, accountId, agentId);
+  }
+
+  @Post(':agentId/skills/:skillId')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Add a skill to an agent' })
+  addSkill(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Param('agentId') agentId: string,
+    @Param('skillId') skillId: string,
+  ) {
+    return this.agentsService.addSkillToAgent(req.user.id, accountId, agentId, skillId);
+  }
+
+  @Delete(':agentId/skills/:skillId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove a skill from an agent' })
+  removeSkill(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Param('agentId') agentId: string,
+    @Param('skillId') skillId: string,
+  ) {
+    return this.agentsService.removeSkillFromAgent(req.user.id, accountId, agentId, skillId);
+  }
+
+  @Get(':agentId/knowledge')
+  @ApiOperation({ summary: 'Get knowledge docs for an agent' })
+  getKnowledge(
+    @Req() req,
+    @Param('accountId') accountId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.agentsService.getAgentKnowledge(req.user.id, accountId, agentId);
+  }
 }

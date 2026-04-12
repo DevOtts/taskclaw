@@ -278,4 +278,92 @@ export class AgentsService {
       console.error(`[AgentsService] recordFailure failed: ${error.message}`);
     }
   }
+
+  // ── Skills management ────────────────────────────────────────────────────────
+
+  async getAgentSkills(userId: string, accountId: string, agentId: string) {
+    const client = this.supabaseAdmin.getClient();
+    await this.accessControl.verifyAccountAccess(client, accountId, userId);
+
+    const { data, error } = await client
+      .from('agent_skills')
+      .select('*, skill:skills(*)')
+      .eq('agent_id', agentId);
+
+    if (error) throw new Error(`Failed to fetch agent skills: ${error.message}`);
+    return (data || []).map((row: any) => row.skill).filter(Boolean);
+  }
+
+  async addSkillToAgent(userId: string, accountId: string, agentId: string, skillId: string) {
+    const client = this.supabaseAdmin.getClient();
+    await this.accessControl.verifyAccountAccess(client, accountId, userId);
+
+    const { data: agent, error: agentError } = await client
+      .from('agents')
+      .select('id')
+      .eq('id', agentId)
+      .eq('account_id', accountId)
+      .single();
+
+    if (agentError || !agent) throw new NotFoundException(`Agent ${agentId} not found`);
+
+    const { data, error } = await client
+      .from('agent_skills')
+      .insert({ agent_id: agentId, skill_id: skillId, is_active: true })
+      .select('*, skill:skills(*)')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') throw new ConflictException('Skill already linked to this agent');
+      throw new Error(`Failed to add skill: ${error.message}`);
+    }
+
+    return (data as any).skill;
+  }
+
+  async removeSkillFromAgent(userId: string, accountId: string, agentId: string, skillId: string) {
+    const client = this.supabaseAdmin.getClient();
+    await this.accessControl.verifyAccountAccess(client, accountId, userId);
+
+    const { error } = await client
+      .from('agent_skills')
+      .delete()
+      .eq('agent_id', agentId)
+      .eq('skill_id', skillId);
+
+    if (error) throw new Error(`Failed to remove skill: ${error.message}`);
+    return { message: 'Skill removed from agent' };
+  }
+
+  // ── Knowledge docs management ────────────────────────────────────────────────
+
+  async getAgentKnowledge(userId: string, accountId: string, agentId: string) {
+    const client = this.supabaseAdmin.getClient();
+    await this.accessControl.verifyAccountAccess(client, accountId, userId);
+
+    // Get migrated_from_category_id so we can also return category-linked docs (F14 soak period)
+    const { data: agent } = await client
+      .from('agents')
+      .select('id, migrated_from_category_id')
+      .eq('id', agentId)
+      .eq('account_id', accountId)
+      .single();
+
+    // Build OR filter: agent_id match OR category_id match (legacy)
+    let query = client
+      .from('knowledge_docs')
+      .select('*')
+      .eq('account_id', accountId)
+      .order('created_at', { ascending: false });
+
+    if (agent?.migrated_from_category_id) {
+      query = query.or(`agent_id.eq.${agentId},category_id.eq.${agent.migrated_from_category_id}`);
+    } else {
+      query = query.eq('agent_id', agentId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(`Failed to fetch agent knowledge: ${error.message}`);
+    return data;
+  }
 }

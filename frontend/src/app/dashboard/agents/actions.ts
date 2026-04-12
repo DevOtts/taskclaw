@@ -196,6 +196,73 @@ export async function cloneAgent(agentId: string, name?: string): Promise<Agent 
     }
 }
 
+export async function getAgentSkills(agentId: string): Promise<any[]> {
+    const headers = await getAuthHeaders()
+    if (!headers) return []
+    const accountId = await getActiveAccountId()
+    if (!accountId) return []
+    try {
+        const res = await fetch(`${API_URL}/accounts/${accountId}/agents/${agentId}/skills`, {
+            headers,
+            cache: 'no-store',
+        })
+        if (!res.ok) return []
+        return await res.json()
+    } catch {
+        return []
+    }
+}
+
+export async function addSkillToAgent(agentId: string, skillId: string): Promise<any> {
+    const headers = await getAuthHeaders()
+    if (!headers) throw new Error('Not authenticated')
+    const accountId = await getActiveAccountId()
+    if (!accountId) throw new Error('No account')
+    const res = await fetch(`${API_URL}/accounts/${accountId}/agents/${agentId}/skills/${skillId}`, {
+        method: 'POST',
+        headers,
+    })
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.message || 'Failed to add skill')
+    }
+    revalidatePath(`/dashboard/agents/${agentId}`)
+    return await res.json()
+}
+
+export async function removeSkillFromAgent(agentId: string, skillId: string): Promise<void> {
+    const headers = await getAuthHeaders()
+    if (!headers) throw new Error('Not authenticated')
+    const accountId = await getActiveAccountId()
+    if (!accountId) throw new Error('No account')
+    const res = await fetch(`${API_URL}/accounts/${accountId}/agents/${agentId}/skills/${skillId}`, {
+        method: 'DELETE',
+        headers,
+    })
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.message || 'Failed to remove skill')
+    }
+    revalidatePath(`/dashboard/agents/${agentId}`)
+}
+
+export async function getAgentKnowledge(agentId: string): Promise<any[]> {
+    const headers = await getAuthHeaders()
+    if (!headers) return []
+    const accountId = await getActiveAccountId()
+    if (!accountId) return []
+    try {
+        const res = await fetch(`${API_URL}/accounts/${accountId}/agents/${agentId}/knowledge`, {
+            headers,
+            cache: 'no-store',
+        })
+        if (!res.ok) return []
+        return await res.json()
+    } catch {
+        return []
+    }
+}
+
 export async function getAgentActivity(
     agentId: string,
     page = 1,
