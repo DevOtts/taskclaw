@@ -654,11 +654,18 @@ export class ConversationsService {
               requiredTools.push(...tools);
             }
             if (requiredTools.length > 0) {
-              toolContext = await this.toolRegistry.buildToolContext(accountId, requiredTools);
-              this.logger.debug(`${logPrefix} Tool context: ${toolContext.length} tools resolved`);
+              toolContext = await this.toolRegistry.buildToolContext(
+                accountId,
+                requiredTools,
+              );
+              this.logger.debug(
+                `${logPrefix} Tool context: ${toolContext.length} tools resolved`,
+              );
             }
           } catch (toolErr) {
-            this.logger.warn(`${logPrefix} Failed to build tool context: ${toolErr.message}`);
+            this.logger.warn(
+              `${logPrefix} Failed to build tool context: ${toolErr.message}`,
+            );
           }
 
           // Step 5: Send via backbone with agentic tool loop
@@ -794,7 +801,9 @@ export class ConversationsService {
           taskId: taskId || undefined,
           categoryId: resolvedCategoryId || undefined,
         }).catch((err: any) => {
-          this.logger.warn(`Memory extraction failed (non-blocking): ${err.message}`);
+          this.logger.warn(
+            `Memory extraction failed (non-blocking): ${err.message}`,
+          );
         });
 
         // Extract structured output from AI response and save to card_data
@@ -1438,13 +1447,20 @@ export class ConversationsService {
    */
   private async tryResolveBackbone(
     accountId: string,
-    options?: { taskId?: string; boardId?: string; stepId?: string; categoryId?: string },
-  ): Promise<import('../backbone/backbone-router.service').ResolveResult | null> {
+    options?: {
+      taskId?: string;
+      boardId?: string;
+      stepId?: string;
+      categoryId?: string;
+    },
+  ): Promise<
+    import('../backbone/backbone-router.service').ResolveResult | null
+  > {
     try {
       return await this.backboneRouter.resolve(accountId, options);
     } catch (err) {
       // NotFoundException means no backbone configured — that's fine, use legacy
-      if ((err as any)?.status === 404) {
+      if (err?.status === 404) {
         return null;
       }
       // Re-throw unexpected errors
@@ -1524,7 +1540,9 @@ export class ConversationsService {
       history = [...history, assistantHistoryMsg];
 
       // Execute tool calls
-      const isTextBased = adapter.supportsTextBasedToolCalling?.() && !adapter.supportsToolExecution?.();
+      const isTextBased =
+        adapter.supportsTextBasedToolCalling?.() &&
+        !adapter.supportsToolExecution?.();
       const toolResultParts: string[] = [];
       for (const tc of result.tool_calls) {
         let toolContent: string;
@@ -1547,7 +1565,9 @@ export class ConversationsService {
 
         if (isTextBased) {
           // For text-based tool calling, collect results for a single user message
-          toolResultParts.push(`Tool "${tc.name}" executed successfully. Result: ${toolContent}`);
+          toolResultParts.push(
+            `Tool "${tc.name}" executed successfully. Result: ${toolContent}`,
+          );
         } else {
           history = [
             ...history,
@@ -1563,7 +1583,8 @@ export class ConversationsService {
       // For text-based adapters: inject all tool results as a single user message
       // with explicit instruction to respond naturally now (no more tool calls)
       if (isTextBased && toolResultParts.length > 0) {
-        const toolResultMsg = toolResultParts.join('\n') +
+        const toolResultMsg =
+          toolResultParts.join('\n') +
           '\n\nAll actions completed successfully. Now write your final response to the user summarizing what was done. Do NOT call any more tools.';
         history = [
           ...history,
@@ -1690,9 +1711,12 @@ Available tools: list_pods, list_boards, decompose_goal, create_task, update_tas
 WORKSPACE STRUCTURE:
 `;
           for (const pod of pods ?? []) {
-            const podBoards = (boards ?? []).filter((b: any) => b.pod_id === pod.id);
+            const podBoards = (boards ?? []).filter(
+              (b: any) => b.pod_id === pod.id,
+            );
             manifest += `\nPod: "${pod.name}" (id: ${pod.id}, slug: ${pod.slug})\n`;
-            if (pod.description) manifest += `  Description: ${pod.description}\n`;
+            if (pod.description)
+              manifest += `  Description: ${pod.description}\n`;
             if (podBoards.length > 0) {
               manifest += `  Boards:\n`;
               for (const board of podBoards) {
@@ -2259,80 +2283,90 @@ Rules:
       categoryId?: string;
     },
   ): Promise<void> {
+    const {
+      userMessage,
+      assistantResponse,
+      conversationId,
+      taskId,
+      categoryId,
+    } = opts;
+
+    // Build extraction prompt
+    const maxLen = 500;
+    const userSnippet = userMessage.substring(0, maxLen);
+    const assistantSnippet = assistantResponse.substring(0, maxLen);
+    const extractionPrompt = [
+      'Extract up to 3 key facts, decisions, or insights from this conversation exchange.',
+      'Return ONLY a JSON array of objects with keys content and type.',
+      'Type must be one of: episodic, semantic, procedural.',
+      '- episodic: specific events, decisions, user preferences',
+      '- semantic: general facts, concepts, domain knowledge',
+      '- procedural: how-to instructions, workflows',
+      '',
+      'Conversation:',
+      'User: ' + userSnippet,
+      'Assistant: ' + assistantSnippet,
+      '',
+      'JSON array:',
+    ].join('\n');
+
+    // Send extraction request via backbone router
+    const result = await this.backboneRouter.send({
+      accountId,
+      categoryId,
+      sendOptions: {
+        systemPrompt: `You are a memory extraction assistant. Extract key facts as JSON only.`,
+        message: extractionPrompt,
+        metadata: { accountId, conversationId },
+      },
+    });
+
+    if (!result?.text) return;
+
+    // Parse JSON array from response
+    let facts: Array<{ content: string; type: string }> = [];
     try {
-      const { userMessage, assistantResponse, conversationId, taskId, categoryId } = opts;
+      // Extract JSON array from response (may have surrounding text)
+      const jsonMatch = result.text.match(/\[.*\]/s);
+      if (jsonMatch) {
+        facts = JSON.parse(jsonMatch[0]);
+      }
+    } catch {
+      this.logger.debug(
+        `Memory extraction: could not parse JSON from response`,
+      );
+      return;
+    }
 
-      // Build extraction prompt
-      const maxLen = 500;
-      const userSnippet = userMessage.substring(0, maxLen);
-      const assistantSnippet = assistantResponse.substring(0, maxLen);
-      const extractionPrompt = [
-        'Extract up to 3 key facts, decisions, or insights from this conversation exchange.',
-        'Return ONLY a JSON array of objects with keys content and type.',
-        'Type must be one of: episodic, semantic, procedural.',
-        '- episodic: specific events, decisions, user preferences',
-        '- semantic: general facts, concepts, domain knowledge',
-        '- procedural: how-to instructions, workflows',
-        '',
-        'Conversation:',
-        'User: ' + userSnippet,
-        'Assistant: ' + assistantSnippet,
-        '',
-        'JSON array:',
-      ].join('\n');
+    if (!Array.isArray(facts) || facts.length === 0) return;
 
-      // Send extraction request via backbone router
-      const result = await this.backboneRouter.send({
-        accountId,
-        categoryId,
-        sendOptions: {
-          systemPrompt: `You are a memory extraction assistant. Extract key facts as JSON only.`,
-          message: extractionPrompt,
-          metadata: { accountId, conversationId },
+    // Store each fact as a memory (up to 3)
+    const validTypes = new Set([
+      'episodic',
+      'semantic',
+      'procedural',
+      'working',
+    ]);
+    for (const fact of facts.slice(0, 3)) {
+      if (!fact?.content || typeof fact.content !== 'string') continue;
+      const memType = validTypes.has(fact.type) ? fact.type : 'episodic';
+
+      await this.memoryRouter.remember({
+        content: fact.content,
+        type: memType as any,
+        source: 'agent',
+        metadata: {
+          account_id: accountId,
+          conversation_id: conversationId,
+          task_id: taskId,
+          category_id: categoryId,
         },
       });
-
-      if (!result?.text) return;
-
-      // Parse JSON array from response
-      let facts: Array<{ content: string; type: string }> = [];
-      try {
-        // Extract JSON array from response (may have surrounding text)
-        const jsonMatch = result.text.match(/\[.*\]/s);
-        if (jsonMatch) {
-          facts = JSON.parse(jsonMatch[0]);
-        }
-      } catch {
-        this.logger.debug(`Memory extraction: could not parse JSON from response`);
-        return;
-      }
-
-      if (!Array.isArray(facts) || facts.length === 0) return;
-
-      // Store each fact as a memory (up to 3)
-      const validTypes = new Set(['episodic', 'semantic', 'procedural', 'working']);
-      for (const fact of facts.slice(0, 3)) {
-        if (!fact?.content || typeof fact.content !== 'string') continue;
-        const memType = validTypes.has(fact.type) ? fact.type : 'episodic';
-
-        await this.memoryRouter.remember({
-          content: fact.content,
-          type: memType as any,
-          source: 'agent',
-          metadata: {
-            account_id: accountId,
-            conversation_id: conversationId,
-            task_id: taskId,
-            category_id: categoryId,
-          },
-        });
-      }
-
-      this.logger.debug(`Memory extraction: stored ${Math.min(facts.length, 3)} facts for conversation ${conversationId}`);
-    } catch (err: any) {
-      // Errors are caught by the fire-and-forget caller — log and propagate
-      throw err;
     }
+
+    this.logger.debug(
+      `Memory extraction: stored ${Math.min(facts.length, 3)} facts for conversation ${conversationId}`,
+    );
   }
 
   private mirrorToNotion(

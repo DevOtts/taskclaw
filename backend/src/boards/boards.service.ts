@@ -79,7 +79,7 @@ export class BoardsService {
       if (!countError && taskCounts) {
         const countMap: Record<string, number> = {};
         for (const t of taskCounts as any[]) {
-          countMap[t.board_instance_id] = Number(t.count) ?? 0;
+          countMap[t.board_instance_id] = Number(t.count) || 0;
         }
         data.forEach((board) => {
           board.task_count = countMap[board.id] ?? 0;
@@ -130,7 +130,7 @@ export class BoardsService {
     let totalTaskCount = 0;
     if (stepCounts) {
       (stepCounts as any[]).forEach((t) => {
-        const n = Number(t.count) ?? 0;
+        const n = Number(t.count) || 0;
         stepCountMap[t.current_step_id] = n;
         totalTaskCount += n;
       });

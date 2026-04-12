@@ -48,7 +48,7 @@ export class PodsService {
         const countMap: Record<string, number> = {};
         (boardCounts as any[]).forEach((b) => {
           if (b.pod_id) {
-            countMap[b.pod_id] = Number(b.count) ?? 0;
+            countMap[b.pod_id] = Number(b.count) || 0;
           }
         });
         data.forEach((pod) => {
@@ -162,7 +162,8 @@ export class PodsService {
     if (dto.color !== undefined) updateData.color = dto.color;
     if (dto.backbone_connection_id !== undefined)
       updateData.backbone_connection_id = dto.backbone_connection_id;
-    if (dto.agent_config !== undefined) updateData.agent_config = dto.agent_config;
+    if (dto.agent_config !== undefined)
+      updateData.agent_config = dto.agent_config;
     if (dto.position !== undefined) updateData.position = dto.position;
 
     const { data, error } = await client
