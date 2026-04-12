@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'CONTEXT REMINDER: Read /Users/macbook/Workspace/Devotts/taskclaw/taskclaw/.claude/features.json for feature status. Read /Users/macbook/Workspace/Devotts/taskclaw/taskclaw/.claude/progress.md for current state. Read /Users/macbook/.claude/plans/harmonic-fluttering-trinket.md for the full plan. Commit after completing each feature.'"
+            "command": "echo 'CONTEXT REMINDER: Read /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/features-v2.json for v2 feature status (38 features). Read /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/progress-v2.md for current state and rules. PRDs: taskclaw-docs/implementations/memory-layer/prd-pluggable-memory-layer.md and taskclaw-docs/implementations/unified-architecture/prd-unified-architecture.md. Work DB first, then BE, then FE, then INT. Commit after each feature: git commit -m \"feat(v2): [name] [ID]\". Memory writes ALWAYS fire-and-forget. 200ms timeout on recall. Run up to 10 browser test scenarios per feature using Playwright MCP.'"
           }
         ]
       }

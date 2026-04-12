@@ -16,9 +16,13 @@ import {
     Trash2,
     ChevronDown,
     ChevronRight,
+    ArrowRightLeft,
+    GitFork,
 } from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { useTaskStore } from '@/hooks/use-task-store'
+import { getManualRoutesForBoard, triggerBoardRoute } from '@/app/dashboard/pods/actions'
 import { useTaskDetail, useTaskContent, useTaskComments, useTaskUsage, useUpdateTask, useCompleteTask, useDeleteTask, useMoveTask } from '@/hooks/use-tasks'
 import { useBackboneConnections } from '@/hooks/use-backbone-connections'
 import { useMoveTaskToStep } from '@/hooks/use-boards'
@@ -72,7 +76,11 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
     const [titleValue, setTitleValue] = useState('')
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [taskBackboneId, setTaskBackboneId] = useState<string | null>(null)
+    const [aiOutputOpen, setAiOutputOpen] = useState(false)
     const titleInputRef = useRef<HTMLInputElement>(null)
+    const [manualRoutes, setManualRoutes] = useState<any[]>([])
+    const [routesLoading, setRoutesLoading] = useState(false)
+    const [sendingRoute, setSendingRoute] = useState<string | null>(null)
 
     const aiConfigured = (backboneConnections ?? []).some(c => c.is_active)
 
@@ -81,6 +89,7 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
         setEditingTitle(false)
         setShowDeleteDialog(false)
         setTaskBackboneId(task?.backbone_connection_id ?? null)
+        setAiOutputOpen(task?.status === 'Needs Review')
     }, [selectedTaskId])
 
     // Sync task backbone from loaded task data
@@ -174,6 +183,33 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
         setShowDeleteDialog(false)
     }
 
+    const handleLoadRoutes = async () => {
+        if (!task?.board_instance_id || routesLoading) return
+        setRoutesLoading(true)
+        try {
+            const routes = await getManualRoutesForBoard(task.board_instance_id)
+            setManualRoutes(routes)
+        } finally {
+            setRoutesLoading(false)
+        }
+    }
+
+    const handleSendToBoard = async (routeId: string) => {
+        if (!selectedTaskId) return
+        setSendingRoute(routeId)
+        try {
+            const result = await triggerBoardRoute(routeId, selectedTaskId)
+            if (result.error) {
+                toast.error(result.error)
+            } else {
+                const route = manualRoutes.find((r) => r.id === routeId)
+                toast.success(`Task sent to ${route?.target_board?.name || 'target board'}`)
+            }
+        } finally {
+            setSendingRoute(null)
+        }
+    }
+
     const handleCardDataChange = (stepKey: string, fieldKey: string, value: any) => {
         if (!selectedTaskId || !task) return
         const existingStepData = task.card_data?.[stepKey] || {}
@@ -223,6 +259,52 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
+                    {/* Send to Board — only for board tasks */}
+                    {task?.board_instance_id && (
+                        <DropdownMenu onOpenChange={(open) => { if (open) handleLoadRoutes() }}>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-accent/60 hover:bg-accent border border-border rounded transition-colors text-foreground"
+                                    title="Send to Board"
+                                >
+                                    <ArrowRightLeft className="w-3.5 h-3.5" />
+                                    Send to Board
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="min-w-[200px]">
+                                {routesLoading ? (
+                                    <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        Loading routes...
+                                    </div>
+                                ) : manualRoutes.length === 0 ? (
+                                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                                        No manual routes configured for this board.
+                                    </div>
+                                ) : (
+                                    manualRoutes.map((route) => (
+                                        <DropdownMenuItem
+                                            key={route.id}
+                                            onClick={() => handleSendToBoard(route.id)}
+                                            disabled={!!sendingRoute}
+                                            className="flex items-center gap-2 text-xs cursor-pointer"
+                                        >
+                                            {sendingRoute === route.id
+                                                ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                                : <ArrowRightLeft className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                                            }
+                                            <span>
+                                                {route.label || route.target_board?.name || 'Target board'}
+                                                {route.target_step?.name && (
+                                                    <span className="text-muted-foreground ml-1">→ {route.target_step.name}</span>
+                                                )}
+                                            </span>
+                                        </DropdownMenuItem>
+                                    ))
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                     <button
                         onClick={() => setShowDeleteDialog(true)}
                         className="p-1.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
@@ -277,6 +359,29 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
                                     </h2>
                                 )}
                             </div>
+
+                            {/* DAG origin — only shown for tasks created by a DAG */}
+                            {task.dag && (
+                                <div className="px-6 pb-3">
+                                    <Link
+                                        href={task.dag.pods?.slug
+                                            ? `/dashboard/pods/${task.dag.pods.slug}`
+                                            : '#'}
+                                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/15 hover:bg-primary/10 hover:border-primary/25 transition-colors group w-full text-left"
+                                    >
+                                        <GitFork className="w-3.5 h-3.5 text-primary/60 shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">
+                                                AI Goal
+                                            </p>
+                                            <p className="text-xs font-medium text-foreground truncate leading-snug">
+                                                {task.dag.goal}
+                                            </p>
+                                        </div>
+                                        <ExternalLink className="w-3 h-3 text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 transition-colors" />
+                                    </Link>
+                                </div>
+                            )}
 
                             {/* Metadata */}
                             <div className="px-6 py-3 grid grid-cols-2 gap-y-3 gap-x-6 border-b border-border">
@@ -669,6 +774,40 @@ export function TaskDetailPanel({ categories = [], boardSteps }: TaskDetailPanel
                                     />
                                 )}
                             </div>
+
+                            {/* AI Output — shown when task has a result from DAG execution */}
+                            {task.result && (
+                                <div className="px-6 py-4 space-y-2 border-b border-border">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAiOutputOpen((v) => !v)}
+                                        className="flex items-center gap-2 w-full text-left"
+                                    >
+                                        <Bot className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                        <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex-1">
+                                            AI Output
+                                        </h4>
+                                        {task.status === 'Needs Review' && (
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-400 font-semibold uppercase tracking-wide border border-orange-500/20">
+                                                Needs Review
+                                            </span>
+                                        )}
+                                        {aiOutputOpen
+                                            ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+                                            : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                                        }
+                                    </button>
+                                    {aiOutputOpen && (
+                                        <div className="mt-1 bg-purple-500/5 border border-purple-500/20 rounded-xl p-4 text-xs text-foreground leading-relaxed whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">
+                                            {typeof task.result === 'string'
+                                                ? task.result
+                                                : typeof task.result === 'object' && task.result !== null
+                                                  ? JSON.stringify(task.result, null, 2)
+                                                  : null}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Comments (from Notion/ClickUp) */}
                             {task.source_id && (

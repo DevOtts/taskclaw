@@ -1,15 +1,17 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, BrainCircuit, CheckCircle, ListPlus, Layers, Plug, ArrowRight } from 'lucide-react'
+import { Send, Loader2, BrainCircuit, CheckCircle, ListPlus, Layers, Plug, ArrowRight, Globe, Zap } from 'lucide-react'
 import Link from 'next/link'
 import {
     getOrCreateBoardConversation,
     getOrCreatePodConversation,
+    getOrCreateWorkspaceConversation,
     sendMessageBackground,
     getMessages,
 } from '@/app/dashboard/chat/actions'
 import { bulkCreateBoardTasks } from '@/app/dashboard/boards/actions'
+import { getBackboneConnections } from '@/app/dashboard/settings/backbones/actions'
 import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { renderMarkdown, extractTasksJson } from '@/lib/markdown'
@@ -21,6 +23,8 @@ import {
     SheetTitle,
     SheetDescription,
 } from '@/components/ui/sheet'
+import type { BackboneConnection } from '@/types/backbone'
+import { EntityCards, type ToolEntity } from '@/components/chat/entity-cards'
 
 interface Message {
     id?: string
@@ -42,6 +46,11 @@ interface BoardAIChatProps {
     // Pod mode
     podId?: string
     podName?: string
+    podSlug?: string
+    // Workspace mode (cockpit chat — sees all pods/boards)
+    isWorkspace?: boolean
+    // Open at a specific conversation (e.g. from pilot activity "Continue session")
+    initialConversationId?: string | null
     // Sheet control
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -54,12 +63,16 @@ export function BoardAIChat({
     boardName,
     podId,
     podName,
+    podSlug,
+    isWorkspace,
+    initialConversationId,
     open,
     onOpenChange,
     onClose,
 }: BoardAIChatProps) {
-    const isPodMode = !!podId
-    const contextName = isPodMode ? (podName ?? 'Pod') : (boardName ?? 'Board')
+    const isPodMode = !!podId && !isWorkspace
+    const isWorkspaceMode = !!isWorkspace
+    const contextName = isWorkspaceMode ? 'Workspace' : isPodMode ? (podName ?? 'Pod') : (boardName ?? 'Board')
 
     // Detect "no backbone configured" vs other errors
     const isNoBackboneError = (err: string | null) =>
@@ -74,6 +87,7 @@ export function BoardAIChat({
     const [error, setError] = useState<string | null>(null)
     const [creatingTasks, setCreatingTasks] = useState<string | null>(null)
     const [createdMessageIds, setCreatedMessageIds] = useState<Set<string>>(new Set())
+    const [activeBackbone, setActiveBackbone] = useState<BackboneConnection | null>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -124,6 +138,17 @@ export function BoardAIChat({
 
     useEffect(() => { return () => stopPolling() }, [stopPolling])
 
+    // Fetch active backbone for badge display
+    useEffect(() => {
+        if (!open) return
+        getBackboneConnections().then((connections) => {
+            if (!Array.isArray(connections)) return
+            const active = connections.filter((b) => b.is_active)
+            const def = active.find((b) => b.is_default) ?? active[0] ?? null
+            setActiveBackbone(def)
+        }).catch(() => {})
+    }, [open])
+
     // Re-init whenever the sheet opens or the context changes
     useEffect(() => {
         if (!open) return
@@ -135,7 +160,17 @@ export function BoardAIChat({
             setMessages([])
 
             try {
-                const result = isPodMode
+                // If a specific conversation ID is provided (e.g. from pilot activity), use it directly
+                if (initialConversationId) {
+                    setConversationId(initialConversationId)
+                    await loadMessages(initialConversationId)
+                    if (!cancelled) { setIsInitializing(false); inputRef.current?.focus() }
+                    return
+                }
+
+                const result = isWorkspaceMode
+                    ? await getOrCreateWorkspaceConversation()
+                    : isPodMode
                     ? await getOrCreatePodConversation(podId!, contextName)
                     : await getOrCreateBoardConversation(boardId!, contextName)
 
@@ -159,7 +194,7 @@ export function BoardAIChat({
         init()
         return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, boardId, podId])
+    }, [open, boardId, podId, isWorkspace, initialConversationId])
 
     useEffect(() => {
         if (isProcessing && conversationId) startPolling(conversationId)
@@ -216,7 +251,9 @@ export function BoardAIChat({
         }
     }
 
-    const placeholder = isPodMode
+    const placeholder = isWorkspaceMode
+        ? (isProcessing ? 'Wait for AI to respond...' : 'Ask anything — run pilots, trigger routes, review pods...')
+        : isPodMode
         ? (isProcessing ? 'Wait for AI to respond...' : `Ask the ${contextName} AI anything...`)
         : (isProcessing ? 'Wait for AI to respond...' : 'Describe the tasks you want to create...')
 
@@ -230,16 +267,28 @@ export function BoardAIChat({
                 {/* Header */}
                 <SheetHeader className="px-4 py-3 border-b bg-primary/5 shrink-0">
                     <div className="flex items-center gap-2.5 pr-6">
-                        {isPodMode
+                        {isWorkspaceMode
+                            ? <Globe className={cn('w-4 h-4', isProcessing ? 'text-amber-500 animate-pulse' : 'text-primary')} />
+                            : isPodMode
                             ? <Layers className={cn('w-4 h-4', isProcessing ? 'text-amber-500 animate-pulse' : 'text-primary')} />
                             : <BrainCircuit className={cn('w-4 h-4', isProcessing ? 'text-amber-500 animate-pulse' : 'text-primary')} />
                         }
                         <div className="flex-1 min-w-0">
                             <SheetTitle className="text-sm leading-tight">{contextName}</SheetTitle>
                             <SheetDescription className="text-[11px] leading-tight">
-                                {isPodMode ? 'Pod AI Chat' : 'Board AI Chat'}
+                                {isWorkspaceMode ? 'Workspace AI · Can trigger pods, boards & routes' : isPodMode ? 'Pod AI Chat' : 'Board AI Chat'}
                             </SheetDescription>
                         </div>
+                        {/* Backbone badge */}
+                        {activeBackbone && (
+                            <span
+                                className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-medium shrink-0 border border-emerald-500/20"
+                                title={`Using backbone: ${activeBackbone.name || activeBackbone.backbone_type}`}
+                            >
+                                <Zap className="w-2.5 h-2.5" />
+                                {activeBackbone.name || activeBackbone.backbone_type}
+                            </span>
+                        )}
                         {isProcessing && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-medium shrink-0">
                                 Thinking…
@@ -259,18 +308,27 @@ export function BoardAIChat({
 
                     {!isInitializing && messages.length === 0 && !isProcessing && !error && (
                         <div className="text-center py-8 space-y-3">
-                            {isPodMode
+                            {isWorkspaceMode
+                                ? <Globe className="w-10 h-10 mx-auto text-muted-foreground/20" />
+                                : isPodMode
                                 ? <Layers className="w-10 h-10 mx-auto text-muted-foreground/20" />
                                 : <BrainCircuit className="w-10 h-10 mx-auto text-muted-foreground/20" />
                             }
                             <div>
                                 <p className="text-sm text-muted-foreground">
-                                    {isPodMode
+                                    {isWorkspaceMode
+                                        ? 'Your Workspace AI. Ask it to review pods, trigger pilots, route tasks, or coordinate across departments.'
+                                        : isPodMode
                                         ? `Chat with the ${contextName} AI assistant.`
                                         : 'Describe the tasks you want to create on this board.'
                                     }
                                 </p>
-                                {!isPodMode && (
+                                {isWorkspaceMode && (
+                                    <p className="text-xs text-muted-foreground/60 mt-1">
+                                        Example: &quot;Review all pending tasks and suggest next steps&quot;
+                                    </p>
+                                )}
+                                {!isPodMode && !isWorkspaceMode && (
                                     <p className="text-xs text-muted-foreground/60 mt-1">
                                         Example: &quot;Create 10 posts about AI in different markets&quot;
                                     </p>
@@ -292,7 +350,7 @@ export function BoardAIChat({
                         }
                         if (msg.role === 'system') return null
 
-                        const proposedTasks = !isPodMode && msg.role === 'assistant' ? extractTasksJson(msg.content) : null
+                        const proposedTasks = msg.role === 'assistant' ? extractTasksJson(msg.content) : null
                         const isCreated = createdMessageIds.has(messageId)
                         const isCreating = creatingTasks === messageId
 
@@ -360,6 +418,10 @@ export function BoardAIChat({
                                         </div>
                                     </div>
                                 )}
+
+                                {msg.role === 'assistant' && (msg.metadata?.entities as ToolEntity[] | undefined)?.length ? (
+                                    <EntityCards entities={msg.metadata!.entities as ToolEntity[]} podSlug={podSlug} />
+                                ) : null}
                             </div>
                         )
                     })}

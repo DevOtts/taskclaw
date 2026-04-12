@@ -20,6 +20,14 @@ import { BackboneRouterService } from '../backbone/backbone-router.service';
 import { IntegrationsService } from '../integrations/integrations.service';
 import { ToolRegistryService } from '../integrations/tool-registry.service';
 import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
+import { MemoryRouterService } from '../memory/memory-router.service';
+import { ChatToolsService } from './chat-tools.service';
+import {
+  BackboneAdapter,
+  BackboneSendOptions,
+  BackboneMessage,
+  ToolContextDefinition,
+} from '../backbone/adapters/backbone-adapter.interface';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
@@ -43,6 +51,8 @@ export class ConversationsService {
     private readonly integrationsService: IntegrationsService,
     private readonly toolRegistry: ToolRegistryService,
     private readonly webhookEmitter: WebhookEmitterService,
+    private readonly memoryRouter: MemoryRouterService,
+    private readonly chatTools: ChatToolsService,
   ) {}
 
   /**
@@ -111,6 +121,7 @@ export class ConversationsService {
         task_id: dto.task_id,
         board_id: dto.board_id || null,
         pod_id: dto.pod_id || null,
+        is_workspace: dto.is_workspace || false,
         title: dto.title || 'New Conversation',
         metadata: Object.keys(metadata).length > 0 ? metadata : null,
       })
@@ -144,6 +155,7 @@ export class ConversationsService {
     taskId?: string,
     boardId?: string,
     podId?: string,
+    workspace?: boolean,
   ) {
     const client = this.supabaseAdmin.getClient();
 
@@ -168,6 +180,10 @@ export class ConversationsService {
 
     if (podId) {
       query = query.eq('pod_id', podId);
+    }
+
+    if (workspace) {
+      query = query.eq('is_workspace', true);
     }
 
     const { data, error, count } = await query
@@ -351,13 +367,18 @@ export class ConversationsService {
           resolvedCategoryId,
         );
 
-        const result = await this.backboneRouter.send({
+        // Use runWithTools for agentic tool loop
+        const chatToolCtx = {
           accountId,
-          taskId: conversation.task_id || undefined,
+          userId,
+          accessToken,
+          podId: conversation.pod_id || undefined,
           boardId: conversation.board_id || undefined,
-          stepId: task?.current_step_id || undefined,
-          categoryId: resolvedCategoryId || undefined,
-          sendOptions: {
+        };
+        const toolResult = await this.runWithTools(
+          backboneResolved.adapter,
+          {
+            config: backboneResolved.config,
             systemPrompt,
             message: dto.content,
             history: history.map((h) => ({
@@ -366,14 +387,19 @@ export class ConversationsService {
             })),
             metadata: { userId, accountId, conversationId },
           },
-        });
+          chatToolCtx,
+          conversation,
+        );
 
-        aiResponseText = result.text;
+        aiResponseText = toolResult.text;
         aiResponseMetadata = {
-          model: result.model,
-          ...(result.usage || {}),
+          model: toolResult.model,
+          ...(toolResult.usage || {}),
           backbone_connection_id: backboneConnectionId,
           resolved_from: backboneResolved.resolvedFrom,
+          ...(toolResult.entities.length > 0
+            ? { entities: toolResult.entities }
+            : {}),
         };
       } else {
         // ── Legacy fallback (F038) ──
@@ -628,26 +654,36 @@ export class ConversationsService {
               requiredTools.push(...tools);
             }
             if (requiredTools.length > 0) {
-              toolContext = await this.toolRegistry.buildToolContext(accountId, requiredTools);
-              this.logger.debug(`${logPrefix} Tool context: ${toolContext.length} tools resolved`);
+              toolContext = await this.toolRegistry.buildToolContext(
+                accountId,
+                requiredTools,
+              );
+              this.logger.debug(
+                `${logPrefix} Tool context: ${toolContext.length} tools resolved`,
+              );
             }
           } catch (toolErr) {
-            this.logger.warn(`${logPrefix} Failed to build tool context: ${toolErr.message}`);
+            this.logger.warn(
+              `${logPrefix} Failed to build tool context: ${toolErr.message}`,
+            );
           }
 
-          // Step 5: Send via backbone router
+          // Step 5: Send via backbone with agentic tool loop
           this.logger.log(
             `${logPrefix} Step 4/5: Sending to backbone ${backboneResolved.adapter.slug}`,
           );
 
-          const result = await this.backboneRouter.send({
+          const chatToolCtx = {
             accountId,
-            taskId: conversation.task_id || undefined,
-            boardId: conversation.board_id || undefined,
-            stepId: task?.current_step_id || undefined,
-            categoryId: resolvedCategoryId || undefined,
+            userId,
+            accessToken,
             podId: conversation.pod_id || undefined,
-            sendOptions: {
+            boardId: conversation.board_id || undefined,
+          };
+          const toolResult = await this.runWithTools(
+            backboneResolved.adapter,
+            {
+              config: backboneResolved.config,
               systemPrompt,
               message: userContent,
               history: history.map((h) => ({
@@ -657,14 +693,19 @@ export class ConversationsService {
               tool_context: toolContext,
               metadata: { userId, accountId, conversationId },
             },
-          });
+            chatToolCtx,
+            conversation,
+          );
 
-          aiResponseText = result.text;
+          aiResponseText = toolResult.text;
           aiResponseMetadata = {
-            model: result.model,
-            ...(result.usage || {}),
+            model: toolResult.model,
+            ...(toolResult.usage || {}),
             backbone_connection_id: backboneConnectionId,
             resolved_from: backboneResolved.resolvedFrom,
+            ...(toolResult.entities.length > 0
+              ? { entities: toolResult.entities }
+              : {}),
           };
         } else {
           // ── Legacy fallback (F038) ──
@@ -751,6 +792,19 @@ export class ConversationsService {
 
         // Mirror messages to Notion
         this.mirrorToNotion(conversation, userContent, aiResponseText);
+
+        // BE07: Fire-and-forget memory extraction — never awaited, never blocks response
+        this.extractAndStoreMemories(accountId, {
+          userMessage: userContent,
+          assistantResponse: aiResponseText,
+          conversationId,
+          taskId: taskId || undefined,
+          categoryId: resolvedCategoryId || undefined,
+        }).catch((err: any) => {
+          this.logger.warn(
+            `Memory extraction failed (non-blocking): ${err.message}`,
+          );
+        });
 
         // Extract structured output from AI response and save to card_data
         if (taskId) {
@@ -1393,18 +1447,159 @@ export class ConversationsService {
    */
   private async tryResolveBackbone(
     accountId: string,
-    options?: { taskId?: string; boardId?: string; stepId?: string; categoryId?: string },
-  ): Promise<import('../backbone/backbone-router.service').ResolveResult | null> {
+    options?: {
+      taskId?: string;
+      boardId?: string;
+      stepId?: string;
+      categoryId?: string;
+    },
+  ): Promise<
+    import('../backbone/backbone-router.service').ResolveResult | null
+  > {
     try {
       return await this.backboneRouter.resolve(accountId, options);
     } catch (err) {
       // NotFoundException means no backbone configured — that's fine, use legacy
-      if ((err as any)?.status === 404) {
+      if (err?.status === 404) {
         return null;
       }
       // Re-throw unexpected errors
       throw err;
     }
+  }
+
+  /**
+   * Run a backbone send with an agentic tool loop.
+   * If the adapter returns tool_calls, execute them via ChatToolsService and re-send.
+   */
+  private async runWithTools(
+    adapter: BackboneAdapter,
+    sendOptions: BackboneSendOptions,
+    chatToolCtx: {
+      accountId: string;
+      userId: string;
+      accessToken: string;
+      podId?: string;
+      boardId?: string;
+    },
+    conversation: any,
+  ): Promise<{
+    text: string;
+    entities: any[];
+    model?: string;
+    usage?: any;
+  }> {
+    const MAX_ITERATIONS = 5;
+    const entities: any[] = [];
+
+    const supportsTools =
+      adapter.supportsToolExecution?.() ||
+      adapter.supportsTextBasedToolCalling?.();
+
+    // Only pass tools if adapter supports them AND we have context
+    const hasChatContext = !!(
+      conversation.is_workspace ||
+      conversation.pod_id ||
+      conversation.board_id ||
+      conversation.task_id
+    );
+
+    let toolDefs: ToolContextDefinition[] | undefined;
+    if (supportsTools && hasChatContext) {
+      toolDefs = this.chatTools.getToolDefinitions(chatToolCtx);
+    }
+
+    let history = [...(sendOptions.history ?? [])];
+
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      const result = await adapter.sendMessage({
+        ...sendOptions,
+        history,
+        tool_context: toolDefs,
+      });
+
+      if (!result.tool_calls?.length) {
+        return {
+          text: result.text,
+          entities,
+          model: result.model,
+          usage: result.usage,
+        };
+      }
+
+      this.logger.log(
+        `[runWithTools] Iteration ${i + 1}: executing ${result.tool_calls.length} tool call(s)`,
+      );
+
+      // Build assistant message for history (with raw_content for Anthropic)
+      const assistantHistoryMsg: BackboneMessage = {
+        role: 'assistant',
+        content: result.text || '',
+        raw_content: result.raw?.content,
+      };
+      history = [...history, assistantHistoryMsg];
+
+      // Execute tool calls
+      const isTextBased =
+        adapter.supportsTextBasedToolCalling?.() &&
+        !adapter.supportsToolExecution?.();
+      const toolResultParts: string[] = [];
+      for (const tc of result.tool_calls) {
+        let toolContent: string;
+        try {
+          const outcome = await this.chatTools.execute(
+            tc.name,
+            tc.input,
+            chatToolCtx,
+          );
+          if (outcome.entity) entities.push(outcome.entity);
+          if (outcome.entities) entities.push(...outcome.entities);
+          toolContent = JSON.stringify(outcome.result);
+          this.logger.log(`[runWithTools] Tool ${tc.name} succeeded`);
+        } catch (err) {
+          toolContent = JSON.stringify({ error: (err as Error).message });
+          this.logger.warn(
+            `[runWithTools] Tool ${tc.name} failed: ${(err as Error).message}`,
+          );
+        }
+
+        if (isTextBased) {
+          // For text-based tool calling, collect results for a single user message
+          toolResultParts.push(
+            `Tool "${tc.name}" executed successfully. Result: ${toolContent}`,
+          );
+        } else {
+          history = [
+            ...history,
+            {
+              role: 'tool' as const,
+              content: toolContent,
+              tool_call_id: tc.id,
+            },
+          ];
+        }
+      }
+
+      // For text-based adapters: inject all tool results as a single user message
+      // with explicit instruction to respond naturally now (no more tool calls)
+      if (isTextBased && toolResultParts.length > 0) {
+        const toolResultMsg =
+          toolResultParts.join('\n') +
+          '\n\nAll actions completed successfully. Now write your final response to the user summarizing what was done. Do NOT call any more tools.';
+        history = [
+          ...history,
+          {
+            role: 'user' as const,
+            content: toolResultMsg,
+          },
+        ];
+      }
+    }
+
+    // Max iterations hit — return last text
+    const lastText =
+      history.findLast((m) => m.role === 'assistant')?.content ?? '';
+    return { text: lastText, entities, model: undefined };
   }
 
   /**
@@ -1460,6 +1655,91 @@ Current Context:
 - Platform: OTT Dashboard (Task & Project Management)
 - User: Authenticated and working in their personal account
 `;
+
+    // Inject pod context when this is a pod-scoped conversation
+    if (conversation.pod_id) {
+      const client = this.supabaseAdmin.getClient();
+      const { data: pod } = await client
+        .from('pods')
+        .select('id, name, description')
+        .eq('id', conversation.pod_id)
+        .single();
+      if (pod) {
+        prompt += `
+=== POD CONTEXT ===
+You are operating within the "${pod.name}" pod (id: ${pod.id}).
+${pod.description ? `Pod description: ${pod.description}` : ''}
+When creating goals or tasks, use pod_id="${pod.id}" unless the user specifies otherwise.
+`;
+      }
+    }
+
+    // Inject workspace orchestrator manifest when this is a workspace-scoped conversation
+    if (conversation.is_workspace) {
+      try {
+        const client = this.supabaseAdmin.getClient();
+        const [{ data: pods }, { data: boards }] = await Promise.all([
+          client
+            .from('pods')
+            .select('id, name, slug, description, icon, color')
+            .eq('account_id', conversation.account_id)
+            .order('position', { ascending: true }),
+          client
+            .from('board_instances')
+            .select('id, name, description, pod_id')
+            .eq('account_id', conversation.account_id)
+            .eq('is_archived', false)
+            .order('display_order', { ascending: true }),
+        ]);
+
+        if (pods && pods.length > 0) {
+          let manifest = `
+=== WORKSPACE ORCHESTRATOR ===
+You are the TaskClaw Workspace AI. You have full visibility across all pods and boards.
+
+When a user asks you to do something complex:
+1. Identify which pods/boards are relevant from the WORKSPACE STRUCTURE below
+2. Use decompose_goal with the EXACT pod_id from the manifest to create goals in those pods
+   - ALWAYS include pod_id in decompose_goal calls. Example: {"goal": "...", "pod_id": "exact-uuid-from-manifest"}
+3. Use create_task with the EXACT board_id from the manifest
+4. You can orchestrate across multiple pods in a single response
+
+CRITICAL: Always pass pod_id and board_id using the EXACT UUIDs listed in WORKSPACE STRUCTURE below.
+
+Available tools: list_pods, list_boards, decompose_goal, create_task, update_task, list_tasks
+
+WORKSPACE STRUCTURE:
+`;
+          for (const pod of pods ?? []) {
+            const podBoards = (boards ?? []).filter(
+              (b: any) => b.pod_id === pod.id,
+            );
+            manifest += `\nPod: "${pod.name}" (id: ${pod.id}, slug: ${pod.slug})\n`;
+            if (pod.description)
+              manifest += `  Description: ${pod.description}\n`;
+            if (podBoards.length > 0) {
+              manifest += `  Boards:\n`;
+              for (const board of podBoards) {
+                manifest += `    - "${board.name}" (id: ${board.id})${board.description ? ': ' + board.description : ''}\n`;
+              }
+            } else {
+              manifest += `  Boards: none\n`;
+            }
+          }
+          const unassigned = (boards ?? []).filter((b: any) => !b.pod_id);
+          if (unassigned.length > 0) {
+            manifest += `\nBoards (no pod):\n`;
+            for (const board of unassigned) {
+              manifest += `  - "${board.name}" (id: ${board.id})${board.description ? ': ' + board.description : ''}\n`;
+            }
+          }
+          manifest += `\n=== END WORKSPACE MANIFEST ===\n`;
+          prompt += manifest;
+        }
+      } catch {
+        // Non-fatal — continue without manifest
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════
     // SKILLS & KNOWLEDGE: Provider-synced or inline injection
@@ -1591,6 +1871,7 @@ Current Context:
     // ═══════════════════════════════════════════════════════════
     if (conversation.task_id && conversation.task) {
       prompt += `\n\n=== TASK CONTEXT ===\n`;
+      prompt += `Task ID: ${conversation.task_id} (use this as task_id when calling update_task)\n`;
       prompt += `Task: ${conversation.task.title}\n`;
       prompt += `Status: ${conversation.task.status || 'unknown'}\n`;
       if (conversation.task.priority) {
@@ -1698,6 +1979,22 @@ Current Context:
 
       prompt += `\nThe user is asking for help with this specific task. Provide relevant, actionable advice.\n`;
       prompt += `When you produce findings or insights, the user can save them directly to the task card.\n`;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // AGENT MEMORY RECALL (BE06) — 200ms timeout, never blocks chat
+    // ═══════════════════════════════════════════════════════════
+    try {
+      const memCtx = await this.memoryRouter.buildMemoryContext(
+        conversation.account_id,
+        conversation.task?.title || '',
+        conversation.task_id || undefined,
+      );
+      if (memCtx) {
+        prompt += memCtx;
+      }
+    } catch (memErr: any) {
+      this.logger.warn(`Memory recall for prompt failed: ${memErr.message}`);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -1972,6 +2269,106 @@ Rules:
    * Mirror user and AI messages to Notion as page comments.
    * Fire-and-forget — errors are logged but don't block the response.
    */
+  /**
+   * BE07: Extract key facts from a conversation exchange and store them as memories.
+   * This is ALWAYS called as fire-and-forget — it must NEVER be awaited in sendMessage().
+   */
+  private async extractAndStoreMemories(
+    accountId: string,
+    opts: {
+      userMessage: string;
+      assistantResponse: string;
+      conversationId: string;
+      taskId?: string;
+      categoryId?: string;
+    },
+  ): Promise<void> {
+    const {
+      userMessage,
+      assistantResponse,
+      conversationId,
+      taskId,
+      categoryId,
+    } = opts;
+
+    // Build extraction prompt
+    const maxLen = 500;
+    const userSnippet = userMessage.substring(0, maxLen);
+    const assistantSnippet = assistantResponse.substring(0, maxLen);
+    const extractionPrompt = [
+      'Extract up to 3 key facts, decisions, or insights from this conversation exchange.',
+      'Return ONLY a JSON array of objects with keys content and type.',
+      'Type must be one of: episodic, semantic, procedural.',
+      '- episodic: specific events, decisions, user preferences',
+      '- semantic: general facts, concepts, domain knowledge',
+      '- procedural: how-to instructions, workflows',
+      '',
+      'Conversation:',
+      'User: ' + userSnippet,
+      'Assistant: ' + assistantSnippet,
+      '',
+      'JSON array:',
+    ].join('\n');
+
+    // Send extraction request via backbone router
+    const result = await this.backboneRouter.send({
+      accountId,
+      categoryId,
+      sendOptions: {
+        systemPrompt: `You are a memory extraction assistant. Extract key facts as JSON only.`,
+        message: extractionPrompt,
+        metadata: { accountId, conversationId },
+      },
+    });
+
+    if (!result?.text) return;
+
+    // Parse JSON array from response
+    let facts: Array<{ content: string; type: string }> = [];
+    try {
+      // Extract JSON array from response (may have surrounding text)
+      const jsonMatch = result.text.match(/\[.*\]/s);
+      if (jsonMatch) {
+        facts = JSON.parse(jsonMatch[0]);
+      }
+    } catch {
+      this.logger.debug(
+        `Memory extraction: could not parse JSON from response`,
+      );
+      return;
+    }
+
+    if (!Array.isArray(facts) || facts.length === 0) return;
+
+    // Store each fact as a memory (up to 3)
+    const validTypes = new Set([
+      'episodic',
+      'semantic',
+      'procedural',
+      'working',
+    ]);
+    for (const fact of facts.slice(0, 3)) {
+      if (!fact?.content || typeof fact.content !== 'string') continue;
+      const memType = validTypes.has(fact.type) ? fact.type : 'episodic';
+
+      await this.memoryRouter.remember({
+        content: fact.content,
+        type: memType as any,
+        source: 'agent',
+        metadata: {
+          account_id: accountId,
+          conversation_id: conversationId,
+          task_id: taskId,
+          category_id: categoryId,
+        },
+      });
+    }
+
+    this.logger.debug(
+      `Memory extraction: stored ${Math.min(facts.length, 3)} facts for conversation ${conversationId}`,
+    );
+  }
+
   private mirrorToNotion(
     conversation: any,
     userContent: string,

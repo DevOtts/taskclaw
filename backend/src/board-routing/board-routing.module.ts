@@ -7,6 +7,7 @@ import { BoardRoutingService } from './board-routing.service';
 import { BoardRoutingProcessor } from './board-routing.processor';
 import { CoordinatorService } from './coordinator.service';
 import { DAGExecutorService } from './dag-executor.service';
+import { DagApprovalService } from './dag-approval.service';
 import { BoardRoutingController } from './board-routing.controller';
 
 /**
@@ -31,8 +32,14 @@ import { BoardRoutingController } from './board-routing.controller';
     BoardRoutingService,
     CoordinatorService,
     DAGExecutorService,
+    DagApprovalService,
   ],
-  exports: [BoardRoutingService, CoordinatorService, DAGExecutorService],
+  exports: [
+    BoardRoutingService,
+    CoordinatorService,
+    DAGExecutorService,
+    DagApprovalService,
+  ],
 })
 export class BoardRoutingModule implements OnModuleInit {
   private readonly logger = new Logger(BoardRoutingModule.name);

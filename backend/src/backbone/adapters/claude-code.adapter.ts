@@ -6,6 +6,7 @@ import type {
   BackboneSendOptions,
   BackboneSendResult,
   BackboneHealthResult,
+  ToolCallRequest,
 } from './backbone-adapter.interface';
 
 /**
@@ -30,19 +31,94 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
   // ── sendMessage (F202, F206) ──────────────────────────────────────
 
   async sendMessage(options: BackboneSendOptions): Promise<BackboneSendResult> {
-    const { config, systemPrompt, message, history = [], onToken, signal } =
-      options;
+    const {
+      config,
+      systemPrompt,
+      message,
+      history = [],
+      onToken,
+      signal,
+    } = options;
 
     const timeoutMs = (config.timeout_seconds ?? 120) * 1000;
     const model = config.model || 'claude-sonnet-4-6';
     const workspaceDir = config.workspace_path || process.cwd();
 
+    // Build tool instructions to inject into system prompt (before conversation)
+    const toolInstructions = options.tool_context?.length
+      ? this.buildToolInstructions(options.tool_context)
+      : '';
+
     // Build full conversation prompt for --print mode
-    const fullPrompt = this.buildPrompt(systemPrompt, history, message, config);
+    const fullPrompt = this.buildPrompt(
+      toolInstructions
+        ? systemPrompt + '\n\n' + toolInstructions
+        : systemPrompt,
+      history,
+      message,
+      config,
+    );
 
     this.logger.debug(
       `Claude Code CLI: spawning claude --print (model=${model})`,
     );
+
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 5000;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      // Don't retry if the request was aborted
+      if (signal?.aborted) throw new Error('Request aborted');
+
+      try {
+        const result = await this.spawnClaude({
+          fullPrompt,
+          model,
+          workspaceDir,
+          timeoutMs,
+          options,
+          signal,
+        });
+        return result;
+      } catch (err: any) {
+        // Don't retry if claude is not installed or request was aborted
+        if (
+          err.code === 'ENOENT' ||
+          err.message?.includes('not found in PATH') ||
+          err.message === 'Request aborted'
+        ) {
+          throw err;
+        }
+        lastError = err;
+        if (attempt < MAX_RETRIES) {
+          this.logger.warn(
+            `Claude Code CLI attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}. Retrying in ${RETRY_DELAY_MS / 1000}s...`,
+          );
+          await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
+        }
+      }
+    }
+
+    throw lastError ?? new Error('Claude Code CLI failed after retries');
+  }
+
+  // ── spawnClaude (internal single attempt) ─────────────────────
+  private spawnClaude({
+    fullPrompt,
+    model,
+    workspaceDir,
+    timeoutMs,
+    options,
+    signal,
+  }: {
+    fullPrompt: string;
+    model: string;
+    workspaceDir: string;
+    timeoutMs: number;
+    options: BackboneSendOptions;
+    signal?: AbortSignal;
+  }): Promise<BackboneSendResult> {
     const startTime = Date.now();
 
     return new Promise((resolve, reject) => {
@@ -74,8 +150,8 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
       child.stdout.on('data', (data: Buffer) => {
         stdout += data.toString();
         // Forward raw chunks when caller wants streaming tokens
-        if (onToken) {
-          onToken(data.toString());
+        if (options.onToken) {
+          options.onToken(data.toString());
         }
       });
 
@@ -100,11 +176,25 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
 
         // Parse JSON output from --output-format json
         try {
-          const text = this.parseClaudeOutput(stdout);
+          const rawText = this.parseClaudeOutput(stdout);
+          // Extract text-based tool calls if tool context was provided
+          if (options.tool_context?.length) {
+            const { cleanText, toolCalls } =
+              this.parseTextBasedToolCalls(rawText);
+            if (toolCalls.length > 0) {
+              resolve({
+                text: cleanText,
+                model,
+                tool_calls: toolCalls,
+                usage: { total_tokens: Math.ceil(rawText.length / 4) },
+              });
+              return;
+            }
+          }
           resolve({
-            text,
+            text: rawText,
             model,
-            usage: { total_tokens: Math.ceil(text.length / 4) }, // best-effort estimate
+            usage: { total_tokens: Math.ceil(rawText.length / 4) },
           });
         } catch {
           // Fallback: return raw stdout if JSON parse fails
@@ -195,7 +285,79 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
     return false;
   }
 
+  // ── supportsTextBasedToolCalling ──────────────────────────────────
+
+  supportsTextBasedToolCalling(): boolean {
+    return true;
+  }
+
   // ── Private helpers ───────────────────────────────────────────────
+
+  /**
+   * Build tool instructions to be injected into the system prompt for text-based tool calling.
+   */
+  private buildToolInstructions(
+    toolContext: BackboneSendOptions['tool_context'],
+  ): string {
+    if (!toolContext?.length) return '';
+    const toolList = toolContext
+      .map((t) => {
+        const required = (t.input_schema as any)?.required ?? [];
+        const props = (t.input_schema as any)?.properties ?? {};
+        const args = Object.entries(props)
+          .map(
+            ([k, v]: [string, any]) =>
+              `  - ${k}${required.includes(k) ? ' (required)' : ' (optional)'}: ${v.description || v.type}`,
+          )
+          .join('\n');
+        return `**${t.name}**: ${t.description}\n${args}`;
+      })
+      .join('\n\n');
+    return `=== TASKCLAW ACTION TOOLS ===
+You have access to TaskClaw tools. When the user asks you to CREATE, ADD, or MODIFY something (goals, tasks, etc.), you MUST call the appropriate tool — do NOT just describe what you would do.
+
+To call a tool, output this XML format on its own line:
+<tool_call name="TOOL_NAME">{"arg1": "value1", "arg2": "value2"}</tool_call>
+
+EXAMPLE — if asked to create a goal "Grow revenue":
+<tool_call name="decompose_goal">{"goal": "Grow revenue"}</tool_call>
+
+Available tools:
+${toolList}
+
+RULES:
+- When asked to create/update something: OUTPUT the <tool_call> XML FIRST, then briefly describe what you did
+- Do NOT say "I'll create..." or "I would create..." — actually output the tool call
+- The system will execute your tool call and show results
+- You can chain multiple tool calls on separate lines`;
+  }
+
+  /**
+   * Parse text-based tool calls from response text.
+   * Extracts <tool_call name="...">{ args }</tool_call> blocks.
+   */
+  private parseTextBasedToolCalls(text: string): {
+    cleanText: string;
+    toolCalls: ToolCallRequest[];
+  } {
+    const toolCallRegex =
+      /<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g;
+    const toolCalls: ToolCallRequest[] = [];
+    let match;
+    let id = 0;
+    while ((match = toolCallRegex.exec(text)) !== null) {
+      const name = match[1];
+      const argsStr = match[2].trim();
+      try {
+        const input = JSON.parse(argsStr);
+        toolCalls.push({ id: `claude-code-tool-${++id}`, name, input });
+      } catch {
+        // skip malformed tool call
+      }
+    }
+    const cleanText = text.replace(toolCallRegex, '').trim();
+    return { cleanText, toolCalls };
+  }
 
   /**
    * Build a single prompt string from system prompt, history, and the
@@ -221,10 +383,14 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
 
     if (history.length > 0) {
       const historyText = history
-        .map(
-          (h) =>
-            `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`,
-        )
+        .map((h) => {
+          if (h.role === 'user') return `User: ${h.content}`;
+          if (h.role === 'tool') {
+            // Tool results — show as system feedback so the model knows the action succeeded
+            return `Tool Result: ${h.content}`;
+          }
+          return `Assistant: ${h.content}`;
+        })
         .join('\n\n');
       parts.push(`Previous conversation:\n${historyText}`);
     }

@@ -52,6 +52,7 @@ export interface ExecutionLog {
   status: 'success' | 'error' | 'skipped' | 'running' | 'timeout' | 'dry_run'
   pod_id?: string | null
   board_id?: string | null
+  conversation_id?: string | null
   summary?: string | null
   error_details?: string | null
   duration_ms?: number | null
@@ -63,14 +64,21 @@ export interface ExecutionLog {
 export interface BoardRoute {
   id: string
   account_id: string
+  pod_id?: string | null
   source_board_id: string
   source_step_id?: string | null
   target_board_id: string
   target_step_id?: string | null
-  trigger: 'auto' | 'ai_decision' | 'manual'
-  transform_config: Record<string, any>
+  trigger: 'auto' | 'ai_decision' | 'manual' | 'error' | 'fallback'
+  trigger_on_step_complete?: boolean
+  label?: string | null
+  conditions?: Record<string, any>
+  transform_config?: Record<string, any>
   is_active: boolean
   created_at: string
+  // Joined fields (from findManualRoutesForBoard)
+  target_board?: { id: string; name: string } | null
+  target_step?: { id: string; name: string } | null
 }
 
 export interface TaskDAG {

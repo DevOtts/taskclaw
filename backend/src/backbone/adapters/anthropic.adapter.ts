@@ -5,6 +5,7 @@ import {
   BackboneSendResult,
   BackboneHealthResult,
   BackboneMessage,
+  ToolCallRequest,
 } from './backbone-adapter.interface';
 
 /**
@@ -42,7 +43,9 @@ export class AnthropicAdapter implements BackboneAdapter {
 
   // ── BackboneAdapter: healthCheck ──
 
-  async healthCheck(config: Record<string, any>): Promise<BackboneHealthResult> {
+  async healthCheck(
+    config: Record<string, any>,
+  ): Promise<BackboneHealthResult> {
     const start = Date.now();
     try {
       const response = await fetch('https://api.anthropic.com/v1/models', {
@@ -77,11 +80,28 @@ export class AnthropicAdapter implements BackboneAdapter {
     this.validateConfig(config);
 
     // Build messages array in Anthropic format
-    const messages: Array<{ role: string; content: string }> = [];
+    const messages: Array<{ role: string; content: any }> = [];
     if (history && history.length > 0) {
       for (const msg of history) {
         if (msg.role === 'system') continue; // system goes in separate field
-        messages.push({ role: msg.role, content: msg.content });
+        if (msg.role === 'tool') {
+          // Anthropic requires tool results as user messages with tool_result content blocks
+          messages.push({
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: msg.tool_call_id,
+                content: msg.content,
+              },
+            ],
+          });
+        } else if (msg.role === 'assistant' && msg.raw_content) {
+          // Preserve raw content blocks (includes tool_use blocks for round-trips)
+          messages.push({ role: 'assistant', content: msg.raw_content });
+        } else {
+          messages.push({ role: msg.role, content: msg.content });
+        }
       }
     }
     messages.push({ role: 'user', content: message });
@@ -144,8 +164,21 @@ export class AnthropicAdapter implements BackboneAdapter {
   ): Promise<BackboneSendResult> {
     const data = await response.json();
 
-    const text =
-      data.content && data.content[0] ? data.content[0].text : '';
+    // Extract text from text blocks
+    const textBlocks = (data.content ?? []).filter(
+      (b: any) => b.type === 'text',
+    );
+    const text = textBlocks.map((b: any) => b.text).join('') || '';
+
+    // Extract tool_use blocks as tool calls
+    const toolUseBlocks = (data.content ?? []).filter(
+      (b: any) => b.type === 'tool_use',
+    );
+    const tool_calls: ToolCallRequest[] = toolUseBlocks.map((b: any) => ({
+      id: b.id,
+      name: b.name,
+      input: b.input,
+    }));
 
     return {
       text,
@@ -155,11 +188,11 @@ export class AnthropicAdapter implements BackboneAdapter {
             prompt_tokens: data.usage.input_tokens,
             completion_tokens: data.usage.output_tokens,
             total_tokens:
-              (data.usage.input_tokens || 0) +
-              (data.usage.output_tokens || 0),
+              (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0),
           }
         : undefined,
       raw: data,
+      ...(tool_calls.length > 0 ? { tool_calls } : {}),
     };
   }
 

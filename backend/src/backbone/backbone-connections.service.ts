@@ -161,9 +161,7 @@ export class BackboneConnectionsService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to create backbone connection: ${error.message}`,
-      );
+      throw new Error(`Failed to create backbone connection: ${error.message}`);
     }
 
     this.logger.log(
@@ -204,8 +202,7 @@ export class BackboneConnectionsService {
 
     const updateData: Record<string, any> = {};
     if (dto.name !== undefined) updateData.name = dto.name;
-    if (dto.description !== undefined)
-      updateData.description = dto.description;
+    if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.backbone_type !== undefined)
       updateData.backbone_type = dto.backbone_type;
     if (dto.is_default !== undefined) updateData.is_default = dto.is_default;
@@ -226,9 +223,7 @@ export class BackboneConnectionsService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to update backbone connection: ${error.message}`,
-      );
+      throw new Error(`Failed to update backbone connection: ${error.message}`);
     }
 
     this.logger.log(
@@ -257,9 +252,7 @@ export class BackboneConnectionsService {
       .eq('account_id', accountId);
 
     if (error) {
-      throw new Error(
-        `Failed to delete backbone connection: ${error.message}`,
-      );
+      throw new Error(`Failed to delete backbone connection: ${error.message}`);
     }
 
     this.logger.log(
@@ -328,10 +321,7 @@ export class BackboneConnectionsService {
   /**
    * Increment usage counters after a successful request.
    */
-  async trackUsage(
-    connectionId: string,
-    tokens: number,
-  ) {
+  async trackUsage(connectionId: string, tokens: number) {
     const client = this.supabaseAdmin.getClient();
 
     // Use raw SQL via rpc if available; otherwise read-modify-write
@@ -384,9 +374,7 @@ export class BackboneConnectionsService {
       .maybeSingle();
 
     if (error) {
-      throw new Error(
-        `Failed to fetch backbone connection: ${error.message}`,
-      );
+      throw new Error(`Failed to fetch backbone connection: ${error.message}`);
     }
 
     if (!data) {

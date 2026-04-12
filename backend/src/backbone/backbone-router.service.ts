@@ -67,7 +67,13 @@ export class BackboneRouterService {
    */
   async resolve(
     accountId: string,
-    options?: { taskId?: string; stepId?: string; boardId?: string; categoryId?: string; podId?: string },
+    options?: {
+      taskId?: string;
+      stepId?: string;
+      boardId?: string;
+      categoryId?: string;
+      podId?: string;
+    },
   ): Promise<ResolveResult> {
     const client = this.supabaseAdmin.getClient();
 

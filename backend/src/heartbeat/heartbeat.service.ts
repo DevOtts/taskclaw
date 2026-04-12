@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
@@ -10,17 +11,34 @@ import { ExecutionLogService } from './execution-log.service';
 import { HEARTBEAT_QUEUE_NAME } from './heartbeat-queue.module';
 import { CreateHeartbeatDto } from './dto/create-heartbeat.dto';
 import { UpdateHeartbeatDto } from './dto/update-heartbeat.dto';
+import { BackboneRouterService } from '../backbone/backbone-router.service';
+
+// PilotService is injected lazily to avoid circular dependency at module load time
+
+type PilotServiceLike = {
+  runPodPilot(accountId: string, podId: string): Promise<any>;
+};
 
 @Injectable()
 export class HeartbeatService {
   private readonly logger = new Logger(HeartbeatService.name);
   private heartbeatQueue?: Queue;
+  private pilotService?: PilotServiceLike;
 
   constructor(
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly circuitBreaker: CircuitBreakerService,
     private readonly executionLog: ExecutionLogService,
+    private readonly backboneRouter: BackboneRouterService,
   ) {}
+
+  /**
+   * BE15: Allow PilotModule to inject PilotService after boot to avoid circular deps.
+   */
+  setPilotService(pilotService: PilotServiceLike) {
+    this.pilotService = pilotService;
+    this.logger.log('PilotService wired into HeartbeatService.');
+  }
 
   /**
    * Called by HeartbeatModule.onModuleInit to inject the BullMQ queue
@@ -98,9 +116,7 @@ export class HeartbeatService {
       .order('created_at', { ascending: false });
 
     if (error) {
-      throw new Error(
-        `Failed to fetch heartbeat configs: ${error.message}`,
-      );
+      throw new Error(`Failed to fetch heartbeat configs: ${error.message}`);
     }
 
     return data;
@@ -130,8 +146,7 @@ export class HeartbeatService {
         name: dto.name,
         schedule: dto.schedule ?? '0 */4 * * *',
         prompt:
-          dto.prompt ??
-          'Review pending tasks and take appropriate actions.',
+          dto.prompt ?? 'Review pending tasks and take appropriate actions.',
         is_active: dto.is_active ?? false,
         dry_run: dto.dry_run ?? false,
         max_tasks_per_run: dto.max_tasks_per_run ?? 5,
@@ -142,9 +157,7 @@ export class HeartbeatService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to create heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to create heartbeat config: ${error.message}`);
     }
 
     // Schedule if active
@@ -170,9 +183,7 @@ export class HeartbeatService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to update heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to update heartbeat config: ${error.message}`);
     }
 
     // Re-schedule if schedule or active state changed
@@ -203,9 +214,7 @@ export class HeartbeatService {
       .eq('id', id);
 
     if (error) {
-      throw new Error(
-        `Failed to delete heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to delete heartbeat config: ${error.message}`);
     }
 
     return { message: 'Heartbeat config deleted successfully' };
@@ -226,9 +235,7 @@ export class HeartbeatService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to toggle heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to toggle heartbeat config: ${error.message}`);
     }
 
     await this.scheduleConfig(data);
@@ -325,9 +332,61 @@ export class HeartbeatService {
 
       const { data: tasks } = await tasksQuery;
 
-      const summary = config.dry_run
-        ? `[DRY RUN] Would process ${tasks?.length ?? 0} tasks`
-        : `Processed ${tasks?.length ?? 0} tasks`;
+      // Build task list context for backbone
+      const taskListContext =
+        tasks && tasks.length > 0
+          ? tasks
+              .map(
+                (t: any) =>
+                  `- [${t.priority ?? 'Medium'}] ${t.title} (status: ${t.status ?? 'unknown'})`,
+              )
+              .join('\n')
+          : 'No pending tasks found.';
+
+      let summary: string;
+
+      if (config.dry_run) {
+        summary = `[DRY RUN] Would send: ${taskListContext}`;
+      } else if (config.pilot_enabled && config.pod_id && this.pilotService) {
+        // BE15: Delegate to PilotService when pilot_enabled + pod_id configured
+        try {
+          const pilotResult = await this.pilotService.runPodPilot(
+            config.account_id,
+            config.pod_id,
+          );
+          summary = pilotResult
+            ? `Pilot: ${pilotResult.actions_taken} actions — ${pilotResult.summary}`
+            : `Pilot ran but no active config found for pod ${config.pod_id}`;
+        } catch (pilotErr) {
+          this.logger.warn(
+            `Heartbeat "${config.name}" pilot run failed: ${(pilotErr as Error).message}`,
+          );
+          summary = `Pilot failed: ${(pilotErr as Error).message}`;
+        }
+      } else if (config.prompt) {
+        // Call backbone with task list as user context
+        try {
+          const result = await this.backboneRouter.send({
+            accountId: config.account_id,
+            podId: config.pod_id ?? undefined,
+            boardId: config.board_id ?? undefined,
+            sendOptions: {
+              systemPrompt:
+                'You are an AI task manager. Review the task list and provide actionable insights.',
+              message: config.prompt,
+              history: [{ role: 'user', content: taskListContext }],
+            },
+          });
+          summary = result.text ?? `Processed ${tasks?.length ?? 0} tasks`;
+        } catch (backboneErr) {
+          this.logger.warn(
+            `Heartbeat "${config.name}" backbone call failed: ${(backboneErr as Error).message}`,
+          );
+          summary = `Processed ${tasks?.length ?? 0} tasks (backbone unavailable: ${(backboneErr as Error).message})`;
+        }
+      } else {
+        summary = `Processed ${tasks?.length ?? 0} tasks`;
+      }
 
       // Update config with success
       this.circuitBreaker.recordSuccess(configId);

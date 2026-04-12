@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 import { OpenClawService } from './openclaw.service';
+import { ChatToolsService } from './chat-tools.service';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { CommonModule } from '../common/common.module';
 import { AiProviderModule } from '../ai-provider/ai-provider.module';
@@ -10,8 +11,10 @@ import { SkillsModule } from '../skills/skills.module';
 import { AdaptersModule } from '../adapters/adapters.module';
 import { AgentSyncModule } from '../agent-sync/agent-sync.module';
 import { BackboneModule } from '../backbone/backbone.module';
+import { BoardRoutingModule } from '../board-routing/board-routing.module';
 
 import { IntegrationsModule } from '../integrations/integrations.module';
+import { MemoryModule } from '../memory/memory.module';
 
 @Module({
   imports: [
@@ -23,10 +26,12 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     AdaptersModule,
     forwardRef(() => AgentSyncModule),
     forwardRef(() => BackboneModule),
+    forwardRef(() => BoardRoutingModule),
     IntegrationsModule,
+    forwardRef(() => MemoryModule),
   ],
   controllers: [ConversationsController],
-  providers: [ConversationsService, OpenClawService],
+  providers: [ConversationsService, OpenClawService, ChatToolsService],
   exports: [ConversationsService, OpenClawService],
 })
 export class ConversationsModule {}

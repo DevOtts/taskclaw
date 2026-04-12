@@ -12,7 +12,14 @@ export class NemoClawAdapter implements BackboneAdapter {
   private readonly logger = new Logger(NemoClawAdapter.name);
 
   async sendMessage(options: BackboneSendOptions): Promise<BackboneSendResult> {
-    const { config, systemPrompt, message, history = [], onToken, signal } = options;
+    const {
+      config,
+      systemPrompt,
+      message,
+      history = [],
+      onToken,
+      signal,
+    } = options;
 
     const baseUrl = (config.api_url as string).replace(/\/$/, '');
     const model = config.model as string;
@@ -81,9 +88,9 @@ export class NemoClawAdapter implements BackboneAdapter {
     model: string,
     _startTime: number,
   ): Promise<BackboneSendResult> {
-    const data = (await response.json()) as any;
+    const data = await response.json();
     const text = (data.choices?.[0]?.message?.content as string) ?? '';
-    const usage = data.usage as any;
+    const usage = data.usage;
 
     return {
       text,
@@ -124,14 +131,16 @@ export class NemoClawAdapter implements BackboneAdapter {
         if (data === '[DONE]') break;
 
         try {
-          const parsed = JSON.parse(data) as any;
-          const delta = parsed.choices?.[0]?.delta?.content as string | undefined;
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content as
+            | string
+            | undefined;
           if (delta) {
             fullText += delta;
             onToken(delta);
           }
-          if ((parsed.usage as any)?.total_tokens) {
-            totalTokens = (parsed.usage as any).total_tokens as number;
+          if (parsed.usage?.total_tokens) {
+            totalTokens = parsed.usage.total_tokens as number;
           }
         } catch {
           // Ignore parse errors on partial chunks
@@ -146,8 +155,12 @@ export class NemoClawAdapter implements BackboneAdapter {
     };
   }
 
-  async healthCheck(config: Record<string, any>): Promise<BackboneHealthResult> {
-    const baseUrl = ((config.api_url as string) ?? 'http://localhost:8000').replace(/\/$/, '');
+  async healthCheck(
+    config: Record<string, any>,
+  ): Promise<BackboneHealthResult> {
+    const baseUrl = (
+      (config.api_url as string) ?? 'http://localhost:8000'
+    ).replace(/\/$/, '');
     const start = Date.now();
 
     // Try /health first, then /v1/models
@@ -164,7 +177,7 @@ export class NemoClawAdapter implements BackboneAdapter {
         });
 
         if (res.ok) {
-          const data = (await res.json().catch(() => ({}))) as any;
+          const data = await res.json().catch(() => ({}));
           const models = Array.isArray(data.data)
             ? (data.data as any[]).map((m: any) => m.id as string)
             : undefined;
@@ -200,7 +213,9 @@ export class NemoClawAdapter implements BackboneAdapter {
     try {
       new URL(config.api_url as string);
     } catch {
-      throw new BadRequestException(`Invalid api_url: ${config.api_url as string}`);
+      throw new BadRequestException(
+        `Invalid api_url: ${config.api_url as string}`,
+      );
     }
   }
 

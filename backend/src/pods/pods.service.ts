@@ -35,19 +35,20 @@ export class PodsService {
       throw new Error(`Failed to fetch pods: ${error.message}`);
     }
 
-    // Get board counts per pod
+    // Get board counts per pod using SQL aggregation (no full row transfer)
     const podIds = data.map((p) => p.id);
     if (podIds.length > 0) {
       const { data: boardCounts, error: countError } = await client
         .from('board_instances')
-        .select('pod_id')
-        .in('pod_id', podIds);
+        .select('pod_id, count()')
+        .in('pod_id', podIds)
+        .eq('is_archived', false);
 
       if (!countError && boardCounts) {
         const countMap: Record<string, number> = {};
-        boardCounts.forEach((b) => {
+        (boardCounts as any[]).forEach((b) => {
           if (b.pod_id) {
-            countMap[b.pod_id] = (countMap[b.pod_id] || 0) + 1;
+            countMap[b.pod_id] = Number(b.count) || 0;
           }
         });
         data.forEach((pod) => {
@@ -161,7 +162,8 @@ export class PodsService {
     if (dto.color !== undefined) updateData.color = dto.color;
     if (dto.backbone_connection_id !== undefined)
       updateData.backbone_connection_id = dto.backbone_connection_id;
-    if (dto.agent_config !== undefined) updateData.agent_config = dto.agent_config;
+    if (dto.agent_config !== undefined)
+      updateData.agent_config = dto.agent_config;
     if (dto.position !== undefined) updateData.position = dto.position;
 
     const { data, error } = await client

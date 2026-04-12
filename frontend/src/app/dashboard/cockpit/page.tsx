@@ -1,16 +1,52 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePods, useDeletePod } from '@/hooks/use-pods'
 import { PodCard } from '@/components/pods/pod-card'
 import { CreatePodDialog } from '@/components/pods/create-pod-dialog'
 import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog'
+import { BoardAIChat } from '@/components/boards/board-ai-chat'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { Plus, Layers } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
+    Plus,
+    Layers,
+    Bot,
+    Play,
+    ChevronDown,
+    ChevronRight,
+    Loader2,
+    Activity,
+    CheckCircle2,
+    XCircle,
+    AlertCircle,
+    MessageCircle,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import type { Pod } from '@/types/pod'
+import { useBackboneConnections } from '@/hooks/use-backbone-connections'
+import {
+    getPilotConfig,
+    upsertPilotConfig,
+    runPilot,
+    getExecutionLog,
+    type PilotConfig,
+} from '@/app/dashboard/pods/actions'
+import type { ExecutionLog, Pod } from '@/types/pod'
+import { formatDistanceToNow } from 'date-fns'
+import { cn } from '@/lib/utils'
+import { renderMarkdown } from '@/lib/markdown'
 
 export default function CockpitPage() {
     const { data: pods, isLoading } = usePods()
@@ -18,6 +54,8 @@ export default function CockpitPage() {
     const [showCreate, setShowCreate] = useState(false)
     const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
     const [deleteLoading, setDeleteLoading] = useState(false)
+    const [chatOpen, setChatOpen] = useState(false)
+    const [chatConversationId, setChatConversationId] = useState<string | null>(null)
 
     const handleDelete = (pod: Pod) => {
         setDeleteTarget({ id: pod.id, name: pod.name })
@@ -55,18 +93,40 @@ export default function CockpitPage() {
                         </span>
                     )}
                 </div>
-                <Button size="sm" onClick={() => setShowCreate(true)}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    New Pod
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setChatConversationId(null); setChatOpen(true) }}
+                        title="Talk to AI interactively — ask questions, give instructions, chat back and forth"
+                    >
+                        <MessageCircle className="w-4 h-4 mr-1" />
+                        Workspace Chat
+                    </Button>
+                    <Button size="sm" onClick={() => setShowCreate(true)}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        New Pod
+                    </Button>
+                </div>
             </header>
 
             <p className="text-sm text-muted-foreground pb-4">
                 Monitor and manage all your Pods from one place
             </p>
 
-            {/* Content */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            {/* Workspace Pilot Card */}
+            <WorkspacePilotCard />
+
+            {/* Pilot Activity feed — top of content, below pilot config */}
+            <PilotActivityFeed
+                onContinueSession={(conversationId) => {
+                    setChatConversationId(conversationId ?? null)
+                    setChatOpen(true)
+                }}
+            />
+
+            {/* Pods grid */}
+            <div className="flex-1 min-h-0 overflow-y-auto mt-4">
                 {isLoading ? (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {[1, 2, 3].map((i) => (
@@ -106,6 +166,356 @@ export default function CockpitPage() {
                 description="This will permanently delete this pod. Boards will become unassigned."
                 loading={deleteLoading}
             />
+
+            {/* Workspace AI Chat */}
+            <BoardAIChat
+                isWorkspace
+                initialConversationId={chatConversationId}
+                open={chatOpen}
+                onOpenChange={(open) => { if (!open) setChatConversationId(null); setChatOpen(open) }}
+            />
         </div>
+    )
+}
+
+// ── Workspace Pilot Card ───────────────────────────────────────────────────
+
+function WorkspacePilotCard() {
+    const { data: backbones = [] } = useBackboneConnections()
+    const [config, setConfig] = useState<PilotConfig | null>(null)
+    const [expanded, setExpanded] = useState(false)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [running, setRunning] = useState(false)
+
+    // Form fields
+    const [isActive, setIsActive] = useState(false)
+    const [backboneId, setBackboneId] = useState<string>('__default__')
+    const [systemPrompt, setSystemPrompt] = useState('')
+    const [maxTasks, setMaxTasks] = useState(10)
+    const [approvalRequired, setApprovalRequired] = useState(true)
+
+    useEffect(() => {
+        loadConfig()
+    }, [])
+
+    async function loadConfig() {
+        setLoading(true)
+        try {
+            const cfg = await getPilotConfig(null)
+            if (cfg) {
+                setConfig(cfg)
+                setIsActive(cfg.is_active)
+                setBackboneId(cfg.backbone_connection_id || '__default__')
+                setSystemPrompt(cfg.system_prompt || '')
+                setMaxTasks(cfg.max_tasks_per_cycle || 10)
+                setApprovalRequired(cfg.approval_required ?? true)
+            }
+        } catch {
+            // API not ready
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    async function handleSave() {
+        setSaving(true)
+        try {
+            const result = await upsertPilotConfig({
+                pod_id: null,
+                is_active: isActive,
+                backbone_connection_id: backboneId === '__default__' ? null : backboneId,
+                system_prompt: systemPrompt,
+                max_tasks_per_cycle: maxTasks,
+                approval_required: approvalRequired,
+            })
+            if (result.error) {
+                toast.error(result.error)
+            } else {
+                toast.success('Workspace Pilot settings saved')
+                if (result.config) setConfig(result.config)
+            }
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleRun() {
+        setRunning(true)
+        try {
+            const result = await runPilot(null)
+            if (result.error) {
+                toast.error(`Pilot failed: ${result.error}`)
+            } else {
+                const actions = result.actions_taken ?? 0
+                toast.success(
+                    result.summary
+                        ? `Workspace Pilot complete: ${result.summary.slice(0, 120)}${result.summary.length > 120 ? '…' : ''}`
+                        : `Workspace Pilot complete — ${actions} action${actions !== 1 ? 's' : ''} taken`,
+                    { duration: 6000 }
+                )
+                await loadConfig()
+            }
+        } finally {
+            setRunning(false)
+        }
+    }
+
+    return (
+        <div className="border rounded-xl bg-card mb-4 overflow-hidden">
+            {/* Header row */}
+            <div className="flex items-center gap-3 p-4">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Bot className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-sm">Workspace Pilot</h3>
+                        {config?.is_active ? (
+                            <Badge variant="secondary" className="text-xs bg-green-500/15 text-green-700 dark:text-green-400">
+                                Active
+                            </Badge>
+                        ) : (
+                            <Badge variant="outline" className="text-xs">
+                                Inactive
+                            </Badge>
+                        )}
+                    </div>
+                    {loading ? (
+                        <p className="text-xs text-muted-foreground mt-0.5 animate-pulse">Loading...</p>
+                    ) : config?.last_run_at ? (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            Last run {formatDistanceToNow(new Date(config.last_run_at), { addSuffix: true })}
+                            {config.last_run_summary && ` — ${config.last_run_summary.slice(0, 80)}…`}
+                        </p>
+                    ) : (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Coordinates tasks across all pods using AI.
+                        </p>
+                    )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleRun}
+                        disabled={running || !config?.is_active}
+                        className="h-7 text-xs"
+                        title={!config?.is_active ? 'Enable pilot first in settings' : 'Run one automated cycle — AI will review all pods and take actions autonomously'}
+                    >
+                        {running ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                        ) : (
+                            <Play className="w-3.5 h-3.5 mr-1" />
+                        )}
+                        Run Now
+                    </Button>
+                    <button
+                        onClick={() => setExpanded(!expanded)}
+                        className="p-1.5 rounded hover:bg-accent text-muted-foreground"
+                    >
+                        {expanded ? (
+                            <ChevronDown className="w-4 h-4" />
+                        ) : (
+                            <ChevronRight className="w-4 h-4" />
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Expanded config form */}
+            {expanded && (
+                <div className="border-t p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Enable Workspace Pilot</Label>
+                        <Switch checked={isActive} onCheckedChange={setIsActive} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs">AI Backbone</Label>
+                        <Select
+                            value={backboneId}
+                            onValueChange={(v) => setBackboneId(v)}
+                        >
+                            <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Use account default" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__default__">Use account default</SelectItem>
+                                {(backbones as any[]).map((b: any) => (
+                                    <SelectItem key={b.id} value={b.id}>
+                                        {b.name || b.adapter_slug}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label className="text-xs">System Prompt</Label>
+                        <Textarea
+                            value={systemPrompt}
+                            onChange={(e) => setSystemPrompt(e.target.value)}
+                            placeholder="You are a workspace coordinator. Review all pods and suggest strategic actions..."
+                            className="text-sm min-h-[80px] resize-none"
+                        />
+                    </div>
+
+                    <Button size="sm" onClick={handleSave} disabled={saving} className="w-full">
+                        {saving && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}
+                        Save settings
+                    </Button>
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── Pilot Activity Feed ────────────────────────────────────────────────────
+
+interface PilotActivityFeedProps {
+    onContinueSession: (conversationId?: string | null) => void
+}
+
+function PilotActivityFeed({ onContinueSession }: PilotActivityFeedProps) {
+    const [logs, setLogs] = useState<ExecutionLog[]>([])
+    const [loading, setLoading] = useState(true)
+    const [open, setOpen] = useState(false)
+    const [expandedLog, setExpandedLog] = useState<string | null>(null)
+
+    useEffect(() => {
+        loadLogs()
+    }, [])
+
+    async function loadLogs() {
+        setLoading(true)
+        try {
+            const data = await getExecutionLog({ trigger_type: 'coordinator' })
+            const sliced = (data || []).slice(0, 10)
+            setLogs(sliced)
+        } catch {
+            setLogs([])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    if (!loading && logs.length === 0) return null
+
+    return (
+        <div className="mt-4 border rounded-xl bg-card overflow-hidden">
+            {/* Section header */}
+            <button
+                onClick={() => setOpen(!open)}
+                className="w-full flex items-center gap-2 p-3 text-left hover:bg-accent/30 transition-colors"
+            >
+                <Activity className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium flex-1">Pilot Activity</span>
+                {loading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                ) : (
+                    <span className="text-xs text-muted-foreground">{logs.length} entries</span>
+                )}
+                {open ? (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                )}
+            </button>
+
+            {open && (
+                <div className="border-t divide-y max-h-[420px] overflow-y-auto">
+                    {logs.map((log) => {
+                        const isExpanded = expandedLog === log.id
+                        const meta = log.metadata as any
+                        return (
+                            <div key={log.id} className="p-3">
+                                <div className="flex items-start gap-2.5">
+                                    <StatusIcon status={log.status} />
+                                    <div className="flex-1 min-w-0">
+                                        {/* Row 1: badges + time + Continue session button */}
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <TriggerBadge type={log.trigger_type} />
+                                            <StatusBadge status={log.status} />
+                                            {meta?.actions_taken != null && (
+                                                <span className="text-[10px] bg-accent px-1.5 py-0.5 rounded">
+                                                    {meta.actions_taken} actions
+                                                </span>
+                                            )}
+                                            <span className="text-[10px] text-muted-foreground">
+                                                {formatDistanceToNow(new Date(log.started_at), { addSuffix: true })}
+                                                {log.duration_ms != null && (
+                                                    <> · {log.duration_ms < 1000
+                                                        ? `${log.duration_ms}ms`
+                                                        : `${(log.duration_ms / 1000).toFixed(1)}s`}
+                                                    </>
+                                                )}
+                                            </span>
+                                            {/* Continue session — prominent in the top-right */}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onContinueSession(log.conversation_id) }}
+                                                className="ml-auto flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
+                                                title={log.conversation_id ? 'Continue this pilot session in Workspace Chat' : 'Open Workspace Chat'}
+                                            >
+                                                <MessageCircle className="w-3 h-3" />
+                                                Continue session
+                                            </button>
+                                        </div>
+
+                                        {/* Summary — always rendered as markdown */}
+                                        {log.summary && (
+                                            <div className="mt-2">
+                                                <div
+                                                    className={cn(
+                                                        'prose-chat text-xs leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_h3]:text-xs [&_h4]:text-xs [&_li]:text-xs [&_code]:text-[11px] [&_p]:mb-1 [&_ul]:mb-1 [&_ol]:mb-1 overflow-hidden transition-all',
+                                                        isExpanded ? 'max-h-[300px] overflow-y-auto pr-1' : 'max-h-[3rem]',
+                                                    )}
+                                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(log.summary) }}
+                                                />
+                                                <button
+                                                    onClick={() => setExpandedLog(isExpanded ? null : log.id)}
+                                                    className="text-[10px] text-primary hover:underline mt-1"
+                                                >
+                                                    {isExpanded ? 'Show less' : 'Show full output'}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function StatusIcon({ status }: { status: string }) {
+    if (status === 'success') return <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+    if (status === 'error') return <XCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+    return <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+}
+
+function TriggerBadge({ type }: { type: string }) {
+    return (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {type}
+        </Badge>
+    )
+}
+
+function StatusBadge({ status }: { status: string }) {
+    const map: Record<string, string> = {
+        success: 'bg-green-500/15 text-green-700 dark:text-green-400',
+        error: 'bg-destructive/15 text-destructive',
+        running: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+        skipped: 'bg-muted text-muted-foreground',
+        dry_run: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    }
+    return (
+        <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', map[status] || '')}>
+            {status}
+        </Badge>
     )
 }

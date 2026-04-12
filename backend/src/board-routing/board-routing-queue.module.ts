@@ -58,7 +58,11 @@ export class BoardRoutingQueueModule {
         { provide: 'BOARD_ROUTING_QUEUE_AVAILABLE', useValue: true },
         BoardRoutingProcessor,
       ],
-      exports: ['BOARD_ROUTING_QUEUE_AVAILABLE', BoardRoutingProcessor, BullModule],
+      exports: [
+        'BOARD_ROUTING_QUEUE_AVAILABLE',
+        BoardRoutingProcessor,
+        BullModule,
+      ],
     };
   }
 }

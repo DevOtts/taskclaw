@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsUUID, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateConversationDto {
   @IsString()
@@ -16,6 +22,10 @@ export class CreateConversationDto {
   @IsUUID()
   @IsOptional()
   pod_id?: string; // Optional: Link conversation to a pod
+
+  @IsBoolean()
+  @IsOptional()
+  is_workspace?: boolean; // Optional: Mark as workspace-level conversation
 
   @IsArray()
   @IsUUID(4, { each: true })
