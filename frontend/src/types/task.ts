@@ -49,8 +49,11 @@ export interface Category {
   id: string
   name: string
   color: string | null
+  icon?: string | null
+  description?: string | null
   account_id: string
   visible?: boolean
+  preferred_backbone_connection_id?: string | null
 }
 
 export type TaskStatus = 'To-Do' | 'Today' | 'In Progress' | 'AI Running' | 'In Review' | 'Done'

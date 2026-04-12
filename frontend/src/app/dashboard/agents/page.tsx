@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { BoardIcon } from '@/lib/board-icon'
 import type { AgentDashboardItem } from '@/types/board'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
@@ -20,15 +21,18 @@ function AgentCard({ agent }: { agent: AgentDashboardItem }) {
     const statusCfg = STATUS_CONFIG[agent.status] || STATUS_CONFIG.idle
 
     return (
-        <div className="group border border-border rounded-xl p-4 bg-card hover:bg-accent/30 transition-all hover:border-border/80">
+        <a
+            href={`/dashboard/agents/${agent.id}`}
+            className="group border border-border rounded-xl p-4 bg-card hover:bg-accent/30 transition-all hover:border-primary/30 cursor-pointer block"
+        >
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3 min-w-0">
                     <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0"
-                        style={{ backgroundColor: `${agent.color || '#6366f1'}20` }}
+                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${agent.color || '#6366f1'}20`, color: agent.color || '#6366f1' }}
                     >
-                        {agent.icon || <Bot className="w-4 h-4" style={{ color: agent.color || '#6366f1' }} />}
+                        <BoardIcon name={agent.icon} className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                         <h3 className="text-sm font-semibold truncate">{agent.name}</h3>
@@ -123,7 +127,7 @@ function AgentCard({ agent }: { agent: AgentDashboardItem }) {
                     {agent.skill_count} skill{agent.skill_count !== 1 ? 's' : ''}
                 </span>
             </div>
-        </div>
+        </a>
     )
 }
 

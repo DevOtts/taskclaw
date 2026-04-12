@@ -73,7 +73,7 @@ export function BoardKanbanView({ board, categories }: BoardKanbanViewProps) {
     }
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 h-full w-full">
+        <div className="flex flex-col flex-1 min-h-0 h-full w-full overflow-hidden">
             <BoardHeader
                 board={board}
                 onNewTask={() => setShowNewTask(steps[0] || null)}
