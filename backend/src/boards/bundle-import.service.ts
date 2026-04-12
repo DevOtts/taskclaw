@@ -54,7 +54,9 @@ export class BundleImportService {
           if (bb.slug) backboneSlugToId[bb.slug] = id;
           result.backbones_declared++;
         } catch (error: any) {
-          this.logger.warn(`Backbone "${bb.name}" declaration skipped: ${error.message}`);
+          this.logger.warn(
+            `Backbone "${bb.name}" declaration skipped: ${error.message}`,
+          );
           result.errors.push(`Backbone "${bb.name}": ${error.message}`);
         }
       }
@@ -67,8 +69,12 @@ export class BundleImportService {
           await this.declareIntegration(client, accountId, integration);
           result.integrations_declared++;
         } catch (error: any) {
-          this.logger.warn(`Integration "${integration.slug}" declaration skipped: ${error.message}`);
-          result.errors.push(`Integration "${integration.slug}": ${error.message}`);
+          this.logger.warn(
+            `Integration "${integration.slug}" declaration skipped: ${error.message}`,
+          );
+          result.errors.push(
+            `Integration "${integration.slug}": ${error.message}`,
+          );
         }
       }
     }
@@ -114,7 +120,9 @@ export class BundleImportService {
         if (bundle.pod.slug) podSlugToId[bundle.pod.slug] = podId;
         result.pods_created++;
       } catch (error: any) {
-        this.logger.error(`Failed to create pod "${bundle.pod.name}": ${error.message}`);
+        this.logger.error(
+          `Failed to create pod "${bundle.pod.name}": ${error.message}`,
+        );
         result.errors.push(`Pod "${bundle.pod.name}": ${error.message}`);
       }
     }
@@ -130,7 +138,9 @@ export class BundleImportService {
           if (podDef.slug) podSlugToId[podDef.slug] = podId;
           result.pods_created++;
         } catch (error: any) {
-          this.logger.error(`Failed to create pod "${podDef.name}": ${error.message}`);
+          this.logger.error(
+            `Failed to create pod "${podDef.name}": ${error.message}`,
+          );
           result.errors.push(`Pod "${podDef.name}": ${error.message}`);
         }
       }
@@ -141,7 +151,8 @@ export class BundleImportService {
       for (const boardManifest of bundle.boards) {
         try {
           // Resolve pod_id for this board from pod_slug or pod reference
-          const podSlug = boardManifest.pod_slug || (bundle.pod ? bundle.pod.slug : null);
+          const podSlug =
+            boardManifest.pod_slug || (bundle.pod ? bundle.pod.slug : null);
           const podId = podSlug ? podSlugToId[podSlug] || null : null;
 
           await this.boardTemplatesService.importManifest(
@@ -269,7 +280,9 @@ export class BundleImportService {
       .maybeSingle();
 
     if (existing) {
-      this.logger.log(`Backbone "${bbDef.name}" already exists, reusing ${existing.id}`);
+      this.logger.log(
+        `Backbone "${bbDef.name}" already exists, reusing ${existing.id}`,
+      );
       return existing.id;
     }
 
@@ -280,7 +293,9 @@ export class BundleImportService {
         account_id: accountId,
         backbone_type: bbDef.backbone_type,
         name: bbDef.name,
-        description: bbDef.description || `Declared by bundle import — configure credentials to activate`,
+        description:
+          bbDef.description ||
+          `Declared by bundle import — configure credentials to activate`,
         config: bbDef.config || {},
         is_default: bbDef.is_default || false,
         is_active: false, // inactive until user configures credentials
@@ -292,7 +307,9 @@ export class BundleImportService {
       throw new Error(`Failed to declare backbone: ${error.message}`);
     }
 
-    this.logger.log(`Backbone declared: ${newBb.id} (${bbDef.backbone_type}/${bbDef.name}) — needs credentials`);
+    this.logger.log(
+      `Backbone declared: ${newBb.id} (${bbDef.backbone_type}/${bbDef.name}) — needs credentials`,
+    );
     return newBb.id;
   }
 
@@ -313,29 +330,31 @@ export class BundleImportService {
       .maybeSingle();
 
     if (existing) {
-      this.logger.log(`Integration definition "${integrationDef.slug}" already exists, skipping`);
+      this.logger.log(
+        `Integration definition "${integrationDef.slug}" already exists, skipping`,
+      );
       return;
     }
 
-    const { error } = await client
-      .from('integration_definitions')
-      .insert({
-        slug: integrationDef.slug,
-        name: integrationDef.name,
-        description: integrationDef.description || null,
-        icon: integrationDef.icon || null,
-        categories: integrationDef.categories || [],
-        auth_type: integrationDef.auth_type || 'api_key',
-        auth_config: integrationDef.auth_config || {},
-        config_fields: integrationDef.config_fields || [],
-        setup_guide: integrationDef.setup_guide || null,
-        is_system: false,
-        is_published: false,
-      });
+    const { error } = await client.from('integration_definitions').insert({
+      slug: integrationDef.slug,
+      name: integrationDef.name,
+      description: integrationDef.description || null,
+      icon: integrationDef.icon || null,
+      categories: integrationDef.categories || [],
+      auth_type: integrationDef.auth_type || 'api_key',
+      auth_config: integrationDef.auth_config || {},
+      config_fields: integrationDef.config_fields || [],
+      setup_guide: integrationDef.setup_guide || null,
+      is_system: false,
+      is_published: false,
+    });
 
     if (error) {
       // Non-fatal — integration may be a system integration we can't insert
-      this.logger.warn(`Integration definition "${integrationDef.slug}" skipped: ${error.message}`);
+      this.logger.warn(
+        `Integration definition "${integrationDef.slug}" skipped: ${error.message}`,
+      );
     }
   }
 

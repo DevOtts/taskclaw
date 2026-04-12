@@ -4,7 +4,10 @@ import { Queue } from 'bullmq';
 import { getQueueToken } from '@nestjs/bullmq';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { CommonModule } from '../common/common.module';
-import { HeartbeatQueueModule, HEARTBEAT_QUEUE_NAME } from './heartbeat-queue.module';
+import {
+  HeartbeatQueueModule,
+  HEARTBEAT_QUEUE_NAME,
+} from './heartbeat-queue.module';
 import { HeartbeatService } from './heartbeat.service';
 import { HeartbeatProcessor } from './heartbeat.processor';
 import { CircuitBreakerService } from './circuit-breaker.service';
@@ -27,11 +30,7 @@ import { BackboneModule } from '../backbone/backbone.module';
     forwardRef(() => BackboneModule),
   ],
   controllers: [HeartbeatController],
-  providers: [
-    HeartbeatService,
-    CircuitBreakerService,
-    ExecutionLogService,
-  ],
+  providers: [HeartbeatService, CircuitBreakerService, ExecutionLogService],
   exports: [HeartbeatService, ExecutionLogService, CircuitBreakerService],
 })
 export class HeartbeatModule implements OnModuleInit {

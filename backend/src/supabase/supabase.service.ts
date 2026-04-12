@@ -18,7 +18,9 @@ export class SupabaseService {
   constructor(private configService: ConfigService) {
     const url = this.configService.get<string>('SUPABASE_URL')!;
     const anonKey = this.configService.get<string>('SUPABASE_ANON_KEY')!;
-    const serviceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY')!;
+    const serviceKey = this.configService.get<string>(
+      'SUPABASE_SERVICE_ROLE_KEY',
+    )!;
 
     this.anonClient = createClient(url, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },

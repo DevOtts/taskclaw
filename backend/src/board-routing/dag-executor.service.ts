@@ -44,7 +44,9 @@ export class DAGExecutorService {
    * Fetch the first board step (by position) for a given board instance.
    * Returns null when the board has no steps.
    */
-  private async getFirstBoardStep(boardId: string): Promise<{ id: string; step_type: string } | null> {
+  private async getFirstBoardStep(
+    boardId: string,
+  ): Promise<{ id: string; step_type: string } | null> {
     const client = this.supabaseAdmin.getClient();
     const { data } = await client
       .from('board_steps')
@@ -60,7 +62,9 @@ export class DAGExecutorService {
    * Fetch the "done" board step for a given board instance.
    * Falls back to null when no done step exists.
    */
-  private async getDoneBoardStep(boardId: string): Promise<{ id: string } | null> {
+  private async getDoneBoardStep(
+    boardId: string,
+  ): Promise<{ id: string } | null> {
     const client = this.supabaseAdmin.getClient();
     const { data } = await client
       .from('board_steps')
@@ -156,7 +160,8 @@ export class DAGExecutorService {
               boardId: task.board_instance_id ?? undefined,
               sendOptions: {
                 message,
-                systemPrompt: 'You are an AI task executor. Complete the task described.',
+                systemPrompt:
+                  'You are an AI task executor. Complete the task described.',
               },
             });
 
@@ -173,7 +178,9 @@ export class DAGExecutorService {
             // Determine the correct step for the final status
             let finalStepId: string | undefined;
             if (!isRefusal && task.board_instance_id) {
-              const doneStep = await this.getDoneBoardStep(task.board_instance_id);
+              const doneStep = await this.getDoneBoardStep(
+                task.board_instance_id,
+              );
               if (doneStep) finalStepId = doneStep.id;
             }
 
@@ -284,13 +291,15 @@ export class DAGExecutorService {
       await Promise.all(
         tasksToExecute.map(async (task) => {
           try {
-            const message = task.title + (task.notes ? '\n\n' + task.notes : '');
+            const message =
+              task.title + (task.notes ? '\n\n' + task.notes : '');
             const execResult = await this.backboneRouter.send({
               accountId: dagAccountId,
               boardId: task.board_instance_id ?? undefined,
               sendOptions: {
                 message,
-                systemPrompt: 'You are an AI task executor. Complete the task described.',
+                systemPrompt:
+                  'You are an AI task executor. Complete the task described.',
               },
             });
 
@@ -307,7 +316,9 @@ export class DAGExecutorService {
             // Determine the correct step for the final status
             let finalStepId: string | undefined;
             if (!isRefusal && task.board_instance_id) {
-              const doneStep = await this.getDoneBoardStep(task.board_instance_id);
+              const doneStep = await this.getDoneBoardStep(
+                task.board_instance_id,
+              );
               if (doneStep) finalStepId = doneStep.id;
             }
 
@@ -330,7 +341,9 @@ export class DAGExecutorService {
               `onTaskCompleted cascade: Task ${task.id} "${task.title}" → ${finalStatus}`,
             );
           } catch (err) {
-            this.logger.error(`onTaskCompleted cascade: Task ${task.id} failed: ${(err as Error).message}`);
+            this.logger.error(
+              `onTaskCompleted cascade: Task ${task.id} failed: ${(err as Error).message}`,
+            );
             await this.onTaskFailed(task.id, (err as Error).message);
           }
         }),
@@ -387,13 +400,21 @@ export class DAGExecutorService {
 
     // DAG is complete when every task is either Done or Needs Review (no more pending work)
     const allSettled = dagTasks.every(
-      (t) => t.completed === true || t.status === 'Done' || t.status === 'Needs Review' || t.status === 'Blocked',
+      (t) =>
+        t.completed === true ||
+        t.status === 'Done' ||
+        t.status === 'Needs Review' ||
+        t.status === 'Blocked',
     );
 
     if (allSettled) {
       const hasNeedsReview = dagTasks.some((t) => t.status === 'Needs Review');
       const hasBlocked = dagTasks.some((t) => t.status === 'Blocked');
-      const finalDagStatus = hasBlocked ? 'failed' : hasNeedsReview ? 'needs_review' : 'completed';
+      const finalDagStatus = hasBlocked
+        ? 'failed'
+        : hasNeedsReview
+          ? 'needs_review'
+          : 'completed';
 
       this.logger.log(`DAG ${dagId} settled with status: ${finalDagStatus}`);
       await client

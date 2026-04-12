@@ -82,11 +82,7 @@ export class DagApprovalService {
   /**
    * Approve a DAG: update approval + task_dags + kick off execution.
    */
-  async approve(
-    dagId: string,
-    userId: string,
-    notes?: string,
-  ): Promise<any> {
+  async approve(dagId: string, userId: string, notes?: string): Promise<any> {
     const client = this.supabaseAdmin.getClient();
 
     // Fetch latest approval
@@ -135,11 +131,13 @@ export class DagApprovalService {
     this.logger.log(`DAG ${dagId} approved by ${userId} — starting execution`);
 
     // Fire-and-forget: execute DAG
-    this.dagExecutor.startDag(dagId).catch((err) =>
-      this.logger.error(
-        `DAG execution failed for ${dagId}: ${(err as Error).message}`,
-      ),
-    );
+    this.dagExecutor
+      .startDag(dagId)
+      .catch((err) =>
+        this.logger.error(
+          `DAG execution failed for ${dagId}: ${(err as Error).message}`,
+        ),
+      );
 
     return { dag, approval: { ...approval, status: 'approved' } };
   }
@@ -147,11 +145,7 @@ export class DagApprovalService {
   /**
    * Reject a DAG: update approval + cancel task_dags.
    */
-  async reject(
-    dagId: string,
-    userId: string,
-    notes?: string,
-  ): Promise<any> {
+  async reject(dagId: string, userId: string, notes?: string): Promise<any> {
     const client = this.supabaseAdmin.getClient();
 
     // Fetch latest approval

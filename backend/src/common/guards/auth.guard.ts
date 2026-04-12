@@ -69,7 +69,11 @@ export class AuthGuard implements CanActivate {
 
         if (!profileError) {
           cachedStatus = String(profile?.status || 'active').toLowerCase();
-          this.cacheService.set(cacheKey, cachedStatus, USER_STATUS_TTL_SECONDS);
+          this.cacheService.set(
+            cacheKey,
+            cachedStatus,
+            USER_STATUS_TTL_SECONDS,
+          );
         } else {
           // Backwards-compat if migration wasn't applied yet
           const msg = (profileError as any)?.message?.toLowerCase?.() || '';

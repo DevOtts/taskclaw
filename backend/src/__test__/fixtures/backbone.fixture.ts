@@ -2,7 +2,9 @@
  * Backbone connection fixture factory.
  */
 
-export function backboneConnectionFixture(overrides: Partial<BackboneConnectionRow> = {}): BackboneConnectionRow {
+export function backboneConnectionFixture(
+  overrides: Partial<BackboneConnectionRow> = {},
+): BackboneConnectionRow {
   return {
     id: 'backbone-conn-uuid-001',
     account_id: 'account-uuid-001',

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  Inject,
-  forwardRef,
-} from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { BackboneRouterService } from '../backbone/backbone-router.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -56,9 +51,7 @@ export class PilotService {
       .maybeSingle();
 
     if (!config) {
-      this.logger.debug(
-        `No active pilot config for pod ${podId} — skipping`,
-      );
+      this.logger.debug(`No active pilot config for pod ${podId} — skipping`);
       return null;
     }
 
@@ -85,7 +78,9 @@ export class PilotService {
       if (boardIds.length > 0) {
         const { data: tasks } = await client
           .from('tasks')
-          .select('id, title, status, priority, notes, board_instance_id, current_step_id')
+          .select(
+            'id, title, status, priority, notes, board_instance_id, current_step_id',
+          )
           .in('board_instance_id', boardIds)
           .eq('completed', false)
           .order('created_at', { ascending: false })
@@ -116,9 +111,7 @@ export class PilotService {
       const result = await this.backboneRouter.send({
         accountId,
         podId,
-        ...(config.backbone_connection_id
-          ? {}
-          : {}),
+        ...(config.backbone_connection_id ? {} : {}),
         sendOptions: {
           systemPrompt: config.system_prompt,
           message: contextBlock,
@@ -168,9 +161,7 @@ export class PilotService {
         });
       }
 
-      this.logger.error(
-        `Pod pilot failed for pod ${podId}: ${errorMessage}`,
-      );
+      this.logger.error(`Pod pilot failed for pod ${podId}: ${errorMessage}`);
       throw err;
     }
   }
@@ -180,9 +171,7 @@ export class PilotService {
   /**
    * Run the workspace-level pilot agent (pod_id IS NULL config).
    */
-  async runWorkspacePilot(
-    accountId: string,
-  ): Promise<PilotRunResult | null> {
+  async runWorkspacePilot(accountId: string): Promise<PilotRunResult | null> {
     const client = this.supabaseAdmin.getClient();
 
     // Fetch workspace-level config (pod_id IS NULL)
@@ -253,7 +242,10 @@ export class PilotService {
         `\n\nTotal pods: ${pods?.length ?? 0}`;
 
       // Find or create the workspace conversation so history is browsable
-      const conversationId = await this.findOrCreateWorkspaceConversation(accountId, logEntry?.id);
+      const conversationId = await this.findOrCreateWorkspaceConversation(
+        accountId,
+        logEntry?.id,
+      );
 
       // Save user context message
       if (conversationId) {
@@ -285,7 +277,10 @@ export class PilotService {
         // Touch conversation updated_at
         await client
           .from('conversations')
-          .update({ updated_at: new Date().toISOString(), title: `Workspace Pilot · ${new Date().toLocaleDateString()}` })
+          .update({
+            updated_at: new Date().toISOString(),
+            title: `Workspace Pilot · ${new Date().toLocaleDateString()}`,
+          })
           .eq('id', conversationId);
       }
 
@@ -319,7 +314,11 @@ export class PilotService {
         `Workspace pilot for account ${accountId} completed: ${actionsTaken} actions`,
       );
 
-      return { summary, actions_taken: actionsTaken, conversation_id: conversationId };
+      return {
+        summary,
+        actions_taken: actionsTaken,
+        conversation_id: conversationId,
+      };
     } catch (err) {
       const errorMessage = (err as Error).message;
 
@@ -343,7 +342,11 @@ export class PilotService {
    */
   async runAll(accountId: string): Promise<{
     workspace: PilotRunResult | null;
-    pods: Array<{ podId: string; result: PilotRunResult | null; error?: string }>;
+    pods: Array<{
+      podId: string;
+      result: PilotRunResult | null;
+      error?: string;
+    }>;
   }> {
     const client = this.supabaseAdmin.getClient();
 
@@ -436,7 +439,9 @@ export class PilotService {
 
       return conv?.id ?? null;
     } catch (err) {
-      this.logger.warn(`findOrCreateWorkspaceConversation failed: ${(err as Error).message}`);
+      this.logger.warn(
+        `findOrCreateWorkspaceConversation failed: ${(err as Error).message}`,
+      );
       return null;
     }
   }
@@ -497,16 +502,12 @@ export class PilotService {
     switch (type) {
       case 'create_task': {
         // params: { title, board_id, priority?, notes? }
-        await this.tasksService.create(
-          'system',
-          accountId,
-          {
-            title: params.title,
-            board_instance_id: params.board_id,
-            priority: params.priority ?? 'Medium',
-            notes: params.notes ?? '',
-          },
-        );
+        await this.tasksService.create('system', accountId, {
+          title: params.title,
+          board_instance_id: params.board_id,
+          priority: params.priority ?? 'Medium',
+          notes: params.notes ?? '',
+        });
         this.logger.log(
           `Pilot: created task "${params.title}" on board ${params.board_id}`,
         );
@@ -515,12 +516,9 @@ export class PilotService {
 
       case 'move_task': {
         // params: { task_id, current_step_id }
-        await this.tasksService.update(
-          'system',
-          accountId,
-          params.task_id,
-          { current_step_id: params.current_step_id },
-        );
+        await this.tasksService.update('system', accountId, params.task_id, {
+          current_step_id: params.current_step_id,
+        });
         this.logger.log(
           `Pilot: moved task ${params.task_id} to step ${params.current_step_id}`,
         );

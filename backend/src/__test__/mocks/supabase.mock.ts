@@ -22,9 +22,23 @@ export interface MockQueryBuilder {
   head: jest.Mock;
 }
 
-function createQueryBuilder(defaultResult: any = { data: null, error: null }): MockQueryBuilder {
+function createQueryBuilder(
+  defaultResult: any = { data: null, error: null },
+): MockQueryBuilder {
   const qb: any = {};
-  const chainMethods = ['select', 'insert', 'update', 'delete', 'eq', 'neq', 'is', 'in', 'order', 'limit', 'head'];
+  const chainMethods = [
+    'select',
+    'insert',
+    'update',
+    'delete',
+    'eq',
+    'neq',
+    'is',
+    'in',
+    'order',
+    'limit',
+    'head',
+  ];
   const terminalMethods = ['single', 'maybeSingle'];
 
   // Chain methods return `this` (the builder) by default
@@ -71,7 +85,9 @@ export function createSupabaseMock(): SupabaseMock {
   const mockClient = {
     from: mockFrom,
     auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      getUser: jest
+        .fn()
+        .mockResolvedValue({ data: { user: null }, error: null }),
     },
   };
 

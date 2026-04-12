@@ -31,8 +31,14 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
   // ── sendMessage (F202, F206) ──────────────────────────────────────
 
   async sendMessage(options: BackboneSendOptions): Promise<BackboneSendResult> {
-    const { config, systemPrompt, message, history = [], onToken, signal } =
-      options;
+    const {
+      config,
+      systemPrompt,
+      message,
+      history = [],
+      onToken,
+      signal,
+    } = options;
 
     const timeoutMs = (config.timeout_seconds ?? 120) * 1000;
     const model = config.model || 'claude-sonnet-4-6';
@@ -45,7 +51,9 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
 
     // Build full conversation prompt for --print mode
     const fullPrompt = this.buildPrompt(
-      toolInstructions ? systemPrompt + '\n\n' + toolInstructions : systemPrompt,
+      toolInstructions
+        ? systemPrompt + '\n\n' + toolInstructions
+        : systemPrompt,
       history,
       message,
       config,
@@ -75,7 +83,11 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
         return result;
       } catch (err: any) {
         // Don't retry if claude is not installed or request was aborted
-        if (err.code === 'ENOENT' || err.message?.includes('not found in PATH') || err.message === 'Request aborted') {
+        if (
+          err.code === 'ENOENT' ||
+          err.message?.includes('not found in PATH') ||
+          err.message === 'Request aborted'
+        ) {
           throw err;
         }
         lastError = err;
@@ -167,9 +179,15 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
           const rawText = this.parseClaudeOutput(stdout);
           // Extract text-based tool calls if tool context was provided
           if (options.tool_context?.length) {
-            const { cleanText, toolCalls } = this.parseTextBasedToolCalls(rawText);
+            const { cleanText, toolCalls } =
+              this.parseTextBasedToolCalls(rawText);
             if (toolCalls.length > 0) {
-              resolve({ text: cleanText, model, tool_calls: toolCalls, usage: { total_tokens: Math.ceil(rawText.length / 4) } });
+              resolve({
+                text: cleanText,
+                model,
+                tool_calls: toolCalls,
+                usage: { total_tokens: Math.ceil(rawText.length / 4) },
+              });
               return;
             }
           }
@@ -278,14 +296,19 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
   /**
    * Build tool instructions to be injected into the system prompt for text-based tool calling.
    */
-  private buildToolInstructions(toolContext: BackboneSendOptions['tool_context']): string {
+  private buildToolInstructions(
+    toolContext: BackboneSendOptions['tool_context'],
+  ): string {
     if (!toolContext?.length) return '';
     const toolList = toolContext
       .map((t) => {
         const required = (t.input_schema as any)?.required ?? [];
         const props = (t.input_schema as any)?.properties ?? {};
         const args = Object.entries(props)
-          .map(([k, v]: [string, any]) => `  - ${k}${required.includes(k) ? ' (required)' : ' (optional)'}: ${v.description || v.type}`)
+          .map(
+            ([k, v]: [string, any]) =>
+              `  - ${k}${required.includes(k) ? ' (required)' : ' (optional)'}: ${v.description || v.type}`,
+          )
           .join('\n');
         return `**${t.name}**: ${t.description}\n${args}`;
       })
@@ -313,8 +336,12 @@ RULES:
    * Parse text-based tool calls from response text.
    * Extracts <tool_call name="...">{ args }</tool_call> blocks.
    */
-  private parseTextBasedToolCalls(text: string): { cleanText: string; toolCalls: ToolCallRequest[] } {
-    const toolCallRegex = /<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g;
+  private parseTextBasedToolCalls(text: string): {
+    cleanText: string;
+    toolCalls: ToolCallRequest[];
+  } {
+    const toolCallRegex =
+      /<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g;
     const toolCalls: ToolCallRequest[] = [];
     let match;
     let id = 0;

@@ -19,7 +19,11 @@ function makeSupabaseClient(membershipResult: any, projectResult?: any) {
         return {
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue(projectResult ?? { data: null, error: { message: 'not found' } }),
+          single: jest
+            .fn()
+            .mockResolvedValue(
+              projectResult ?? { data: null, error: { message: 'not found' } },
+            ),
         };
       }
       return membershipQuery;
@@ -44,17 +48,27 @@ describe('AccessControlHelper', () => {
 
   describe('verifyAccountAccess() — cache miss (DB lookup)', () => {
     it('returns role from DB on cache miss', async () => {
-      const client = makeSupabaseClient({ data: { role: 'owner' }, error: null });
+      const client = makeSupabaseClient({
+        data: { role: 'owner' },
+        error: null,
+      });
       const helper = new AccessControlHelper(cacheMock as any);
 
-      const result = await helper.verifyAccountAccess(client, ACCOUNT_ID, USER_ID);
+      const result = await helper.verifyAccountAccess(
+        client,
+        ACCOUNT_ID,
+        USER_ID,
+      );
 
       expect(result.role).toBe('owner');
       expect(client.from).toHaveBeenCalledWith('account_users');
     });
 
     it('caches the role after DB lookup', async () => {
-      const client = makeSupabaseClient({ data: { role: 'member' }, error: null });
+      const client = makeSupabaseClient({
+        data: { role: 'member' },
+        error: null,
+      });
       const helper = new AccessControlHelper(cacheMock as any);
 
       await helper.verifyAccountAccess(client, ACCOUNT_ID, USER_ID);
@@ -67,7 +81,10 @@ describe('AccessControlHelper', () => {
     });
 
     it('throws ForbiddenException when user is not in account', async () => {
-      const client = makeSupabaseClient({ data: null, error: { message: 'not found' } });
+      const client = makeSupabaseClient({
+        data: null,
+        error: { message: 'not found' },
+      });
       const helper = new AccessControlHelper(cacheMock as any);
 
       await expect(
@@ -81,10 +98,17 @@ describe('AccessControlHelper', () => {
   describe('verifyAccountAccess() — cache hit', () => {
     it('returns cached role without querying the DB', async () => {
       cacheMock.seed(`account:${ACCOUNT_ID}:user:${USER_ID}:role`, 'admin');
-      const client = makeSupabaseClient({ data: { role: 'owner' }, error: null });
+      const client = makeSupabaseClient({
+        data: { role: 'owner' },
+        error: null,
+      });
       const helper = new AccessControlHelper(cacheMock as any);
 
-      const result = await helper.verifyAccountAccess(client, ACCOUNT_ID, USER_ID);
+      const result = await helper.verifyAccountAccess(
+        client,
+        ACCOUNT_ID,
+        USER_ID,
+      );
 
       expect(result.role).toBe('admin'); // from cache, not DB
       expect(client.from).not.toHaveBeenCalled(); // no DB call
@@ -95,27 +119,48 @@ describe('AccessControlHelper', () => {
 
   describe('verifyAccountAccess() — required roles enforcement', () => {
     it('allows access when user role is in requiredRoles', async () => {
-      const client = makeSupabaseClient({ data: { role: 'admin' }, error: null });
+      const client = makeSupabaseClient({
+        data: { role: 'admin' },
+        error: null,
+      });
       const helper = new AccessControlHelper(cacheMock as any);
 
-      const result = await helper.verifyAccountAccess(client, ACCOUNT_ID, USER_ID, ['admin', 'owner']);
+      const result = await helper.verifyAccountAccess(
+        client,
+        ACCOUNT_ID,
+        USER_ID,
+        ['admin', 'owner'],
+      );
       expect(result.role).toBe('admin');
     });
 
     it('throws ForbiddenException when user role is not in requiredRoles', async () => {
-      const client = makeSupabaseClient({ data: { role: 'member' }, error: null });
+      const client = makeSupabaseClient({
+        data: { role: 'member' },
+        error: null,
+      });
       const helper = new AccessControlHelper(cacheMock as any);
 
       await expect(
-        helper.verifyAccountAccess(client, ACCOUNT_ID, USER_ID, ['admin', 'owner']),
+        helper.verifyAccountAccess(client, ACCOUNT_ID, USER_ID, [
+          'admin',
+          'owner',
+        ]),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('allows any role when requiredRoles is undefined', async () => {
-      const client = makeSupabaseClient({ data: { role: 'viewer' }, error: null });
+      const client = makeSupabaseClient({
+        data: { role: 'viewer' },
+        error: null,
+      });
       const helper = new AccessControlHelper(cacheMock as any);
 
-      const result = await helper.verifyAccountAccess(client, ACCOUNT_ID, USER_ID);
+      const result = await helper.verifyAccountAccess(
+        client,
+        ACCOUNT_ID,
+        USER_ID,
+      );
       expect(result.role).toBe('viewer');
     });
   });
@@ -130,7 +175,11 @@ describe('AccessControlHelper', () => {
       );
       const helper = new AccessControlHelper(cacheMock as any);
 
-      const result = await helper.verifyProjectAccess(client, 'project-1', USER_ID);
+      const result = await helper.verifyProjectAccess(
+        client,
+        'project-1',
+        USER_ID,
+      );
 
       expect(result.accountId).toBe(ACCOUNT_ID);
       expect(result.role).toBe('member');

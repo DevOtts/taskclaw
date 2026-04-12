@@ -72,7 +72,11 @@ export interface MemoryAdapter {
   /**
    * Retrieve recent memories for an account (ORDER BY created_at DESC).
    */
-  recent(accountId: string, limit?: number, type?: string): Promise<MemoryEntry[]>;
+  recent(
+    accountId: string,
+    limit?: number,
+    type?: string,
+  ): Promise<MemoryEntry[]>;
 
   /**
    * Delete a memory entry by id + account_id.

@@ -64,14 +64,18 @@ describe('encryption.util', () => {
     it('throws when ENCRYPTION_KEY is missing', () => {
       const saved = process.env.ENCRYPTION_KEY;
       delete process.env.ENCRYPTION_KEY;
-      expect(() => encrypt('test')).toThrow('ENCRYPTION_KEY environment variable is not set');
+      expect(() => encrypt('test')).toThrow(
+        'ENCRYPTION_KEY environment variable is not set',
+      );
       process.env.ENCRYPTION_KEY = saved;
     });
 
     it('throws when ENCRYPTION_KEY has wrong length', () => {
       const saved = process.env.ENCRYPTION_KEY;
       process.env.ENCRYPTION_KEY = 'tooshort';
-      expect(() => encrypt('test')).toThrow('ENCRYPTION_KEY must be 64 hex characters');
+      expect(() => encrypt('test')).toThrow(
+        'ENCRYPTION_KEY must be 64 hex characters',
+      );
       process.env.ENCRYPTION_KEY = saved;
     });
   });
@@ -86,7 +90,9 @@ describe('encryption.util', () => {
     it('throws on malformed input (wrong number of segments)', () => {
       expect(() => decrypt('onlyone')).toThrow('Invalid encrypted format');
       expect(() => decrypt('two:parts')).toThrow('Invalid encrypted format');
-      expect(() => decrypt('four:parts:is:bad')).toThrow('Invalid encrypted format');
+      expect(() => decrypt('four:parts:is:bad')).toThrow(
+        'Invalid encrypted format',
+      );
     });
 
     it('throws when the auth tag is tampered (integrity violation)', () => {

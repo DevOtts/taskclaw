@@ -22,9 +22,15 @@ function makeQueryChain(result: any) {
   ['select', 'eq', 'order', 'limit'].forEach((m) => {
     chain[m] = jest.fn().mockReturnValue(chain);
   });
-  chain.maybeSingle = jest.fn().mockResolvedValue({ data: result, error: null });
+  chain.maybeSingle = jest
+    .fn()
+    .mockResolvedValue({ data: result, error: null });
   chain.single = jest.fn().mockResolvedValue({ data: result, error: null });
-  chain.then = (resolve: any) => Promise.resolve({ data: Array.isArray(result) ? result : (result ? [result] : []), error: null }).then(resolve);
+  chain.then = (resolve: any) =>
+    Promise.resolve({
+      data: Array.isArray(result) ? result : result ? [result] : [],
+      error: null,
+    }).then(resolve);
   return chain;
 }
 
@@ -38,7 +44,9 @@ describe('[Integration] BackboneRouterService', () => {
 
   const mockAdapter = {
     slug: 'anthropic',
-    sendMessage: jest.fn().mockResolvedValue({ text: 'ok', usage: { total_tokens: 10 } }),
+    sendMessage: jest
+      .fn()
+      .mockResolvedValue({ text: 'ok', usage: { total_tokens: 10 } }),
     supportsNativeSkillInjection: jest.fn().mockReturnValue(true),
   };
 
@@ -59,7 +67,11 @@ describe('[Integration] BackboneRouterService', () => {
   const mockConnections = {
     getAccountDefault: jest.fn().mockResolvedValue(null),
     findAllActive: jest.fn().mockResolvedValue([]),
-    decryptConfig: jest.fn((config: any) => ({ api_key: 'test-key', model: 'claude-3', raw: config })),
+    decryptConfig: jest.fn((config: any) => ({
+      api_key: 'test-key',
+      model: 'claude-3',
+      raw: config,
+    })),
     trackUsage: jest.fn().mockResolvedValue(undefined),
   };
 
@@ -69,7 +81,11 @@ describe('[Integration] BackboneRouterService', () => {
     mockRegistry.get.mockReturnValue(mockAdapter);
     mockConnections.getAccountDefault.mockResolvedValue(null);
     mockConnections.findAllActive.mockResolvedValue([]);
-    mockConnections.decryptConfig.mockImplementation((config: any) => ({ api_key: 'test-key', model: 'claude-3', raw: config }));
+    mockConnections.decryptConfig.mockImplementation((config: any) => ({
+      api_key: 'test-key',
+      model: 'claude-3',
+      raw: config,
+    }));
     mockConnections.trackUsage.mockResolvedValue(undefined);
     mockSupabaseAdmin.getClient.mockReturnValue({
       from: jest.fn().mockReturnValue(makeQueryChain(null)),
@@ -101,7 +117,9 @@ describe('[Integration] BackboneRouterService', () => {
   });
 
   it('throws NotFoundException when no backbone is configured', async () => {
-    await expect(service.resolve(ACCOUNT_ID)).rejects.toThrow(NotFoundException);
+    await expect(service.resolve(ACCOUNT_ID)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('resolves account_default when connection service returns a default', async () => {
@@ -125,19 +143,28 @@ describe('[Integration] BackboneRouterService', () => {
   });
 
   it('cascades task → step → board → category → pod → account_default in order', async () => {
-    const defaultConn = backboneConnectionFixture({ id: 'default-conn', backbone_type: 'anthropic' });
+    const defaultConn = backboneConnectionFixture({
+      id: 'default-conn',
+      backbone_type: 'anthropic',
+    });
     mockConnections.getAccountDefault.mockResolvedValue(defaultConn);
 
     // All explicit overrides (task, step, board, category, pod) return no backbone_connection_id
     const client = mockSupabaseAdmin.getClient();
     client.from.mockImplementation((table: string) => {
       switch (table) {
-        case 'tasks': return makeQueryChain({ backbone_connection_id: null });
-        case 'board_steps': return makeQueryChain({ backbone_connection_id: null });
-        case 'board_instances': return makeQueryChain({ default_backbone_connection_id: null });
-        case 'categories': return makeQueryChain({ preferred_backbone_connection_id: null });
-        case 'pods': return makeQueryChain({ backbone_connection_id: null });
-        default: return makeQueryChain(null);
+        case 'tasks':
+          return makeQueryChain({ backbone_connection_id: null });
+        case 'board_steps':
+          return makeQueryChain({ backbone_connection_id: null });
+        case 'board_instances':
+          return makeQueryChain({ default_backbone_connection_id: null });
+        case 'categories':
+          return makeQueryChain({ preferred_backbone_connection_id: null });
+        case 'pods':
+          return makeQueryChain({ backbone_connection_id: null });
+        default:
+          return makeQueryChain(null);
       }
     });
 
@@ -153,11 +180,18 @@ describe('[Integration] BackboneRouterService', () => {
   });
 
   it('config is decrypted via BackboneConnectionsService.decryptConfig', async () => {
-    const conn = backboneConnectionFixture({ config: 'encrypted-config-string' });
+    const conn = backboneConnectionFixture({
+      config: 'encrypted-config-string',
+    });
     mockConnections.getAccountDefault.mockResolvedValue(conn);
 
     const result = await service.resolve(ACCOUNT_ID);
-    expect(mockConnections.decryptConfig).toHaveBeenCalledWith('encrypted-config-string');
-    expect(result.config).toMatchObject({ api_key: 'test-key', model: 'claude-3' });
+    expect(mockConnections.decryptConfig).toHaveBeenCalledWith(
+      'encrypted-config-string',
+    );
+    expect(result.config).toMatchObject({
+      api_key: 'test-key',
+      model: 'claude-3',
+    });
   });
 });

@@ -134,7 +134,9 @@ export class MemoryConnectionsService {
   ): Promise<MemoryConnectionRow> {
     const client = this.supabaseAdmin.getClient();
 
-    const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
     if (dto.name !== undefined) updates.name = dto.name;
     if (dto.config !== undefined) updates.config = dto.config;
     if (dto.is_active !== undefined) updates.is_active = dto.is_active;

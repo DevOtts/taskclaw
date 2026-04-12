@@ -34,7 +34,12 @@ import { BoardRoutingController } from './board-routing.controller';
     DAGExecutorService,
     DagApprovalService,
   ],
-  exports: [BoardRoutingService, CoordinatorService, DAGExecutorService, DagApprovalService],
+  exports: [
+    BoardRoutingService,
+    CoordinatorService,
+    DAGExecutorService,
+    DagApprovalService,
+  ],
 })
 export class BoardRoutingModule implements OnModuleInit {
   private readonly logger = new Logger(BoardRoutingModule.name);

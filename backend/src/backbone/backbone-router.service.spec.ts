@@ -10,7 +10,9 @@ function makeQueryChain(result: any) {
   ['select', 'eq', 'order', 'limit'].forEach((m) => {
     chain[m] = jest.fn().mockReturnValue(chain);
   });
-  chain.maybeSingle = jest.fn().mockResolvedValue({ data: result, error: null });
+  chain.maybeSingle = jest
+    .fn()
+    .mockResolvedValue({ data: result, error: null });
   chain.single = jest.fn().mockResolvedValue({ data: result, error: null });
   return chain;
 }
@@ -19,7 +21,9 @@ function makeQueryChain(result: any) {
 function makeSupabaseAdmin(tableData: Record<string, any> = {}) {
   return {
     getClient: jest.fn().mockReturnValue({
-      from: jest.fn((table: string) => makeQueryChain(tableData[table] ?? null)),
+      from: jest.fn((table: string) =>
+        makeQueryChain(tableData[table] ?? null),
+      ),
     }),
   };
 }
@@ -28,7 +32,9 @@ function makeSupabaseAdmin(tableData: Record<string, any> = {}) {
 function makeRegistry(adapterOverrides: Partial<any> = {}) {
   const adapter = {
     slug: 'anthropic',
-    sendMessage: jest.fn().mockResolvedValue({ text: 'response', usage: { total_tokens: 100 } }),
+    sendMessage: jest
+      .fn()
+      .mockResolvedValue({ text: 'response', usage: { total_tokens: 100 } }),
     supportsNativeSkillInjection: jest.fn().mockReturnValue(true),
     transformSystemPrompt: undefined,
     ...adapterOverrides,
@@ -44,7 +50,10 @@ function makeConnections(defaultConn: any = null, activeConns: any[] = []) {
   return {
     getAccountDefault: jest.fn().mockResolvedValue(defaultConn),
     findAllActive: jest.fn().mockResolvedValue(activeConns),
-    decryptConfig: jest.fn((config: any) => ({ decrypted: true, original: config })),
+    decryptConfig: jest.fn((config: any) => ({
+      decrypted: true,
+      original: config,
+    })),
     trackUsage: jest.fn().mockResolvedValue(undefined),
   };
 }
@@ -66,14 +75,19 @@ describe('BackboneRouterService', () => {
       // Override from() to return active conn for backbone_connections table
       const client = supabaseAdmin.getClient();
       client.from.mockImplementation((table: string) => {
-        if (table === 'tasks') return makeQueryChain({ backbone_connection_id: 'task-conn' });
+        if (table === 'tasks')
+          return makeQueryChain({ backbone_connection_id: 'task-conn' });
         if (table === 'backbone_connections') return makeQueryChain(activeConn);
         return makeQueryChain(null);
       });
 
       const registry = makeRegistry();
       const connections = makeConnections();
-      const service = new BackboneRouterService(supabaseAdmin as any, registry as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        registry as any,
+        connections as any,
+      );
 
       const result = await service.resolve(ACCOUNT_ID, { taskId: 'task-1' });
       expect(result.resolvedFrom).toBe('task');
@@ -84,8 +98,10 @@ describe('BackboneRouterService', () => {
       const supabaseAdmin = { getClient: jest.fn() };
       const client = {
         from: jest.fn((table: string) => {
-          if (table === 'tasks') return makeQueryChain({ backbone_connection_id: null });
-          if (table === 'board_steps') return makeQueryChain({ backbone_connection_id: 'step-conn' });
+          if (table === 'tasks')
+            return makeQueryChain({ backbone_connection_id: null });
+          if (table === 'board_steps')
+            return makeQueryChain({ backbone_connection_id: 'step-conn' });
           if (table === 'backbone_connections') return makeQueryChain(stepConn);
           return makeQueryChain(null);
         }),
@@ -98,17 +114,26 @@ describe('BackboneRouterService', () => {
         makeConnections() as any,
       );
 
-      const result = await service.resolve(ACCOUNT_ID, { taskId: 'task-1', stepId: 'step-1' });
+      const result = await service.resolve(ACCOUNT_ID, {
+        taskId: 'task-1',
+        stepId: 'step-1',
+      });
       expect(result.resolvedFrom).toBe('step');
     });
 
     it('falls through to account_default when all explicit levels are null', async () => {
       const defaultConn = backboneConnectionFixture({ id: 'default-conn' });
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(defaultConn);
-      const service = new BackboneRouterService(supabaseAdmin as any, makeRegistry() as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        makeRegistry() as any,
+        connections as any,
+      );
 
       const result = await service.resolve(ACCOUNT_ID);
       expect(result.resolvedFrom).toBe('account_default');
@@ -117,24 +142,38 @@ describe('BackboneRouterService', () => {
 
     it('falls through to legacy_fallback and logs warning when no default exists', async () => {
       const fallbackConn = backboneConnectionFixture({ id: 'fallback-conn' });
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(null, [fallbackConn]);
-      const service = new BackboneRouterService(supabaseAdmin as any, makeRegistry() as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        makeRegistry() as any,
+        connections as any,
+      );
 
       const result = await service.resolve(ACCOUNT_ID);
       expect(result.resolvedFrom).toBe('legacy_fallback');
     });
 
     it('throws NotFoundException when no backbone found at any level', async () => {
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(null, []); // no fallback either
-      const service = new BackboneRouterService(supabaseAdmin as any, makeRegistry() as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        makeRegistry() as any,
+        connections as any,
+      );
 
-      await expect(service.resolve(ACCOUNT_ID)).rejects.toThrow(NotFoundException);
+      await expect(service.resolve(ACCOUNT_ID)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -146,7 +185,8 @@ describe('BackboneRouterService', () => {
       const supabaseAdmin = { getClient: jest.fn() };
       const client = {
         from: jest.fn((table: string) => {
-          if (table === 'tasks') return makeQueryChain({ backbone_connection_id: 'inactive-conn' });
+          if (table === 'tasks')
+            return makeQueryChain({ backbone_connection_id: 'inactive-conn' });
           if (table === 'backbone_connections') return makeQueryChain(null); // inactive → filtered out
           return makeQueryChain(null);
         }),
@@ -155,7 +195,11 @@ describe('BackboneRouterService', () => {
 
       const defaultConn = backboneConnectionFixture({ id: 'default-conn' });
       const connections = makeConnections(defaultConn);
-      const service = new BackboneRouterService(supabaseAdmin as any, makeRegistry() as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        makeRegistry() as any,
+        connections as any,
+      );
 
       const result = await service.resolve(ACCOUNT_ID, { taskId: 'task-1' });
       // Should have fallen through to account_default
@@ -168,14 +212,22 @@ describe('BackboneRouterService', () => {
   describe('config decryption', () => {
     it('calls decryptConfig() on the resolved connection config', async () => {
       const defaultConn = backboneConnectionFixture();
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(defaultConn);
-      const service = new BackboneRouterService(supabaseAdmin as any, makeRegistry() as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        makeRegistry() as any,
+        connections as any,
+      );
 
       await service.resolve(ACCOUNT_ID);
-      expect(connections.decryptConfig).toHaveBeenCalledWith(defaultConn.config);
+      expect(connections.decryptConfig).toHaveBeenCalledWith(
+        defaultConn.config,
+      );
     });
   });
 
@@ -184,14 +236,20 @@ describe('BackboneRouterService', () => {
   describe('send() — skill injection into system prompt', () => {
     it('injects skills into system prompt when adapter does not support native skill injection', async () => {
       const defaultConn = backboneConnectionFixture();
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(defaultConn);
       const registry = makeRegistry({
         supportsNativeSkillInjection: jest.fn().mockReturnValue(false),
       });
-      const service = new BackboneRouterService(supabaseAdmin as any, registry as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        registry as any,
+        connections as any,
+      );
 
       await service.send({
         accountId: ACCOUNT_ID,
@@ -213,14 +271,20 @@ describe('BackboneRouterService', () => {
 
     it('passes skills natively when adapter supports native skill injection', async () => {
       const defaultConn = backboneConnectionFixture();
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(defaultConn);
       const registry = makeRegistry({
         supportsNativeSkillInjection: jest.fn().mockReturnValue(true),
       });
-      const service = new BackboneRouterService(supabaseAdmin as any, registry as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        registry as any,
+        connections as any,
+      );
 
       const skills = [{ name: 'Tool', description: 'Does things' }];
       await service.send({
@@ -239,11 +303,17 @@ describe('BackboneRouterService', () => {
   describe('send() — usage tracking', () => {
     it('calls trackUsage fire-and-forget when tokens are returned', async () => {
       const defaultConn = backboneConnectionFixture();
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(defaultConn);
-      const service = new BackboneRouterService(supabaseAdmin as any, makeRegistry() as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        makeRegistry() as any,
+        connections as any,
+      );
 
       await service.send({
         accountId: ACCOUNT_ID,
@@ -255,16 +325,25 @@ describe('BackboneRouterService', () => {
 
     it('does not block when trackUsage rejects', async () => {
       const defaultConn = backboneConnectionFixture();
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue(makeQueryChain(null)),
-      })};
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue(makeQueryChain(null)),
+        }),
+      };
       const connections = makeConnections(defaultConn);
       connections.trackUsage.mockRejectedValue(new Error('tracking failed'));
-      const service = new BackboneRouterService(supabaseAdmin as any, makeRegistry() as any, connections as any);
+      const service = new BackboneRouterService(
+        supabaseAdmin as any,
+        makeRegistry() as any,
+        connections as any,
+      );
 
       // Should not throw even though tracking fails
       await expect(
-        service.send({ accountId: ACCOUNT_ID, sendOptions: { message: 'Hello', systemPrompt: '' } }),
+        service.send({
+          accountId: ACCOUNT_ID,
+          sendOptions: { message: 'Hello', systemPrompt: '' },
+        }),
       ).resolves.toBeDefined();
     });
   });

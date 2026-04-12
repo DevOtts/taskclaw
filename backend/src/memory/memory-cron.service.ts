@@ -32,10 +32,15 @@ export class MemoryCronService {
         .select('id, salience')
         .eq('type', 'episodic')
         .is('valid_to', null)
-        .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+        .lt(
+          'created_at',
+          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        );
 
       if (fetchError) {
-        this.logger.error(`decaySalience() fetch failed: ${fetchError.message}`);
+        this.logger.error(
+          `decaySalience() fetch failed: ${fetchError.message}`,
+        );
         return;
       }
 
@@ -56,11 +61,15 @@ export class MemoryCronService {
         .upsert(updates, { onConflict: 'id' });
 
       if (updateError) {
-        this.logger.error(`decaySalience() update failed: ${updateError.message}`);
+        this.logger.error(
+          `decaySalience() update failed: ${updateError.message}`,
+        );
         return;
       }
 
-      this.logger.log(`decaySalience(): decayed salience for ${rows.length} episodic memories`);
+      this.logger.log(
+        `decaySalience(): decayed salience for ${rows.length} episodic memories`,
+      );
     } catch (err: any) {
       this.logger.error(`decaySalience() threw: ${err.message}`);
     }
@@ -76,7 +85,9 @@ export class MemoryCronService {
     const client = this.supabaseAdmin.getClient();
 
     try {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const thirtyDaysAgo = new Date(
+        Date.now() - 30 * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       const { data: toDelete, error: fetchError } = await client
         .from('agent_memories')
@@ -86,7 +97,9 @@ export class MemoryCronService {
         .lt('created_at', thirtyDaysAgo);
 
       if (fetchError) {
-        this.logger.error(`purgeOldMemories() fetch failed: ${fetchError.message}`);
+        this.logger.error(
+          `purgeOldMemories() fetch failed: ${fetchError.message}`,
+        );
         return;
       }
 
@@ -102,11 +115,15 @@ export class MemoryCronService {
         .in('id', ids);
 
       if (deleteError) {
-        this.logger.error(`purgeOldMemories() delete failed: ${deleteError.message}`);
+        this.logger.error(
+          `purgeOldMemories() delete failed: ${deleteError.message}`,
+        );
         return;
       }
 
-      this.logger.log(`purgeOldMemories(): purged ${ids.length} expired episodic memories`);
+      this.logger.log(
+        `purgeOldMemories(): purged ${ids.length} expired episodic memories`,
+      );
     } catch (err: any) {
       this.logger.error(`purgeOldMemories() threw: ${err.message}`);
     }

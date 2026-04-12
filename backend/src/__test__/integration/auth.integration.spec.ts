@@ -17,7 +17,11 @@ import { ApiKeysService } from '../../auth/api-keys/api-keys.service';
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function buildContext(headers: Record<string, string>): ExecutionContext {
-  const request = { headers, user: undefined as any, accessToken: undefined as any };
+  const request = {
+    headers,
+    user: undefined as any,
+    accessToken: undefined as any,
+  };
   return {
     switchToHttp: () => ({ getRequest: () => request }),
   } as unknown as ExecutionContext;
@@ -73,12 +77,18 @@ describe('[Integration] AuthGuard + CacheService', () => {
 
   describe('User status caching with real CacheService', () => {
     it('queries DB on first request, uses cache on second request', async () => {
-      const authClient = { getUser: jest.fn().mockResolvedValue({ data: { user: mockUser }, error: null }) };
+      const authClient = {
+        getUser: jest
+          .fn()
+          .mockResolvedValue({ data: { user: mockUser }, error: null }),
+      };
       const adminDb = {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
+          single: jest
+            .fn()
+            .mockResolvedValue({ data: { status: 'active' }, error: null }),
         }),
       };
       mockSupabaseService.getClient.mockReturnValue({ auth: authClient });
@@ -97,12 +107,18 @@ describe('[Integration] AuthGuard + CacheService', () => {
     });
 
     it('re-queries DB if cache entry is manually cleared', async () => {
-      const authClient = { getUser: jest.fn().mockResolvedValue({ data: { user: mockUser }, error: null }) };
+      const authClient = {
+        getUser: jest
+          .fn()
+          .mockResolvedValue({ data: { user: mockUser }, error: null }),
+      };
       const adminDb = {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
+          single: jest
+            .fn()
+            .mockResolvedValue({ data: { status: 'active' }, error: null }),
         }),
       };
       mockSupabaseService.getClient.mockReturnValue({ auth: authClient });
@@ -144,22 +160,32 @@ describe('[Integration] AuthGuard + CacheService', () => {
   describe('suspended user scenario', () => {
     it('blocks request immediately when status is suspended', async () => {
       const suspendedUser = { id: 'suspended-user' };
-      const authClient = { getUser: jest.fn().mockResolvedValue({ data: { user: suspendedUser }, error: null }) };
+      const authClient = {
+        getUser: jest
+          .fn()
+          .mockResolvedValue({ data: { user: suspendedUser }, error: null }),
+      };
       const adminDb = {
         from: jest.fn().mockReturnValue({
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: { status: 'suspended' }, error: null }),
+          single: jest
+            .fn()
+            .mockResolvedValue({ data: { status: 'suspended' }, error: null }),
         }),
       };
       mockSupabaseService.getClient.mockReturnValue({ auth: authClient });
       mockSupabaseService.getAdminClient.mockReturnValue(adminDb);
 
       const context = buildContext({ authorization: 'Bearer jwt' });
-      await expect(guard.canActivate(context)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(context)).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       // Status was cached even for suspended (so subsequent requests are fast)
-      expect(cacheService.get(`user:${suspendedUser.id}:status`)).toBe('suspended');
+      expect(cacheService.get(`user:${suspendedUser.id}:status`)).toBe(
+        'suspended',
+      );
     });
   });
 });

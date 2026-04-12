@@ -14,7 +14,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { MemoryConnectionsService } from './memory-connections.service';
-import type { CreateMemoryConnectionDto, UpdateMemoryConnectionDto } from './memory-connections.service';
+import type {
+  CreateMemoryConnectionDto,
+  UpdateMemoryConnectionDto,
+} from './memory-connections.service';
 import { MemoryRouterService } from './memory-router.service';
 import { MemoryAdapterRegistry } from './adapters/memory-adapter.registry';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';

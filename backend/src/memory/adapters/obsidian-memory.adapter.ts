@@ -40,10 +40,13 @@ export class ObsidianMemoryAdapter implements MemoryAdapter {
     const config = (metadata?._obsidian_config || {}) as Record<string, any>;
     const vault_url = config.vault_url as string;
     const api_key = config.api_key as string;
-    const memory_folder = (config.memory_folder as string) || this.DEFAULT_FOLDER;
+    const memory_folder =
+      (config.memory_folder as string) || this.DEFAULT_FOLDER;
 
     if (!vault_url || !api_key) {
-      throw new BadRequestException('ObsidianMemoryAdapter requires vault_url and api_key');
+      throw new BadRequestException(
+        'ObsidianMemoryAdapter requires vault_url and api_key',
+      );
     }
 
     const filename = `${Date.now()}.md`;
@@ -63,7 +66,9 @@ export class ObsidianMemoryAdapter implements MemoryAdapter {
         },
       );
     } catch (err: any) {
-      this.logger.warn(`ObsidianMemoryAdapter.remember() failed: ${err.message}`);
+      this.logger.warn(
+        `ObsidianMemoryAdapter.remember() failed: ${err.message}`,
+      );
     }
 
     // Return a synthetic MemoryEntry since Obsidian doesn't give us a UUID
@@ -93,17 +98,14 @@ export class ObsidianMemoryAdapter implements MemoryAdapter {
     const { vault_url, api_key } = config;
 
     try {
-      const res = await this.fetchWithTimeout(
-        `${vault_url}/search/simple/`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${api_key}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ query }),
+      const res = await this.fetchWithTimeout(`${vault_url}/search/simple/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${api_key}`,
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({ query }),
+      });
 
       if (!res.ok) {
         this.logger.warn(`Obsidian search returned ${res.status}`);
@@ -139,7 +141,9 @@ export class ObsidianMemoryAdapter implements MemoryAdapter {
 
   async forget(_id: string, _accountId: string): Promise<void> {
     // Obsidian files are not deleted via this adapter for safety
-    this.logger.debug('ObsidianMemoryAdapter.forget() is a no-op (files are not deleted)');
+    this.logger.debug(
+      'ObsidianMemoryAdapter.forget() is a no-op (files are not deleted)',
+    );
   }
 
   async healthCheck(config?: Record<string, any>): Promise<MemoryHealthResult> {
@@ -165,7 +169,9 @@ export class ObsidianMemoryAdapter implements MemoryAdapter {
 
   validateConfig(config: Record<string, any>): void {
     if (!config.vault_url) {
-      throw new BadRequestException('vault_url is required for Obsidian adapter');
+      throw new BadRequestException(
+        'vault_url is required for Obsidian adapter',
+      );
     }
     if (!config.api_key) {
       throw new BadRequestException('api_key is required for Obsidian adapter');
@@ -199,7 +205,12 @@ export class ObsidianMemoryAdapter implements MemoryAdapter {
       fetch(url, options),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error(`Obsidian request timed out after ${this.REQUEST_TIMEOUT_MS}ms`)),
+          () =>
+            reject(
+              new Error(
+                `Obsidian request timed out after ${this.REQUEST_TIMEOUT_MS}ms`,
+              ),
+            ),
           this.REQUEST_TIMEOUT_MS,
         ),
       ),

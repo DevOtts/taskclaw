@@ -14,8 +14,10 @@ import { UpdateHeartbeatDto } from './dto/update-heartbeat.dto';
 import { BackboneRouterService } from '../backbone/backbone-router.service';
 
 // PilotService is injected lazily to avoid circular dependency at module load time
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PilotServiceLike = { runPodPilot(accountId: string, podId: string): Promise<any> };
+
+type PilotServiceLike = {
+  runPodPilot(accountId: string, podId: string): Promise<any>;
+};
 
 @Injectable()
 export class HeartbeatService {
@@ -114,9 +116,7 @@ export class HeartbeatService {
       .order('created_at', { ascending: false });
 
     if (error) {
-      throw new Error(
-        `Failed to fetch heartbeat configs: ${error.message}`,
-      );
+      throw new Error(`Failed to fetch heartbeat configs: ${error.message}`);
     }
 
     return data;
@@ -146,8 +146,7 @@ export class HeartbeatService {
         name: dto.name,
         schedule: dto.schedule ?? '0 */4 * * *',
         prompt:
-          dto.prompt ??
-          'Review pending tasks and take appropriate actions.',
+          dto.prompt ?? 'Review pending tasks and take appropriate actions.',
         is_active: dto.is_active ?? false,
         dry_run: dto.dry_run ?? false,
         max_tasks_per_run: dto.max_tasks_per_run ?? 5,
@@ -158,9 +157,7 @@ export class HeartbeatService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to create heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to create heartbeat config: ${error.message}`);
     }
 
     // Schedule if active
@@ -186,9 +183,7 @@ export class HeartbeatService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to update heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to update heartbeat config: ${error.message}`);
     }
 
     // Re-schedule if schedule or active state changed
@@ -219,9 +214,7 @@ export class HeartbeatService {
       .eq('id', id);
 
     if (error) {
-      throw new Error(
-        `Failed to delete heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to delete heartbeat config: ${error.message}`);
     }
 
     return { message: 'Heartbeat config deleted successfully' };
@@ -242,9 +235,7 @@ export class HeartbeatService {
       .single();
 
     if (error) {
-      throw new Error(
-        `Failed to toggle heartbeat config: ${error.message}`,
-      );
+      throw new Error(`Failed to toggle heartbeat config: ${error.message}`);
     }
 
     await this.scheduleConfig(data);
@@ -380,11 +371,10 @@ export class HeartbeatService {
             podId: config.pod_id ?? undefined,
             boardId: config.board_id ?? undefined,
             sendOptions: {
-              systemPrompt: 'You are an AI task manager. Review the task list and provide actionable insights.',
+              systemPrompt:
+                'You are an AI task manager. Review the task list and provide actionable insights.',
               message: config.prompt,
-              history: [
-                { role: 'user', content: taskListContext },
-              ],
+              history: [{ role: 'user', content: taskListContext }],
             },
           });
           summary = result.text ?? `Processed ${tasks?.length ?? 0} tasks`;

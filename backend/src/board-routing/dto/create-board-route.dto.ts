@@ -1,6 +1,17 @@
-import { IsString, IsOptional, IsBoolean, IsObject, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsObject,
+  IsIn,
+} from 'class-validator';
 
-export type TriggerType = 'auto' | 'ai_decision' | 'manual' | 'error' | 'fallback';
+export type TriggerType =
+  | 'auto'
+  | 'ai_decision'
+  | 'manual'
+  | 'error'
+  | 'fallback';
 
 export class CreateBoardRouteDto {
   @IsString()

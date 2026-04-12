@@ -195,7 +195,11 @@ export class BoardTemplatesService {
       : null;
 
     // F024: Resolve backbone slugs from manifest
-    const backboneSlugMap = await this.resolveBackboneSlugs(client, accountId, manifest);
+    const backboneSlugMap = await this.resolveBackboneSlugs(
+      client,
+      accountId,
+      manifest,
+    );
 
     // Create board instance from template
     const { data: board, error: boardError } = await client
@@ -338,7 +342,12 @@ export class BoardTemplatesService {
    * Creates categories, skills, knowledge docs, board instance, and steps.
    * @param podId Optional pod ID to assign this board to
    */
-  async importManifest(userId: string, accountId: string, manifest: any, podId?: string | null) {
+  async importManifest(
+    userId: string,
+    accountId: string,
+    manifest: any,
+    podId?: string | null,
+  ) {
     const client = this.supabaseAdmin.getClient();
     await this.accessControl.verifyAccountAccess(client, accountId, userId);
 
@@ -360,7 +369,11 @@ export class BoardTemplatesService {
       : null;
 
     // F024: Resolve board-level default backbone slug to connection ID
-    const backboneSlugMap = await this.resolveBackboneSlugs(client, accountId, manifest);
+    const backboneSlugMap = await this.resolveBackboneSlugs(
+      client,
+      accountId,
+      manifest,
+    );
 
     // Create board instance
     const { data: board, error: boardError } = await client
@@ -495,7 +508,10 @@ export class BoardTemplatesService {
     accountId: string,
     manifest: any,
   ): Promise<{ boardDefault: string | null; bySlug: Record<string, string> }> {
-    const result = { boardDefault: null as string | null, bySlug: {} as Record<string, string> };
+    const result = {
+      boardDefault: null as string | null,
+      bySlug: {} as Record<string, string>,
+    };
 
     // Collect all backbone slugs referenced in the manifest
     const slugs = new Set<string>();

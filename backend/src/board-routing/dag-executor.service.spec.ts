@@ -12,23 +12,33 @@ function makeQueryChain(result: any, isSingle = true) {
     chain.single = jest.fn().mockResolvedValue({ data: result, error: null });
   }
   // Make it thenable for await queries
-  chain.then = (resolve: any) => Promise.resolve({ data: result, error: null }).then(resolve);
+  chain.then = (resolve: any) =>
+    Promise.resolve({ data: result, error: null }).then(resolve);
   return chain;
 }
 
-function makeSupabaseAdmin(overrides: {
-  dag?: any;
-  tasks?: any[];
-  deps?: any[];
-  boardStep?: any;
-  doneStep?: any;
-} = {}) {
+function makeSupabaseAdmin(
+  overrides: {
+    dag?: any;
+    tasks?: any[];
+    deps?: any[];
+    boardStep?: any;
+    doneStep?: any;
+  } = {},
+) {
   return {
     getClient: jest.fn().mockReturnValue({
       from: jest.fn((table: string) => {
         switch (table) {
           case 'task_dags':
-            return makeQueryChain(overrides.dag ?? { id: 'dag-1', account_id: 'account-1', goal: 'test', status: 'approved' });
+            return makeQueryChain(
+              overrides.dag ?? {
+                id: 'dag-1',
+                account_id: 'account-1',
+                goal: 'test',
+                status: 'approved',
+              },
+            );
           case 'tasks':
             return {
               select: jest.fn().mockReturnThis(),
@@ -37,17 +47,24 @@ function makeSupabaseAdmin(overrides: {
               update: jest.fn().mockReturnValue({
                 eq: jest.fn().mockReturnThis(),
                 is: jest.fn().mockResolvedValue({ data: null, error: null }),
-                then: (resolve: any) => Promise.resolve({ data: null, error: null }).then(resolve),
+                then: (resolve: any) =>
+                  Promise.resolve({ data: null, error: null }).then(resolve),
               }),
               then: (resolve: any) =>
-                Promise.resolve({ data: overrides.tasks ?? [], error: null }).then(resolve),
+                Promise.resolve({
+                  data: overrides.tasks ?? [],
+                  error: null,
+                }).then(resolve),
             };
           case 'task_dependencies':
             return {
               select: jest.fn().mockReturnThis(),
               eq: jest.fn().mockReturnThis(),
               then: (resolve: any) =>
-                Promise.resolve({ data: overrides.deps ?? [], error: null }).then(resolve),
+                Promise.resolve({
+                  data: overrides.deps ?? [],
+                  error: null,
+                }).then(resolve),
             };
           case 'board_steps': {
             const stepResult = makeQueryChain(overrides.boardStep ?? null);
@@ -61,16 +78,19 @@ function makeSupabaseAdmin(overrides: {
   };
 }
 
-function makeBackboneRouter(responseText = 'Task completed successfully with all requirements met.') {
+function makeBackboneRouter(
+  responseText = 'Task completed successfully with all requirements met.',
+) {
   return {
-    send: jest.fn().mockResolvedValue({ text: responseText, usage: { total_tokens: 50 } }),
+    send: jest
+      .fn()
+      .mockResolvedValue({ text: responseText, usage: { total_tokens: 50 } }),
   };
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('DAGExecutorService', () => {
-
   // ── isRefusalResponse() ──────────────────────────────────────
   // The method is private, so we test it through startDag() behavior
   // by checking whether tasks end up as "Needs Review" or "Done".
@@ -81,7 +101,12 @@ describe('DAGExecutorService', () => {
     function makeService(responseText: string) {
       const tasks = [taskFixture({ id: 't1', completed: false })];
       const updateCalls: any[] = [];
-      const dagRow = { id: 'dag-1', account_id: 'account-1', goal: 'test', status: 'approved' };
+      const dagRow = {
+        id: 'dag-1',
+        account_id: 'account-1',
+        goal: 'test',
+        status: 'approved',
+      };
 
       const makeTasksChain = () => ({
         select: jest.fn().mockReturnThis(),
@@ -92,10 +117,12 @@ describe('DAGExecutorService', () => {
           const updateChain: any = {};
           updateChain.eq = jest.fn().mockReturnValue(updateChain);
           updateChain.is = jest.fn().mockReturnValue(updateChain);
-          updateChain.then = (resolve: any) => Promise.resolve({ data: null, error: null }).then(resolve);
+          updateChain.then = (resolve: any) =>
+            Promise.resolve({ data: null, error: null }).then(resolve);
           return updateChain;
         }),
-        then: (resolve: any) => Promise.resolve({ data: tasks, error: null }).then(resolve),
+        then: (resolve: any) =>
+          Promise.resolve({ data: tasks, error: null }).then(resolve),
       });
 
       const supabaseAdmin = {
@@ -110,10 +137,14 @@ describe('DAGExecutorService', () => {
                 return {
                   select: jest.fn().mockReturnThis(),
                   eq: jest.fn().mockReturnThis(),
-                  then: (resolve: any) => Promise.resolve({ data: [], error: null }).then(resolve),
+                  then: (resolve: any) =>
+                    Promise.resolve({ data: [], error: null }).then(resolve),
                 };
               case 'board_steps':
-                return makeQueryChain({ id: 'step-1', step_type: 'in_progress' });
+                return makeQueryChain({
+                  id: 'step-1',
+                  step_type: 'in_progress',
+                });
               default:
                 return makeQueryChain(null);
             }
@@ -122,7 +153,10 @@ describe('DAGExecutorService', () => {
       };
 
       return {
-        service: new DAGExecutorService(supabaseAdmin as any, makeBackboneRouter(responseText) as any),
+        service: new DAGExecutorService(
+          supabaseAdmin as any,
+          makeBackboneRouter(responseText) as any,
+        ),
         updateCalls,
       };
     }
@@ -183,7 +217,10 @@ describe('DAGExecutorService', () => {
     it('returns early when DAG is not found', async () => {
       const supabaseAdmin = makeSupabaseAdmin({ dag: null });
       const backbone = makeBackboneRouter();
-      const service = new DAGExecutorService(supabaseAdmin as any, backbone as any);
+      const service = new DAGExecutorService(
+        supabaseAdmin as any,
+        backbone as any,
+      );
 
       await service.startDag('nonexistent-dag');
       expect(backbone.send).not.toHaveBeenCalled();
@@ -192,7 +229,10 @@ describe('DAGExecutorService', () => {
     it('returns early when DAG has no tasks', async () => {
       const supabaseAdmin = makeSupabaseAdmin({ tasks: [] });
       const backbone = makeBackboneRouter();
-      const service = new DAGExecutorService(supabaseAdmin as any, backbone as any);
+      const service = new DAGExecutorService(
+        supabaseAdmin as any,
+        backbone as any,
+      );
 
       await service.startDag('dag-1');
       expect(backbone.send).not.toHaveBeenCalled();
@@ -202,7 +242,10 @@ describe('DAGExecutorService', () => {
       const tasks = [taskFixture({ id: 't1', completed: true })];
       const supabaseAdmin = makeSupabaseAdmin({ tasks, deps: [] });
       const backbone = makeBackboneRouter();
-      const service = new DAGExecutorService(supabaseAdmin as any, backbone as any);
+      const service = new DAGExecutorService(
+        supabaseAdmin as any,
+        backbone as any,
+      );
 
       await service.startDag('dag-1');
       expect(backbone.send).not.toHaveBeenCalled();
@@ -222,8 +265,13 @@ describe('DAGExecutorService', () => {
         tasks,
         deps: [{ target_task_id: 't2' }], // t2 has upstream dependency
       });
-      const backbone = makeBackboneRouter('Task done with full analysis and complete output.');
-      const service = new DAGExecutorService(supabaseAdmin as any, backbone as any);
+      const backbone = makeBackboneRouter(
+        'Task done with full analysis and complete output.',
+      );
+      const service = new DAGExecutorService(
+        supabaseAdmin as any,
+        backbone as any,
+      );
 
       await service.startDag('dag-1');
 
@@ -238,8 +286,13 @@ describe('DAGExecutorService', () => {
         taskFixture({ id: 't3', completed: false }),
       ];
       const supabaseAdmin = makeSupabaseAdmin({ tasks, deps: [] });
-      const backbone = makeBackboneRouter('Task completed successfully with all requirements met.');
-      const service = new DAGExecutorService(supabaseAdmin as any, backbone as any);
+      const backbone = makeBackboneRouter(
+        'Task completed successfully with all requirements met.',
+      );
+      const service = new DAGExecutorService(
+        supabaseAdmin as any,
+        backbone as any,
+      );
 
       await service.startDag('dag-1');
       expect(backbone.send).toHaveBeenCalledTimes(3);
@@ -265,11 +318,17 @@ describe('DAGExecutorService', () => {
           maxConcurrent = Math.max(maxConcurrent, concurrentCount);
           await new Promise((resolve) => setTimeout(resolve, 10));
           concurrentCount--;
-          return { text: 'Task completed successfully with all details provided.', usage: { total_tokens: 10 } };
+          return {
+            text: 'Task completed successfully with all details provided.',
+            usage: { total_tokens: 10 },
+          };
         }),
       };
 
-      const service = new DAGExecutorService(supabaseAdmin as any, backbone as any);
+      const service = new DAGExecutorService(
+        supabaseAdmin as any,
+        backbone as any,
+      );
       await service.startDag('dag-1');
 
       expect(backbone.send).toHaveBeenCalledTimes(4);

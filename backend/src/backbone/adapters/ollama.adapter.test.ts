@@ -70,7 +70,10 @@ describe('OllamaAdapter', () => {
     if (!ollamaAvailable) {
       return pending();
     }
-    const result = await adapter.healthCheck({ api_url: OLLAMA_URL, model: 'phi3:mini' });
+    const result = await adapter.healthCheck({
+      api_url: OLLAMA_URL,
+      model: 'phi3:mini',
+    });
     expect(result.healthy).toBe(true);
   }, 5000);
 

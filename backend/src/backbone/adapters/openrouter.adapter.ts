@@ -37,15 +37,23 @@ export class OpenRouterAdapter implements BackboneAdapter {
     }
     messages.push({ role: 'user', content: message });
 
-    return this.executeOpenRouterRequest(config, messages, signal, options.tool_context);
+    return this.executeOpenRouterRequest(
+      config,
+      messages,
+      signal,
+      options.tool_context,
+    );
   }
 
   // ── BackboneAdapter: healthCheck ──
 
-  async healthCheck(config: Record<string, any>): Promise<BackboneHealthResult> {
+  async healthCheck(
+    config: Record<string, any>,
+  ): Promise<BackboneHealthResult> {
     const start = Date.now();
     try {
-      const apiUrl = (config.api_url as string) || 'https://openrouter.ai/api/v1';
+      const apiUrl =
+        (config.api_url as string) || 'https://openrouter.ai/api/v1';
       const response = await fetch(`${apiUrl}/models`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${config.api_key}` },
@@ -58,10 +66,7 @@ export class OpenRouterAdapter implements BackboneAdapter {
         ...(healthy ? {} : { error: `HTTP ${response.status}` }),
       };
     } catch (error) {
-      this.logger.error(
-        '[OpenRouter] Connection test failed:',
-        error.message,
-      );
+      this.logger.error('[OpenRouter] Connection test failed:', error.message);
       return {
         healthy: false,
         latencyMs: Date.now() - start,
@@ -102,7 +107,11 @@ export class OpenRouterAdapter implements BackboneAdapter {
       messages: messages.map((m) => {
         if (m.role === 'tool') {
           // OpenAI format: tool results go as role=tool with tool_call_id
-          return { role: 'tool', tool_call_id: m.tool_call_id, content: m.content };
+          return {
+            role: 'tool',
+            tool_call_id: m.tool_call_id,
+            content: m.content,
+          };
         }
         return { role: m.role, content: m.content };
       }),
@@ -158,11 +167,13 @@ export class OpenRouterAdapter implements BackboneAdapter {
 
       // Extract tool calls if present (OpenAI format)
       if (msg.tool_calls?.length) {
-        result.tool_calls = msg.tool_calls.map((tc: any): ToolCallRequest => ({
-          id: tc.id,
-          name: tc.function.name,
-          input: JSON.parse(tc.function.arguments),
-        }));
+        result.tool_calls = msg.tool_calls.map(
+          (tc: any): ToolCallRequest => ({
+            id: tc.id,
+            name: tc.function.name,
+            input: JSON.parse(tc.function.arguments),
+          }),
+        );
       }
 
       return result;

@@ -17,7 +17,9 @@ function makeQueryChain(result: any) {
 function makeSupabaseAdmin(tableResults: Record<string, any> = {}) {
   return {
     getClient: jest.fn().mockReturnValue({
-      from: jest.fn((table: string) => makeQueryChain(tableResults[table] ?? { data: null, error: null })),
+      from: jest.fn((table: string) =>
+        makeQueryChain(tableResults[table] ?? { data: null, error: null }),
+      ),
     }),
   };
 }
@@ -36,12 +38,14 @@ function makeAdapterRegistry() {
   };
 }
 
-function buildService(options: {
-  sourceResult?: any;
-  syncJobResult?: any;
-  bullQueueAvailable?: boolean;
-  queue?: any;
-} = {}) {
+function buildService(
+  options: {
+    sourceResult?: any;
+    syncJobResult?: any;
+    bullQueueAvailable?: boolean;
+    queue?: any;
+  } = {},
+) {
   const source = sourceFixture();
   const supabaseAdmin = makeSupabaseAdmin({
     sources: options.sourceResult ?? { data: source, error: null },
@@ -65,7 +69,6 @@ function buildService(options: {
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('SyncService', () => {
-
   // ── addSyncJob() — queue routing ─────────────────────────────
 
   describe('addSyncJob()', () => {
@@ -73,7 +76,11 @@ describe('SyncService', () => {
       const queue = createBullQueueMock();
       const { service } = buildService({ bullQueueAvailable: true, queue });
 
-      const result = await service.addSyncJob('source-1', 'account-1', 'manual');
+      const result = await service.addSyncJob(
+        'source-1',
+        'account-1',
+        'manual',
+      );
 
       expect(result.queued).toBe(true);
       expect(result.jobId).toBe('mock-job-id');
@@ -91,7 +98,11 @@ describe('SyncService', () => {
       const { service } = buildService({ bullQueueAvailable: false });
       // Prevent actual syncSource from running (it would fail without full DB setup)
       jest.spyOn(service as any, 'syncSource').mockResolvedValue({
-        tasks_synced: 0, tasks_created: 0, tasks_updated: 0, tasks_deleted: 0, errors: [],
+        tasks_synced: 0,
+        tasks_created: 0,
+        tasks_updated: 0,
+        tasks_deleted: 0,
+        errors: [],
       });
 
       const result = await service.addSyncJob('source-1');
@@ -103,7 +114,11 @@ describe('SyncService', () => {
       queue.add.mockRejectedValue(new Error('Redis connection failed'));
       const { service } = buildService({ bullQueueAvailable: true, queue });
       jest.spyOn(service as any, 'syncSource').mockResolvedValue({
-        tasks_synced: 0, tasks_created: 0, tasks_updated: 0, tasks_deleted: 0, errors: [],
+        tasks_synced: 0,
+        tasks_created: 0,
+        tasks_updated: 0,
+        tasks_deleted: 0,
+        errors: [],
       });
 
       const result = await service.addSyncJob('source-1');
@@ -141,8 +156,11 @@ describe('SyncService', () => {
               select: jest.fn().mockReturnThis(),
               eq: jest.fn().mockReturnThis(),
               update: jest.fn().mockReturnThis(),
-              single: jest.fn().mockResolvedValue({ data: source, error: null }),
-              then: (resolve: any) => Promise.resolve({ data: source, error: null }).then(resolve),
+              single: jest
+                .fn()
+                .mockResolvedValue({ data: source, error: null }),
+              then: (resolve: any) =>
+                Promise.resolve({ data: source, error: null }).then(resolve),
             };
           }
           return makeQueryChain({ data: { id: 'job-1' }, error: null });
@@ -150,9 +168,17 @@ describe('SyncService', () => {
       };
       supabaseAdmin.getClient.mockReturnValue(mockClient);
 
-      const service = new SyncService(supabaseAdmin as any, makeAdapterRegistry() as any, false);
+      const service = new SyncService(
+        supabaseAdmin as any,
+        makeAdapterRegistry() as any,
+        false,
+      );
       jest.spyOn(service as any, 'performInboundSync').mockResolvedValue({
-        tasks_synced: 1, tasks_created: 1, tasks_updated: 0, tasks_deleted: 0, errors: [],
+        tasks_synced: 1,
+        tasks_created: 1,
+        tasks_updated: 0,
+        tasks_deleted: 0,
+        errors: [],
       });
 
       await service.syncSource('source-lock-test');
@@ -171,8 +197,11 @@ describe('SyncService', () => {
               select: jest.fn().mockReturnThis(),
               eq: jest.fn().mockReturnThis(),
               update: jest.fn().mockReturnThis(),
-              single: jest.fn().mockResolvedValue({ data: source, error: null }),
-              then: (resolve: any) => Promise.resolve({ data: source, error: null }).then(resolve),
+              single: jest
+                .fn()
+                .mockResolvedValue({ data: source, error: null }),
+              then: (resolve: any) =>
+                Promise.resolve({ data: source, error: null }).then(resolve),
             };
           }
           return makeQueryChain({ data: { id: 'job-1' }, error: null });
@@ -180,10 +209,18 @@ describe('SyncService', () => {
       };
       supabaseAdmin.getClient.mockReturnValue(mockClient);
 
-      const service = new SyncService(supabaseAdmin as any, makeAdapterRegistry() as any, false);
-      jest.spyOn(service as any, 'performInboundSync').mockRejectedValue(new Error('adapter error'));
+      const service = new SyncService(
+        supabaseAdmin as any,
+        makeAdapterRegistry() as any,
+        false,
+      );
+      jest
+        .spyOn(service as any, 'performInboundSync')
+        .mockRejectedValue(new Error('adapter error'));
 
-      await expect(service.syncSource('error-source')).rejects.toThrow('adapter error');
+      await expect(service.syncSource('error-source')).rejects.toThrow(
+        'adapter error',
+      );
       expect((service as any).syncLocks.get('error-source')).toBeFalsy();
     });
   });
@@ -211,8 +248,11 @@ describe('SyncService', () => {
               select: jest.fn().mockReturnThis(),
               eq: jest.fn().mockReturnThis(),
               update: jest.fn().mockReturnThis(),
-              single: jest.fn().mockResolvedValue({ data: source, error: null }),
-              then: (resolve: any) => Promise.resolve({ data: source, error: null }).then(resolve),
+              single: jest
+                .fn()
+                .mockResolvedValue({ data: source, error: null }),
+              then: (resolve: any) =>
+                Promise.resolve({ data: source, error: null }).then(resolve),
             };
           }
           if (table === 'sync_jobs') {
@@ -221,9 +261,15 @@ describe('SyncService', () => {
               select: jest.fn().mockReturnThis(),
               update: jest.fn().mockReturnThis(),
               eq: jest.fn().mockReturnThis(),
-              single: jest.fn().mockResolvedValue({ data: null, error: { message: 'insert failed' } }),
+              single: jest.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'insert failed' },
+              }),
               then: (resolve: any) =>
-                Promise.resolve({ data: null, error: { message: 'insert failed' } }).then(resolve),
+                Promise.resolve({
+                  data: null,
+                  error: { message: 'insert failed' },
+                }).then(resolve),
             };
           }
           return makeQueryChain({ data: null, error: null });
@@ -231,8 +277,14 @@ describe('SyncService', () => {
       };
       supabaseAdmin.getClient.mockReturnValue(mockClient);
 
-      const service = new SyncService(supabaseAdmin as any, makeAdapterRegistry() as any, false);
-      await expect(service.syncSource(source.id)).rejects.toThrow('Failed to create sync job');
+      const service = new SyncService(
+        supabaseAdmin as any,
+        makeAdapterRegistry() as any,
+        false,
+      );
+      await expect(service.syncSource(source.id)).rejects.toThrow(
+        'Failed to create sync job',
+      );
     });
   });
 
@@ -246,22 +298,36 @@ describe('SyncService', () => {
         last_synced_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 60 min ago
       });
 
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          neq: jest.fn().mockReturnThis(),
-          then: (resolve: any) =>
-            Promise.resolve({ data: [overdueSource], error: null }).then(resolve),
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            neq: jest.fn().mockReturnThis(),
+            then: (resolve: any) =>
+              Promise.resolve({ data: [overdueSource], error: null }).then(
+                resolve,
+              ),
+          }),
         }),
-      })};
+      };
 
-      const service = new SyncService(supabaseAdmin as any, makeAdapterRegistry() as any, false);
-      const addJobSpy = jest.spyOn(service, 'addSyncJob').mockResolvedValue({ queued: false });
+      const service = new SyncService(
+        supabaseAdmin as any,
+        makeAdapterRegistry() as any,
+        false,
+      );
+      const addJobSpy = jest
+        .spyOn(service, 'addSyncJob')
+        .mockResolvedValue({ queued: false });
 
       await service.handleScheduledSync();
 
-      expect(addJobSpy).toHaveBeenCalledWith(overdueSource.id, overdueSource.account_id, 'cron');
+      expect(addJobSpy).toHaveBeenCalledWith(
+        overdueSource.id,
+        overdueSource.account_id,
+        'cron',
+      );
     });
 
     it('skips sources that are not yet due for sync', async () => {
@@ -271,18 +337,28 @@ describe('SyncService', () => {
         last_synced_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 min ago, interval is 30
       });
 
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          neq: jest.fn().mockReturnThis(),
-          then: (resolve: any) =>
-            Promise.resolve({ data: [recentSource], error: null }).then(resolve),
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            neq: jest.fn().mockReturnThis(),
+            then: (resolve: any) =>
+              Promise.resolve({ data: [recentSource], error: null }).then(
+                resolve,
+              ),
+          }),
         }),
-      })};
+      };
 
-      const service = new SyncService(supabaseAdmin as any, makeAdapterRegistry() as any, false);
-      const addJobSpy = jest.spyOn(service, 'addSyncJob').mockResolvedValue({ queued: false });
+      const service = new SyncService(
+        supabaseAdmin as any,
+        makeAdapterRegistry() as any,
+        false,
+      );
+      const addJobSpy = jest
+        .spyOn(service, 'addSyncJob')
+        .mockResolvedValue({ queued: false });
 
       await service.handleScheduledSync();
       expect(addJobSpy).not.toHaveBeenCalled();
@@ -295,35 +371,58 @@ describe('SyncService', () => {
         sync_interval_minutes: 30,
       });
 
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          neq: jest.fn().mockReturnThis(),
-          then: (resolve: any) =>
-            Promise.resolve({ data: [neverSynced], error: null }).then(resolve),
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            neq: jest.fn().mockReturnThis(),
+            then: (resolve: any) =>
+              Promise.resolve({ data: [neverSynced], error: null }).then(
+                resolve,
+              ),
+          }),
         }),
-      })};
+      };
 
-      const service = new SyncService(supabaseAdmin as any, makeAdapterRegistry() as any, false);
-      const addJobSpy = jest.spyOn(service, 'addSyncJob').mockResolvedValue({ queued: false });
+      const service = new SyncService(
+        supabaseAdmin as any,
+        makeAdapterRegistry() as any,
+        false,
+      );
+      const addJobSpy = jest
+        .spyOn(service, 'addSyncJob')
+        .mockResolvedValue({ queued: false });
 
       await service.handleScheduledSync();
-      expect(addJobSpy).toHaveBeenCalledWith(neverSynced.id, neverSynced.account_id, 'cron');
+      expect(addJobSpy).toHaveBeenCalledWith(
+        neverSynced.id,
+        neverSynced.account_id,
+        'cron',
+      );
     });
 
     it('handles sources fetch error gracefully (no throw)', async () => {
-      const supabaseAdmin = { getClient: jest.fn().mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          select: jest.fn().mockReturnThis(),
-          eq: jest.fn().mockReturnThis(),
-          neq: jest.fn().mockReturnThis(),
-          then: (resolve: any) =>
-            Promise.resolve({ data: null, error: { message: 'DB error' } }).then(resolve),
+      const supabaseAdmin = {
+        getClient: jest.fn().mockReturnValue({
+          from: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            neq: jest.fn().mockReturnThis(),
+            then: (resolve: any) =>
+              Promise.resolve({
+                data: null,
+                error: { message: 'DB error' },
+              }).then(resolve),
+          }),
         }),
-      })};
+      };
 
-      const service = new SyncService(supabaseAdmin as any, makeAdapterRegistry() as any, false);
+      const service = new SyncService(
+        supabaseAdmin as any,
+        makeAdapterRegistry() as any,
+        false,
+      );
       await expect(service.handleScheduledSync()).resolves.toBeUndefined();
     });
   });

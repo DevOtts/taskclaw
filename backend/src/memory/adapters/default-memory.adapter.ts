@@ -105,7 +105,9 @@ export class DefaultMemoryAdapter implements MemoryAdapter {
         }
       }
     } catch (err) {
-      this.logger.warn(`Vector recall failed, falling back to ILIKE: ${err.message}`);
+      this.logger.warn(
+        `Vector recall failed, falling back to ILIKE: ${err.message}`,
+      );
     }
 
     // ILIKE fallback
@@ -173,7 +175,9 @@ export class DefaultMemoryAdapter implements MemoryAdapter {
     }
   }
 
-  async healthCheck(_config?: Record<string, any>): Promise<MemoryHealthResult> {
+  async healthCheck(
+    _config?: Record<string, any>,
+  ): Promise<MemoryHealthResult> {
     const start = Date.now();
     try {
       const client = this.supabaseAdmin.getClient();
@@ -201,7 +205,8 @@ export class DefaultMemoryAdapter implements MemoryAdapter {
     let block = `\n=== AGENT MEMORY ===\n`;
     block += `Relevant memories from previous interactions:\n`;
     entries.forEach((entry, i) => {
-      const typeLabel = entry.type.charAt(0).toUpperCase() + entry.type.slice(1);
+      const typeLabel =
+        entry.type.charAt(0).toUpperCase() + entry.type.slice(1);
       block += `${i + 1}. [${typeLabel}] ${entry.content}\n`;
     });
     block += `\n`;

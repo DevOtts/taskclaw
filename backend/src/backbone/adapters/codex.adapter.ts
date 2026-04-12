@@ -29,8 +29,14 @@ export class CodexAdapter implements BackboneAdapter {
   }
 
   async sendMessage(options: BackboneSendOptions): Promise<BackboneSendResult> {
-    const { config, systemPrompt, message, history = [], onToken, signal } =
-      options;
+    const {
+      config,
+      systemPrompt,
+      message,
+      history = [],
+      onToken,
+      signal,
+    } = options;
 
     const apiUrl = (config.api_url ?? CodexAdapter.DEFAULT_API_URL).replace(
       /\/+$/,
@@ -83,13 +89,11 @@ export class CodexAdapter implements BackboneAdapter {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'unknown error');
-      throw new Error(
-        `codex: API returned ${response.status} — ${errorText}`,
-      );
+      throw new Error(`codex: API returned ${response.status} — ${errorText}`);
     }
 
     if (streaming) {
-      return this.handleStream(response, onToken!);
+      return this.handleStream(response, onToken);
     }
 
     const json = await response.json();
@@ -104,8 +108,7 @@ export class CodexAdapter implements BackboneAdapter {
             prompt_tokens: json.usage.input_tokens,
             completion_tokens: json.usage.output_tokens,
             total_tokens:
-              (json.usage.input_tokens ?? 0) +
-              (json.usage.output_tokens ?? 0),
+              (json.usage.input_tokens ?? 0) + (json.usage.output_tokens ?? 0),
           }
         : undefined,
       model: json.model,
@@ -113,12 +116,15 @@ export class CodexAdapter implements BackboneAdapter {
     };
   }
 
-  async healthCheck(config: Record<string, any>): Promise<BackboneHealthResult> {
+  async healthCheck(
+    config: Record<string, any>,
+  ): Promise<BackboneHealthResult> {
     const start = Date.now();
     try {
-      const apiUrl = (
-        config.api_url ?? CodexAdapter.DEFAULT_API_URL
-      ).replace(/\/+$/, '');
+      const apiUrl = (config.api_url ?? CodexAdapter.DEFAULT_API_URL).replace(
+        /\/+$/,
+        '',
+      );
       const url = `${apiUrl}/v1/models`;
 
       const response = await fetch(url, {
@@ -192,10 +198,7 @@ export class CodexAdapter implements BackboneAdapter {
             const event = JSON.parse(data);
 
             // Responses API streaming: output_text.delta events
-            if (
-              event.type === 'response.output_text.delta' &&
-              event.delta
-            ) {
+            if (event.type === 'response.output_text.delta' && event.delta) {
               fullText += event.delta;
               onToken(event.delta);
             }
@@ -204,16 +207,12 @@ export class CodexAdapter implements BackboneAdapter {
               model = event.response?.model;
             }
 
-            if (
-              event.type === 'response.completed' &&
-              event.response?.usage
-            ) {
+            if (event.type === 'response.completed' && event.response?.usage) {
               const u = event.response.usage;
               usage = {
                 prompt_tokens: u.input_tokens,
                 completion_tokens: u.output_tokens,
-                total_tokens:
-                  (u.input_tokens ?? 0) + (u.output_tokens ?? 0),
+                total_tokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0),
               };
             }
           } catch {

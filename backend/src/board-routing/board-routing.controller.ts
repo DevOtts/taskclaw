@@ -34,7 +34,9 @@ export class BoardRoutingController {
   ) {}
 
   @Get('routes')
-  @ApiOperation({ summary: 'List board routes (optionally filtered by pod_id)' })
+  @ApiOperation({
+    summary: 'List board routes (optionally filtered by pod_id)',
+  })
   findAllRoutes(
     @Param('accountId') accountId: string,
     @Query('pod_id') podId?: string,
@@ -53,7 +55,10 @@ export class BoardRoutingController {
   }
 
   @Get('routes/board/:boardId/manual')
-  @ApiOperation({ summary: 'List manual + ai_decision routes for a board (for Send-to-Board UI)' })
+  @ApiOperation({
+    summary:
+      'List manual + ai_decision routes for a board (for Send-to-Board UI)',
+  })
   findManualRoutes(
     @Param('accountId') accountId: string,
     @Param('boardId') boardId: string,
@@ -95,7 +100,9 @@ export class BoardRoutingController {
    * Works for trigger='manual', 'ai_decision', or any trigger type.
    */
   @Post('routes/:routeId/trigger')
-  @ApiOperation({ summary: 'Manually trigger a board route for a specific task' })
+  @ApiOperation({
+    summary: 'Manually trigger a board route for a specific task',
+  })
   @HttpCode(HttpStatus.OK)
   triggerRoute(
     @Param('accountId') accountId: string,

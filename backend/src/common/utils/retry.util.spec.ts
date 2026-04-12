@@ -6,7 +6,10 @@ jest.mock('./retry.util', () => {
   return {
     ...actual,
     // Override withRetry to use a zero-delay sleep for tests
-    withRetry: async <T>(fn: () => Promise<T>, options: any = {}): Promise<T> => {
+    withRetry: async <T>(
+      fn: () => Promise<T>,
+      options: any = {},
+    ): Promise<T> => {
       const {
         maxRetries = 3,
         baseDelayMs = 0, // zero delay in tests
@@ -64,11 +67,15 @@ describe('isRetryableError()', () => {
 
   describe('5xx status codes — retryable', () => {
     it('retries 500 in error message', () => {
-      expect(isRetryableError({ message: 'API error (500): Internal Server Error' })).toBe(true);
+      expect(
+        isRetryableError({ message: 'API error (500): Internal Server Error' }),
+      ).toBe(true);
     });
 
     it('retries 503 in error message', () => {
-      expect(isRetryableError({ message: 'API error (503): Service Unavailable' })).toBe(true);
+      expect(
+        isRetryableError({ message: 'API error (503): Service Unavailable' }),
+      ).toBe(true);
     });
 
     it('retries when error.status is 500', () => {
@@ -82,15 +89,21 @@ describe('isRetryableError()', () => {
 
   describe('4xx status codes — NOT retryable', () => {
     it('does not retry 400 in error message', () => {
-      expect(isRetryableError({ message: 'API error (400): Bad Request' })).toBe(false);
+      expect(
+        isRetryableError({ message: 'API error (400): Bad Request' }),
+      ).toBe(false);
     });
 
     it('does not retry 401 in error message', () => {
-      expect(isRetryableError({ message: 'API error (401): Unauthorized' })).toBe(false);
+      expect(
+        isRetryableError({ message: 'API error (401): Unauthorized' }),
+      ).toBe(false);
     });
 
     it('does not retry 404 in error message', () => {
-      expect(isRetryableError({ message: 'API error (404): Not Found' })).toBe(false);
+      expect(isRetryableError({ message: 'API error (404): Not Found' })).toBe(
+        false,
+      );
     });
 
     it('does not retry when error.status is 422', () => {
@@ -144,9 +157,14 @@ describe('withRetry()', () => {
     });
 
     it('throws the last error after exhausting all retries', async () => {
-      const finalError = { code: 'ECONNREFUSED', message: 'Connection refused' };
+      const finalError = {
+        code: 'ECONNREFUSED',
+        message: 'Connection refused',
+      };
       const fn = jest.fn().mockRejectedValue(finalError);
-      await expect(withRetry(fn, { maxRetries: 2 })).rejects.toEqual(finalError);
+      await expect(withRetry(fn, { maxRetries: 2 })).rejects.toEqual(
+        finalError,
+      );
     });
 
     it('stops retrying immediately on non-retryable error even with retries remaining', async () => {

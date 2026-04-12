@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { CreateBoardRouteDto } from './dto/create-board-route.dto';
 import { UpdateBoardRouteDto } from './dto/update-board-route.dto';
@@ -84,7 +80,9 @@ export class BoardRoutingService {
     const client = this.supabaseAdmin.getClient();
     const { data, error } = await client
       .from('board_routes')
-      .select('*, target_board:board_instances!target_board_id(id, name), target_step:board_steps!target_step_id(id, name)')
+      .select(
+        '*, target_board:board_instances!target_board_id(id, name), target_step:board_steps!target_step_id(id, name)',
+      )
       .eq('account_id', accountId)
       .eq('source_board_id', boardId)
       .in('trigger', ['manual', 'ai_decision'])
@@ -211,9 +209,7 @@ export class BoardRoutingService {
       .single();
 
     if (createError) {
-      throw new Error(
-        `Failed to create routed task: ${createError.message}`,
-      );
+      throw new Error(`Failed to create routed task: ${createError.message}`);
     }
 
     // Create a dependency record linking source -> target
@@ -235,7 +231,11 @@ export class BoardRoutingService {
    * Trigger all active error/fallback routes for a task's board.
    * Called fire-and-forget when a task encounters an error.
    */
-  async triggerErrorRoutes(taskId: string, boardId: string, stepId?: string | null) {
+  async triggerErrorRoutes(
+    taskId: string,
+    boardId: string,
+    stepId?: string | null,
+  ) {
     const client = this.supabaseAdmin.getClient();
 
     const { data: routes } = await client
@@ -244,9 +244,7 @@ export class BoardRoutingService {
       .eq('source_board_id', boardId)
       .in('trigger', ['error', 'fallback'])
       .eq('is_active', true)
-      .or(
-        `source_step_id.eq.${stepId ?? 'null'},source_step_id.is.null`,
-      );
+      .or(`source_step_id.eq.${stepId ?? 'null'},source_step_id.is.null`);
 
     if (!routes?.length) return;
 

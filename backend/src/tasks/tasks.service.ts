@@ -464,9 +464,7 @@ export class TasksService {
       .eq('trigger', 'auto')
       .eq('trigger_on_step_complete', true)
       .eq('is_active', true)
-      .or(
-        `source_step_id.eq.${task.current_step_id},source_step_id.is.null`,
-      );
+      .or(`source_step_id.eq.${task.current_step_id},source_step_id.is.null`);
 
     if (!routes?.length) return;
 

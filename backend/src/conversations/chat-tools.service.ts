@@ -138,8 +138,7 @@ export class ChatToolsService {
       },
       {
         name: 'list_boards',
-        description:
-          'List boards in the account, optionally filtered by pod',
+        description: 'List boards in the account, optionally filtered by pod',
         endpoint: '',
         method: 'internal',
         input_schema: {
@@ -364,7 +363,13 @@ export class ChatToolsService {
           .eq('id', input.entity_id)
           .eq('account_id', ctx.accountId);
         if (error) return { result: { error: error.message } };
-        return { result: { saved: true, entity_type: input.entity_type, entity_id: input.entity_id } };
+        return {
+          result: {
+            saved: true,
+            entity_type: input.entity_type,
+            entity_id: input.entity_id,
+          },
+        };
       }
 
       default:

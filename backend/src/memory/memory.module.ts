@@ -31,7 +31,11 @@ import { MemoryCronService } from './memory-cron.service';
     MemoryRouterService,
     MemoryCronService,
   ],
-  exports: [MemoryRouterService, MemoryConnectionsService, MemoryAdapterRegistry],
+  exports: [
+    MemoryRouterService,
+    MemoryConnectionsService,
+    MemoryAdapterRegistry,
+  ],
 })
 export class MemoryModule implements OnModuleInit {
   private readonly logger = new Logger(MemoryModule.name);

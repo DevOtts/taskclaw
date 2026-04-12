@@ -65,12 +65,20 @@ IMPORTANT:
 - Always explain what you're doing alongside tool calls`;
     }
 
-    return this.executeOpenClawWebSocket(config, userInput, onToken, signal, options.tool_context);
+    return this.executeOpenClawWebSocket(
+      config,
+      userInput,
+      onToken,
+      signal,
+      options.tool_context,
+    );
   }
 
   // ── BackboneAdapter: healthCheck ──
 
-  async healthCheck(config: Record<string, any>): Promise<BackboneHealthResult> {
+  async healthCheck(
+    config: Record<string, any>,
+  ): Promise<BackboneHealthResult> {
     const start = Date.now();
     try {
       const healthy = await this.testOpenClawConnection(config);
@@ -368,9 +376,15 @@ IMPORTANT:
 
           // Parse text-based tool calls if tool context was provided
           if (toolContext?.length) {
-            const { cleanText, toolCalls } = this.parseTextBasedToolCalls(fullResponse);
+            const { cleanText, toolCalls } =
+              this.parseTextBasedToolCalls(fullResponse);
             if (toolCalls.length > 0) {
-              resolve({ text: cleanText, model: 'openclaw', tool_calls: toolCalls, raw: { runId } });
+              resolve({
+                text: cleanText,
+                model: 'openclaw',
+                tool_calls: toolCalls,
+                raw: { runId },
+              });
               return;
             }
           }
@@ -445,8 +459,12 @@ IMPORTANT:
 
   // ── Private: Parse text-based tool calls from response ──
 
-  private parseTextBasedToolCalls(text: string): { cleanText: string; toolCalls: ToolCallRequest[] } {
-    const toolCallRegex = /<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g;
+  private parseTextBasedToolCalls(text: string): {
+    cleanText: string;
+    toolCalls: ToolCallRequest[];
+  } {
+    const toolCallRegex =
+      /<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g;
     const toolCalls: ToolCallRequest[] = [];
     let match;
     let id = 0;

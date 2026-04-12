@@ -29,22 +29,34 @@ function buildDb(tables: Record<string, TableMock>) {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         neq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue(t.selectResult ?? { data: null, error: null }),
+        single: jest
+          .fn()
+          .mockResolvedValue(t.selectResult ?? { data: null, error: null }),
         then: (resolve: any) =>
-          Promise.resolve(t.selectResult ?? { data: null, error: null }).then(resolve),
+          Promise.resolve(t.selectResult ?? { data: null, error: null }).then(
+            resolve,
+          ),
       };
       // insert returns a chain that resolves to insertResult
       chain.insert.mockReturnValue({
         select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue(t.insertResult ?? { data: null, error: null }),
+        single: jest
+          .fn()
+          .mockResolvedValue(t.insertResult ?? { data: null, error: null }),
         then: (resolve: any) =>
-          Promise.resolve(t.insertResult ?? { data: null, error: null }).then(resolve),
+          Promise.resolve(t.insertResult ?? { data: null, error: null }).then(
+            resolve,
+          ),
       });
       // update returns a chain that resolves to updateResult
       chain.update.mockReturnValue({
-        eq: jest.fn().mockResolvedValue(t.updateResult ?? { data: null, error: null }),
+        eq: jest
+          .fn()
+          .mockResolvedValue(t.updateResult ?? { data: null, error: null }),
         then: (resolve: any) =>
-          Promise.resolve(t.updateResult ?? { data: null, error: null }).then(resolve),
+          Promise.resolve(t.updateResult ?? { data: null, error: null }).then(
+            resolve,
+          ),
       });
       return chain;
     }),
@@ -78,7 +90,11 @@ describe('[Integration] SyncService — full sync lifecycle', () => {
 
   function buildService(db: any, adapterRegistry: any) {
     const supabaseAdmin = { getClient: jest.fn().mockReturnValue(db) };
-    const service = new SyncService(supabaseAdmin as any, adapterRegistry as any, false);
+    const service = new SyncService(
+      supabaseAdmin as any,
+      adapterRegistry,
+      false,
+    );
     // Inject performInboundSync as a spy over the private method
     return service;
   }
@@ -99,7 +115,9 @@ describe('[Integration] SyncService — full sync lifecycle', () => {
       });
 
       const service = buildService(db, buildAdapterRegistry(successSyncResult));
-      jest.spyOn(service as any, 'performInboundSync').mockResolvedValue(successSyncResult);
+      jest
+        .spyOn(service as any, 'performInboundSync')
+        .mockResolvedValue(successSyncResult);
 
       const result = await service.syncSource(source.id);
 
@@ -116,7 +134,9 @@ describe('[Integration] SyncService — full sync lifecycle', () => {
       });
 
       const service = buildService(db, buildAdapterRegistry(successSyncResult));
-      jest.spyOn(service as any, 'performInboundSync').mockResolvedValue(successSyncResult);
+      jest
+        .spyOn(service as any, 'performInboundSync')
+        .mockResolvedValue(successSyncResult);
 
       await service.syncSource(source.id);
 
@@ -136,11 +156,13 @@ describe('[Integration] SyncService — full sync lifecycle', () => {
       });
 
       const service = buildService(db, buildAdapterRegistry(successSyncResult));
-      jest.spyOn(service as any, 'performInboundSync').mockRejectedValue(
-        new Error('Notion API rate limit exceeded'),
-      );
+      jest
+        .spyOn(service as any, 'performInboundSync')
+        .mockRejectedValue(new Error('Notion API rate limit exceeded'));
 
-      await expect(service.syncSource(source.id)).rejects.toThrow('Notion API rate limit exceeded');
+      await expect(service.syncSource(source.id)).rejects.toThrow(
+        'Notion API rate limit exceeded',
+      );
 
       const locks = (service as any).syncLocks;
       expect(locks.get(source.id)).toBeFalsy();
@@ -153,7 +175,9 @@ describe('[Integration] SyncService — full sync lifecycle', () => {
     it('blocks a second syncSource() call while first is in-progress', async () => {
       const db = buildDb({
         sources: { selectResult: { data: source, error: null } },
-        sync_jobs: { insertResult: { data: { id: 'job-concurrent-1' }, error: null } },
+        sync_jobs: {
+          insertResult: { data: { id: 'job-concurrent-1' }, error: null },
+        },
       });
 
       const service = buildService(db, buildAdapterRegistry(successSyncResult));
@@ -173,7 +197,9 @@ describe('[Integration] SyncService — full sync lifecycle', () => {
       });
 
       const service = buildService(db, buildAdapterRegistry(successSyncResult));
-      jest.spyOn(service as any, 'performInboundSync').mockResolvedValue(successSyncResult);
+      jest
+        .spyOn(service as any, 'performInboundSync')
+        .mockResolvedValue(successSyncResult);
 
       await service.syncSource(source.id);
       // Lock released — second call should succeed
