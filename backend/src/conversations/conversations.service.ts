@@ -121,6 +121,7 @@ export class ConversationsService {
         task_id: dto.task_id,
         board_id: dto.board_id || null,
         pod_id: dto.pod_id || null,
+        is_workspace: dto.is_workspace || false,
         title: dto.title || 'New Conversation',
         metadata: Object.keys(metadata).length > 0 ? metadata : null,
       })
@@ -154,6 +155,7 @@ export class ConversationsService {
     taskId?: string,
     boardId?: string,
     podId?: string,
+    workspace?: boolean,
   ) {
     const client = this.supabaseAdmin.getClient();
 
@@ -178,6 +180,10 @@ export class ConversationsService {
 
     if (podId) {
       query = query.eq('pod_id', podId);
+    }
+
+    if (workspace) {
+      query = query.eq('is_workspace', true);
     }
 
     const { data, error, count } = await query
@@ -1476,6 +1482,7 @@ export class ConversationsService {
 
     // Only pass tools if adapter supports them AND we have context
     const hasChatContext = !!(
+      conversation.is_workspace ||
       conversation.pod_id ||
       conversation.board_id ||
       conversation.task_id
@@ -1528,6 +1535,7 @@ export class ConversationsService {
             chatToolCtx,
           );
           if (outcome.entity) entities.push(outcome.entity);
+          if (outcome.entities) entities.push(...outcome.entities);
           toolContent = JSON.stringify(outcome.result);
           this.logger.log(`[runWithTools] Tool ${tc.name} succeeded`);
         } catch (err) {
@@ -1642,6 +1650,70 @@ You are operating within the "${pod.name}" pod (id: ${pod.id}).
 ${pod.description ? `Pod description: ${pod.description}` : ''}
 When creating goals or tasks, use pod_id="${pod.id}" unless the user specifies otherwise.
 `;
+      }
+    }
+
+    // Inject workspace orchestrator manifest when this is a workspace-scoped conversation
+    if (conversation.is_workspace) {
+      try {
+        const client = this.supabaseAdmin.getClient();
+        const [{ data: pods }, { data: boards }] = await Promise.all([
+          client
+            .from('pods')
+            .select('id, name, slug, description, icon, color')
+            .eq('account_id', conversation.account_id)
+            .order('position', { ascending: true }),
+          client
+            .from('board_instances')
+            .select('id, name, description, pod_id')
+            .eq('account_id', conversation.account_id)
+            .eq('is_archived', false)
+            .order('display_order', { ascending: true }),
+        ]);
+
+        if (pods && pods.length > 0) {
+          let manifest = `
+=== WORKSPACE ORCHESTRATOR ===
+You are the TaskClaw Workspace AI. You have full visibility across all pods and boards.
+
+When a user asks you to do something complex:
+1. Identify which pods/boards are relevant from the WORKSPACE STRUCTURE below
+2. Use decompose_goal with the EXACT pod_id from the manifest to create goals in those pods
+   - ALWAYS include pod_id in decompose_goal calls. Example: {"goal": "...", "pod_id": "exact-uuid-from-manifest"}
+3. Use create_task with the EXACT board_id from the manifest
+4. You can orchestrate across multiple pods in a single response
+
+CRITICAL: Always pass pod_id and board_id using the EXACT UUIDs listed in WORKSPACE STRUCTURE below.
+
+Available tools: list_pods, list_boards, decompose_goal, create_task, update_task, list_tasks
+
+WORKSPACE STRUCTURE:
+`;
+          for (const pod of pods ?? []) {
+            const podBoards = (boards ?? []).filter((b: any) => b.pod_id === pod.id);
+            manifest += `\nPod: "${pod.name}" (id: ${pod.id}, slug: ${pod.slug})\n`;
+            if (pod.description) manifest += `  Description: ${pod.description}\n`;
+            if (podBoards.length > 0) {
+              manifest += `  Boards:\n`;
+              for (const board of podBoards) {
+                manifest += `    - "${board.name}" (id: ${board.id})${board.description ? ': ' + board.description : ''}\n`;
+              }
+            } else {
+              manifest += `  Boards: none\n`;
+            }
+          }
+          const unassigned = (boards ?? []).filter((b: any) => !b.pod_id);
+          if (unassigned.length > 0) {
+            manifest += `\nBoards (no pod):\n`;
+            for (const board of unassigned) {
+              manifest += `  - "${board.name}" (id: ${board.id})${board.description ? ': ' + board.description : ''}\n`;
+            }
+          }
+          manifest += `\n=== END WORKSPACE MANIFEST ===\n`;
+          prompt += manifest;
+        }
+      } catch {
+        // Non-fatal — continue without manifest
       }
     }
 

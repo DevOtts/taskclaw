@@ -1,13 +1,14 @@
 'use client'
 
-import { Target, CheckSquare } from 'lucide-react'
+import { Target, CheckSquare, Layers } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { useTaskStore } from '@/hooks/use-task-store'
 import { cn } from '@/lib/utils'
 
 export interface ToolEntity {
-    type: 'dag' | 'task'
+    type: 'dag' | 'task' | 'pod'
     id: string
     title?: string
     goal?: string
@@ -15,6 +16,19 @@ export interface ToolEntity {
     pod_id?: string
     board_id?: string
     priority?: string
+    name?: string
+    slug?: string
+    description?: string
+    board_count?: number
+}
+
+export interface PodEntity {
+    type: 'pod'
+    id: string
+    name: string
+    slug: string
+    description?: string
+    board_count?: number
 }
 
 function GoalCard({ entity, podSlug }: { entity: ToolEntity; podSlug?: string }) {
@@ -104,16 +118,52 @@ function TaskCard({ entity }: { entity: ToolEntity }) {
     )
 }
 
+function PodCard({ entity }: { entity: ToolEntity }) {
+    const router = useRouter()
+
+    return (
+        <div className="flex items-center gap-2 bg-accent/20 border border-border rounded-lg px-3 py-2">
+            <Layers className="w-3.5 h-3.5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium truncate block">
+                    {entity.name || 'Pod'}
+                </span>
+                {entity.description && (
+                    <span className="text-[10px] text-muted-foreground truncate block">
+                        {entity.description}
+                    </span>
+                )}
+            </div>
+            {entity.board_count != null && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                    {entity.board_count} board{entity.board_count !== 1 ? 's' : ''}
+                </Badge>
+            )}
+            <button
+                onClick={() => router.push(`/dashboard/pods/${entity.slug}`)}
+                className="text-[10px] font-medium px-2 py-0.5 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors shrink-0"
+            >
+                Open
+            </button>
+        </div>
+    )
+}
+
 export function EntityCards({ entities, podSlug }: { entities: ToolEntity[]; podSlug?: string }) {
     if (!entities || entities.length === 0) return null
 
     return (
         <div className="ml-2 space-y-1.5 mt-1">
-            {entities.map((entity) => (
-                entity.type === 'dag'
-                    ? <GoalCard key={entity.id} entity={entity} podSlug={podSlug} />
-                    : <TaskCard key={entity.id} entity={entity} />
-            ))}
+            {entities.map((entity) => {
+                switch (entity.type) {
+                    case 'dag':
+                        return <GoalCard key={entity.id} entity={entity} podSlug={podSlug} />
+                    case 'pod':
+                        return <PodCard key={entity.id} entity={entity} />
+                    default:
+                        return <TaskCard key={entity.id} entity={entity} />
+                }
+            })}
         </div>
     )
 }

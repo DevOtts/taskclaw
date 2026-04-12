@@ -12,7 +12,7 @@ export interface ChatToolContext {
 }
 
 export interface ToolEntity {
-  type: 'dag' | 'task' | 'board';
+  type: 'dag' | 'task' | 'board' | 'pod';
   id: string;
   title?: string;
   goal?: string;
@@ -24,6 +24,7 @@ export interface ToolEntity {
 export interface ToolOutcome {
   result: Record<string, any>;
   entity?: ToolEntity;
+  entities?: ToolEntity[];
 }
 
 @Injectable()
@@ -152,6 +153,44 @@ export class ChatToolsService {
           required: [],
         },
       },
+      {
+        name: 'list_pods',
+        description:
+          'List all pods in the workspace with their name, description, board count, and IDs. Use this to understand the workspace structure before orchestrating across pods.',
+        endpoint: '',
+        method: 'internal',
+        input_schema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: 'generate_description',
+        description:
+          'Generate and save an AI description for a pod or board that has none. Call this when a pod or board lacks a description so the workspace manifest stays informative.',
+        endpoint: '',
+        method: 'internal',
+        input_schema: {
+          type: 'object',
+          properties: {
+            entity_type: {
+              type: 'string',
+              enum: ['pod', 'board'],
+              description: 'Whether to describe a pod or a board',
+            },
+            entity_id: {
+              type: 'string',
+              description: 'ID of the pod or board to describe',
+            },
+            description: {
+              type: 'string',
+              description: 'The description text to save (1–2 sentences)',
+            },
+          },
+          required: ['entity_type', 'entity_id', 'description'],
+        },
+      },
     ];
   }
 
@@ -275,6 +314,57 @@ export class ChatToolsService {
         const { data: boards, error } = await query;
         if (error) throw new Error(`list_boards failed: ${error.message}`);
         return { result: { boards: boards ?? [] } };
+      }
+
+      case 'list_pods': {
+        const { data: pods, error } = await client
+          .from('pods')
+          .select('id, name, slug, description, icon, color')
+          .eq('account_id', ctx.accountId)
+          .order('position', { ascending: true });
+        if (error) return { result: { error: error.message } };
+        // Get board counts per pod
+        const podIds = (pods ?? []).map((p: any) => p.id);
+        const boardCounts: Record<string, number> = {};
+        if (podIds.length > 0) {
+          const { data: counts } = await client
+            .from('board_instances')
+            .select('pod_id, count()')
+            .in('pod_id', podIds)
+            .eq('is_archived', false);
+          (counts ?? []).forEach((r: any) => {
+            if (r.pod_id) boardCounts[r.pod_id] = Number(r.count) || 0;
+          });
+        }
+        const result = (pods ?? []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          description: p.description || null,
+          board_count: boardCounts[p.id] || 0,
+        }));
+        return {
+          result: { pods: result },
+          entities: result.map((p) => ({
+            type: 'pod' as const,
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            description: p.description ?? undefined,
+            board_count: p.board_count,
+          })),
+        };
+      }
+
+      case 'generate_description': {
+        const table = input.entity_type === 'pod' ? 'pods' : 'board_instances';
+        const { error } = await client
+          .from(table)
+          .update({ description: input.description })
+          .eq('id', input.entity_id)
+          .eq('account_id', ctx.accountId);
+        if (error) return { result: { error: error.message } };
+        return { result: { saved: true, entity_type: input.entity_type, entity_id: input.entity_id } };
       }
 
       default:

@@ -39,7 +39,9 @@ export class ConversationsController {
     @Query('task_id') taskId?: string,
     @Query('board_id') boardId?: string,
     @Query('pod_id') podId?: string,
+    @Query('workspace') workspaceStr?: string,
   ) {
+    const workspace = workspaceStr === 'true' ? true : undefined;
     return this.conversationsService.findAll(
       req.user.id,
       accountId,
@@ -49,6 +51,7 @@ export class ConversationsController {
       taskId,
       boardId,
       podId,
+      workspace,
     );
   }
 

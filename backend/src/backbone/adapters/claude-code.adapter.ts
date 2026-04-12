@@ -54,6 +54,59 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
     this.logger.debug(
       `Claude Code CLI: spawning claude --print (model=${model})`,
     );
+
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 5000;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      // Don't retry if the request was aborted
+      if (signal?.aborted) throw new Error('Request aborted');
+
+      try {
+        const result = await this.spawnClaude({
+          fullPrompt,
+          model,
+          workspaceDir,
+          timeoutMs,
+          options,
+          signal,
+        });
+        return result;
+      } catch (err: any) {
+        // Don't retry if claude is not installed or request was aborted
+        if (err.code === 'ENOENT' || err.message?.includes('not found in PATH') || err.message === 'Request aborted') {
+          throw err;
+        }
+        lastError = err;
+        if (attempt < MAX_RETRIES) {
+          this.logger.warn(
+            `Claude Code CLI attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}. Retrying in ${RETRY_DELAY_MS / 1000}s...`,
+          );
+          await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
+        }
+      }
+    }
+
+    throw lastError ?? new Error('Claude Code CLI failed after retries');
+  }
+
+  // ── spawnClaude (internal single attempt) ─────────────────────
+  private spawnClaude({
+    fullPrompt,
+    model,
+    workspaceDir,
+    timeoutMs,
+    options,
+    signal,
+  }: {
+    fullPrompt: string;
+    model: string;
+    workspaceDir: string;
+    timeoutMs: number;
+    options: BackboneSendOptions;
+    signal?: AbortSignal;
+  }): Promise<BackboneSendResult> {
     const startTime = Date.now();
 
     return new Promise((resolve, reject) => {
@@ -85,8 +138,8 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
       child.stdout.on('data', (data: Buffer) => {
         stdout += data.toString();
         // Forward raw chunks when caller wants streaming tokens
-        if (onToken) {
-          onToken(data.toString());
+        if (options.onToken) {
+          options.onToken(data.toString());
         }
       });
 
