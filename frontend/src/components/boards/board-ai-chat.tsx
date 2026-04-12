@@ -42,6 +42,10 @@ interface BoardAIChatProps {
     // Pod mode
     podId?: string
     podName?: string
+    podSlug?: string
+    // Workspace mode
+    isWorkspace?: boolean
+    initialConversationId?: string | null
     // Sheet control
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -54,6 +58,12 @@ export function BoardAIChat({
     boardName,
     podId,
     podName,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    podSlug,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    isWorkspace,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    initialConversationId,
     open,
     onOpenChange,
     onClose,

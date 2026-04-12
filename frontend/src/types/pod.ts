@@ -56,6 +56,7 @@ export interface ExecutionLog {
   error_details?: string | null
   duration_ms?: number | null
   metadata?: Record<string, any>
+  conversation_id?: string | null
   started_at: string
   completed_at?: string | null
 }
@@ -67,7 +68,9 @@ export interface BoardRoute {
   source_step_id?: string | null
   target_board_id: string
   target_step_id?: string | null
-  trigger: 'auto' | 'ai_decision' | 'manual'
+  trigger: 'auto' | 'ai_decision' | 'manual' | 'error' | 'fallback'
+  label?: string | null
+  pod_id?: string | null
   transform_config: Record<string, any>
   is_active: boolean
   created_at: string
