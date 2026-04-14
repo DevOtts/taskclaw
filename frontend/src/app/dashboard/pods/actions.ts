@@ -533,6 +533,35 @@ export interface TaskDag {
     dag_approvals?: { id: string; status: string; notes: string | null }[]
 }
 
+export interface OrchestrationSummary {
+    id: string
+    goal: string
+    status: 'pending_approval' | 'running' | 'completed' | 'failed' | 'cancelled'
+    created_at: string
+    pod_id?: string
+    pod_name?: string
+    pod_slug?: string
+}
+
+export async function getRecentOrchestrations(limit = 20): Promise<OrchestrationSummary[]> {
+    const headers = await getAuthHeaders()
+    if (!headers) return []
+    const accountId = await getActiveAccountId()
+    if (!accountId) return []
+
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/orchestrations`,
+            { headers, cache: 'no-store' }
+        )
+        if (!res.ok) return []
+        const data = await res.json()
+        return Array.isArray(data) ? data.slice(0, limit) : []
+    } catch {
+        return []
+    }
+}
+
 export async function getPodDags(podId: string): Promise<TaskDag[]> {
     const headers = await getAuthHeaders()
     if (!headers) return []

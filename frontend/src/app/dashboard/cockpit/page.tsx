@@ -39,7 +39,55 @@ import {
     LayoutGrid,
     Users,
     Minus,
+    Globe,
+    Rocket,
+    Twitter,
+    Search,
+    Palette,
+    type LucideIcon,
 } from 'lucide-react'
+
+// ── Lucide icon string → component map ──────────────────────────────────────
+// Icons stored in DB as slugs (e.g. "globe", "layers") are resolved here.
+// Emoji strings (length 1-2, non-ascii) are rendered as-is in a <span>.
+
+const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
+    globe: Globe,
+    layers: Layers,
+    twitter: Twitter,
+    rocket: Rocket,
+    search: Search,
+    palette: Palette,
+    bot: Bot,
+    settings: Settings,
+    activity: Activity,
+    'layout-grid': LayoutGrid,
+    layoutgrid: LayoutGrid,
+    users: Users,
+    plus: Plus,
+    zap: Zap,
+    'message-circle': MessageCircle,
+    messagecircle: MessageCircle,
+}
+
+function IconFromString({
+    icon,
+    fallback: Fallback,
+    className,
+    style,
+}: {
+    icon?: string | null
+    fallback: LucideIcon
+    className?: string
+    style?: React.CSSProperties
+}) {
+    if (!icon) return <Fallback className={className} style={style} />
+    const slug = icon.toLowerCase().replace(/\s+/g, '-')
+    const Matched = LUCIDE_ICON_MAP[slug]
+    if (Matched) return <Matched className={className} style={style} />
+    // Assume emoji / plain char
+    return <span className="text-sm leading-none select-none">{icon}</span>
+}
 import { toast } from 'sonner'
 import { useBackboneConnections } from '@/hooks/use-backbone-connections'
 import {
@@ -271,14 +319,16 @@ type AccordionSection = 'agents' | 'pods' | 'boards'
 
 function AgentsPanel({ pods, agents, onNewPod }: AgentsPanelProps) {
     const [pilotOpen, setPilotOpen] = useState(false)
-    const [open, setOpen] = useState<Record<AccordionSection, boolean>>({
-        agents: true,
-        pods: false,
-        boards: false,
-    })
+    // Single-open accordion — only one section open at a time. Boards is default.
+    const [openSection, setOpenSection] = useState<AccordionSection>('boards')
 
     const toggle = (section: AccordionSection) => {
-        setOpen(prev => ({ ...prev, [section]: !prev[section] }))
+        setOpenSection(prev => prev === section ? prev : section)
+    }
+    const open = {
+        agents: openSection === 'agents',
+        pods: openSection === 'pods',
+        boards: openSection === 'boards',
     }
 
     return (
@@ -290,21 +340,6 @@ function AgentsPanel({ pods, agents, onNewPod }: AgentsPanelProps) {
 
             {/* Accordion list */}
             <div className="flex-1 overflow-y-auto custom-cockpit-scroll">
-                {/* Agents section */}
-                <AccordionSection
-                    label="Agents"
-                    icon={<Users className="w-3.5 h-3.5" />}
-                    count={agents.length}
-                    isOpen={open.agents}
-                    onToggle={() => toggle('agents')}
-                >
-                    {agents.length === 0 ? (
-                        <div className="px-4 py-3 text-[10px] text-muted-foreground/40">No agents deployed</div>
-                    ) : (
-                        agents.map(agent => <AgentAccordionRow key={agent.id} agent={agent} />)
-                    )}
-                </AccordionSection>
-
                 {/* Pods section */}
                 <AccordionSection
                     label="Pods"
@@ -320,7 +355,7 @@ function AgentsPanel({ pods, agents, onNewPod }: AgentsPanelProps) {
                     )}
                 </AccordionSection>
 
-                {/* Boards section */}
+                {/* Boards section (default open) */}
                 <AccordionSection
                     label="Boards"
                     icon={<LayoutGrid className="w-3.5 h-3.5" />}
@@ -328,6 +363,21 @@ function AgentsPanel({ pods, agents, onNewPod }: AgentsPanelProps) {
                     onToggle={() => toggle('boards')}
                 >
                     <BoardsAccordionContent />
+                </AccordionSection>
+
+                {/* Agents section (last) */}
+                <AccordionSection
+                    label="Agents"
+                    icon={<Users className="w-3.5 h-3.5" />}
+                    count={agents.length}
+                    isOpen={open.agents}
+                    onToggle={() => toggle('agents')}
+                >
+                    {agents.length === 0 ? (
+                        <div className="px-4 py-3 text-[10px] text-muted-foreground/40">No agents deployed</div>
+                    ) : (
+                        agents.map(agent => <AgentAccordionRow key={agent.id} agent={agent} />)
+                    )}
                 </AccordionSection>
             </div>
 
@@ -485,11 +535,7 @@ function PodAccordionRow({ pod }: { pod: Pod }) {
                     className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
                     style={{ background: `${color}18`, border: `1px solid ${color}30` }}
                 >
-                    {pod.icon ? (
-                        <span className="text-sm leading-none">{pod.icon}</span>
-                    ) : (
-                        <Bot className="w-4 h-4" style={{ color }} />
-                    )}
+                    <IconFromString icon={pod.icon} fallback={Bot} className="w-4 h-4" style={{ color }} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-semibold truncate leading-tight">{pod.name}</p>
@@ -519,11 +565,7 @@ function PodAccordionRow({ pod }: { pod: Pod }) {
                                 className="w-5 h-5 rounded flex items-center justify-center shrink-0 text-[10px]"
                                 style={{ background: `${board.color || '#8ff5ff'}18` }}
                             >
-                                {board.icon ? (
-                                    <span className="leading-none">{board.icon}</span>
-                                ) : (
-                                    <LayoutGrid className="w-3 h-3" style={{ color: board.color || '#8ff5ff' }} />
-                                )}
+                                <IconFromString icon={board.icon} fallback={LayoutGrid} className="w-3 h-3" style={{ color: board.color || '#8ff5ff' }} />
                             </div>
                             <p className="flex-1 text-[10px] text-muted-foreground/70 truncate">{board.name}</p>
                             {board.task_count != null && (
@@ -564,11 +606,7 @@ function BoardsAccordionContent() {
                         className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-xs"
                         style={{ background: `${board.color || '#8ff5ff'}18`, border: `1px solid ${board.color || '#8ff5ff'}20` }}
                     >
-                        {board.icon ? (
-                            <span className="text-xs leading-none">{board.icon}</span>
-                        ) : (
-                            <LayoutGrid className="w-3.5 h-3.5" style={{ color: board.color || '#8ff5ff' }} />
-                        )}
+                        <IconFromString icon={board.icon} fallback={LayoutGrid} className="w-3.5 h-3.5" style={{ color: board.color || '#8ff5ff' }} />
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-medium truncate leading-tight">{board.name}</p>
@@ -699,6 +737,18 @@ interface CommandCenterProps {
 }
 
 function CommandCenter({ activeConversationId, onConversationChange, openFreshChat, onFreshChatConsumed, onNewPod, onOpenTimeline }: CommandCenterProps) {
+    const { data: backbones = [] } = useBackboneConnections()
+    // Default to the is_default backbone; null = use account default (server resolves)
+    const defaultBackboneId = (backbones as any[]).find((b: any) => b.is_default)?.id ?? null
+    const [selectedBackboneId, setSelectedBackboneId] = useState<string | null>(null)
+    // Sync once backbones load
+    useEffect(() => {
+        if (backbones && (backbones as any[]).length > 0 && selectedBackboneId === null) {
+            const def = (backbones as any[]).find((b: any) => b.is_default)
+            setSelectedBackboneId(def?.id ?? (backbones as any[])[0]?.id ?? null)
+        }
+    }, [backbones])
+
     const [input, setInput] = useState('')
     const [messages, setMessages] = useState<Message[]>([])
     const [isInitializing, setIsInitializing] = useState(false)
@@ -721,7 +771,7 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
         if (!openFreshChat) return
         onFreshChatConsumed?.()
         setIsInitializing(true)
-        createConversation('Workspace Chat').then(conv => {
+        createConversation('Workspace Chat', undefined, undefined, undefined, selectedBackboneId).then(conv => {
             setIsInitializing(false)
             if (conv?.id) onConversationChange(conv.id)
             else toast.error(conv?.error || 'Failed to start chat')
@@ -794,7 +844,7 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
         } else {
             // Create new conversation with this text as first message
             setIsInitializing(true)
-            const conv = await createConversation('Workspace Chat')
+            const conv = await createConversation('Workspace Chat', undefined, undefined, undefined, selectedBackboneId)
             if (!conv?.id) {
                 setIsInitializing(false)
                 toast.error(conv?.error || 'Failed to start chat')
@@ -899,7 +949,15 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
                                 {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             </button>
                         </div>
-                        <p className="text-[10px] text-muted-foreground/25 mt-1.5 px-1">⌘↵ to send</p>
+                        <div className="flex items-center justify-between mt-1.5 px-1">
+                            <BackboneSelector
+                                backbones={backbones as any[]}
+                                value={selectedBackboneId}
+                                onChange={setSelectedBackboneId}
+                                compact
+                            />
+                            <span className="text-[10px] text-muted-foreground/25">⌘↵ to send</span>
+                        </div>
                     </div>
                 </>
             ) : (
@@ -932,8 +990,12 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
                                     className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-foreground placeholder:text-muted-foreground/30 text-base p-5 min-h-[120px] resize-none"
                                     disabled={isInitializing}
                                 />
-                                <div className="flex items-center justify-between px-5 pb-4">
-                                    <span className="text-[10px] text-muted-foreground/30">⌘↵ to send</span>
+                                <div className="flex items-center justify-between px-5 pb-4 gap-3">
+                                    <BackboneSelector
+                                        backbones={backbones as any[]}
+                                        value={selectedBackboneId}
+                                        onChange={setSelectedBackboneId}
+                                    />
                                     <button
                                         onClick={handleSubmit}
                                         disabled={!input.trim() || isInitializing}
@@ -986,7 +1048,7 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
                                 color="default"
                                 onClick={async () => {
                                     setIsInitializing(true)
-                                    const conv = await createConversation('Workspace Chat')
+                                    const conv = await createConversation('Workspace Chat', undefined, undefined, undefined, selectedBackboneId)
                                     setIsInitializing(false)
                                     if (conv?.id) onConversationChange(conv.id)
                                     else toast.error(conv?.error || 'Failed to start chat')
@@ -1000,8 +1062,125 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
     )
 }
 
+interface DelegationCardData {
+    pod_id: string
+    pod_name?: string
+    pod_slug?: string
+    goal: string
+    orchestration_id?: string
+    status?: string
+}
+
+/** Extract top-level JSON objects from text using bracket counting */
+function extractJsonObjects(text: string): DelegationCardData[] {
+    const cards: DelegationCardData[] = []
+    let i = 0
+    while (i < text.length) {
+        const start = text.indexOf('{', i)
+        if (start === -1) break
+        let depth = 0
+        let j = start
+        let inString = false
+        let escape = false
+        while (j < text.length) {
+            const ch = text[j]
+            if (escape) { escape = false; j++; continue }
+            if (ch === '\\' && inString) { escape = true; j++; continue }
+            if (ch === '"') inString = !inString
+            if (!inString) {
+                if (ch === '{') depth++
+                else if (ch === '}') { depth--; if (depth === 0) break }
+            }
+            j++
+        }
+        if (depth === 0) {
+            const chunk = text.slice(start, j + 1)
+            try {
+                const obj = JSON.parse(chunk)
+                if (obj && typeof obj === 'object' && obj.pod_id && obj.goal) {
+                    cards.push(obj as DelegationCardData)
+                }
+            } catch { /* not valid JSON */ }
+            i = j + 1
+        } else {
+            i = start + 1
+        }
+    }
+    return cards
+}
+
+function parseDelegationCards(content: string): DelegationCardData[] {
+    // Try fenced code blocks first
+    const cards: DelegationCardData[] = []
+    const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/g
+    let m
+    const usedRanges: Array<[number, number]> = []
+    while ((m = fenced.exec(content)) !== null) {
+        const found = extractJsonObjects(m[1])
+        found.forEach(c => cards.push(c))
+        if (found.length > 0) usedRanges.push([m.index, m.index + m[0].length])
+    }
+    // Then scan remaining text for bare JSON objects
+    let remaining = content
+    for (const [start, end] of usedRanges.reverse()) {
+        remaining = remaining.slice(0, start) + ' '.repeat(end - start) + remaining.slice(end)
+    }
+    const bareCards = extractJsonObjects(remaining)
+    bareCards.forEach(c => cards.push(c))
+    // Deduplicate by pod_id+goal
+    const seen = new Set<string>()
+    return cards.filter(c => {
+        const key = `${c.pod_id}:${c.goal.slice(0, 60)}`
+        if (seen.has(key)) return false
+        seen.add(key); return true
+    })
+}
+
+function stripDelegationJson(content: string): string {
+    // Remove fenced blocks containing pod_id JSON
+    let result = content.replace(/```(?:json)?\s*[\s\S]*?"pod_id"[\s\S]*?```/g, '')
+    // Remove bare JSON objects with pod_id — use bracket counting to find them
+    const toRemove: Array<[number, number]> = []
+    let i = 0
+    while (i < result.length) {
+        const start = result.indexOf('{"pod_id"', i)
+        if (start === -1) break
+        let depth = 0
+        let j = start
+        let inStr = false
+        let esc = false
+        while (j < result.length) {
+            const ch = result[j]
+            if (esc) { esc = false; j++; continue }
+            if (ch === '\\' && inStr) { esc = true; j++; continue }
+            if (ch === '"') inStr = !inStr
+            if (!inStr) {
+                if (ch === '{') depth++
+                else if (ch === '}') { depth--; if (depth === 0) break }
+            }
+            j++
+        }
+        if (depth === 0) { toRemove.push([start, j + 1]); i = j + 1 }
+        else i = start + 1
+    }
+    for (const [s, e] of toRemove.reverse()) {
+        result = result.slice(0, s) + result.slice(e)
+    }
+    return result.trim()
+}
+
 function ChatMessage({ message }: { message: Message }) {
     const isUser = message.role === 'user'
+    const delegationCards = message.role === 'assistant' ? parseDelegationCards(message.content) : []
+    const displayContent = delegationCards.length > 0 ? stripDelegationJson(message.content) : message.content
+
+    const statusStyle: Record<string, { label: string; color: string }> = {
+        pending_approval: { label: 'Pending', color: 'rgba(255,209,111,0.8)' },
+        running: { label: 'Running', color: 'rgba(143,245,255,0.8)' },
+        completed: { label: 'Done', color: 'rgba(100,255,160,0.8)' },
+        failed: { label: 'Failed', color: 'rgba(255,100,100,0.8)' },
+    }
+
     return (
         <div className={cn('flex gap-3 items-end', isUser ? 'justify-end' : '')}>
             {!isUser && (
@@ -1010,25 +1189,73 @@ function ChatMessage({ message }: { message: Message }) {
                     <Bot className="w-3.5 h-3.5" style={{ color: '#8ff5ff' }} />
                 </div>
             )}
-            <div
-                className={cn(
-                    'max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed',
-                    isUser
-                        ? 'rounded-br-sm bg-primary text-primary-foreground'
-                        : 'rounded-bl-sm'
-                )}
-                style={!isUser ? {
-                    background: 'rgba(143,245,255,0.06)',
-                    border: '1px solid rgba(143,245,255,0.1)',
-                } : {}}
-            >
-                {message.role === 'assistant' ? (
+            <div className={cn('flex flex-col gap-2', isUser ? 'items-end max-w-[80%]' : 'flex-1 max-w-[90%]')}>
+                {(displayContent || !delegationCards.length) && (
                     <div
-                        className="prose-chat text-[13px] [&_strong]:font-semibold [&_p]:mb-1 [&_ul]:mb-1 [&_li]:text-[13px]"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-                    />
-                ) : (
-                    <p className="text-[13px] whitespace-pre-wrap">{message.content}</p>
+                        className={cn(
+                            'px-4 py-3 rounded-2xl text-sm leading-relaxed',
+                            isUser
+                                ? 'rounded-br-sm bg-primary text-primary-foreground'
+                                : 'rounded-bl-sm w-full'
+                        )}
+                        style={!isUser ? {
+                            background: 'rgba(143,245,255,0.06)',
+                            border: '1px solid rgba(143,245,255,0.1)',
+                        } : {}}
+                    >
+                        {message.role === 'assistant' ? (
+                            <div
+                                className="prose-chat text-[13px] [&_strong]:font-semibold [&_p]:mb-1 [&_ul]:mb-1 [&_li]:text-[13px]"
+                                dangerouslySetInnerHTML={{ __html: renderMarkdown(displayContent) }}
+                            />
+                        ) : (
+                            <p className="text-[13px] whitespace-pre-wrap">{message.content}</p>
+                        )}
+                    </div>
+                )}
+
+                {/* Delegation cards */}
+                {delegationCards.length > 0 && (
+                    <div className="w-full space-y-1.5">
+                        <div className="flex items-center gap-1.5 px-1">
+                            <Activity className="w-3 h-3" style={{ color: '#8ff5ff', opacity: 0.7 }} />
+                            <span className="text-[10px] font-semibold" style={{ color: 'rgba(143,245,255,0.6)' }}>
+                                {delegationCards.length} pod{delegationCards.length !== 1 ? 's' : ''} delegated
+                            </span>
+                        </div>
+                        {delegationCards.map((card, ci) => {
+                            const ss = card.status ? statusStyle[card.status] : null
+                            return (
+                                <div key={ci} className="flex items-start gap-2 px-3 py-2 rounded-xl"
+                                    style={{ background: 'rgba(143,245,255,0.05)', border: '1px solid rgba(143,245,255,0.12)' }}>
+                                    <Layers className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: '#8ff5ff', opacity: 0.7 }} />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-[12px] font-medium leading-snug line-clamp-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                                            {card.goal}
+                                        </div>
+                                        {(card.pod_name || card.pod_slug) && (
+                                            <div className="text-[10px] mt-0.5" style={{ color: 'rgba(143,245,255,0.5)' }}>
+                                                {card.pod_name || card.pod_slug}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {ss && (
+                                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+                                            style={{ color: ss.color, background: `${ss.color}18`, border: `1px solid ${ss.color}30` }}>
+                                            {ss.label}
+                                        </span>
+                                    )}
+                                    {card.pod_slug && (
+                                        <a href={`/dashboard/pods/${card.pod_slug}?tab=goals`}
+                                            className="text-[9px] shrink-0 hover:underline"
+                                            style={{ color: 'rgba(143,245,255,0.6)' }}>
+                                            View
+                                        </a>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
                 )}
             </div>
         </div>
@@ -1060,6 +1287,69 @@ function QuickChip({
             {icon}
             {label}
         </button>
+    )
+}
+
+// ── Backbone Selector ──────────────────────────────────────────────────────
+
+type BackboneConnection = {
+    id: string
+    name: string
+    backbone_type: string
+    is_default: boolean
+    is_active: boolean
+    health_status: string | null
+}
+
+function BackboneSelector({
+    backbones,
+    value,
+    onChange,
+    compact = false,
+}: {
+    backbones: BackboneConnection[]
+    value: string | null
+    onChange: (id: string | null) => void
+    compact?: boolean
+}) {
+    const active = backbones.filter(b => b.is_active)
+    const selected = active.find(b => b.id === value) ?? active[0] ?? null
+
+    const healthDot = (status: string | null) => {
+        if (status === 'healthy') return 'bg-emerald-400'
+        if (status === 'unhealthy') return 'bg-red-400'
+        return 'bg-yellow-400'
+    }
+
+    if (!selected) return null
+
+    return (
+        <Select value={value ?? ''} onValueChange={(v) => onChange(v || null)}>
+            <SelectTrigger
+                className={cn(
+                    'border-none bg-transparent shadow-none text-muted-foreground/50 hover:text-muted-foreground transition-colors p-0 h-auto gap-1.5 focus:ring-0',
+                    compact ? 'text-[10px]' : 'text-[11px]'
+                )}
+            >
+                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', healthDot(selected.health_status))} />
+                <SelectValue>
+                    <span className="truncate max-w-[120px]">{selected.name}</span>
+                </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start">
+                {active.map(b => (
+                    <SelectItem key={b.id} value={b.id}>
+                        <div className="flex items-center gap-2">
+                            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', healthDot(b.health_status))} />
+                            <span>{b.name}</span>
+                            {b.is_default && (
+                                <span className="ml-1 text-[9px] text-muted-foreground/40 uppercase tracking-wide">default</span>
+                            )}
+                        </div>
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
     )
 }
 
@@ -1108,7 +1398,9 @@ function SessionDetailView({ detail, onBack, onOpenConversation }: SessionDetail
                     <div className="w-0.5 h-8 rounded-full shrink-0" style={{ background: pipColor }} />
                     <div>
                         <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">
-                            {log.trigger_type === 'coordinator' ? 'Pilot Run' : log.trigger_type}
+                            {log.trigger_type === 'coordinator' ? 'Pilot Run'
+                                : log.trigger_type === 'workspace_chat' ? 'Workspace Chat'
+                                : log.trigger_type}
                         </p>
                         <p className="text-[11px] text-muted-foreground/80">
                             {formatDistanceToNow(new Date(log.started_at), { addSuffix: true })}
@@ -1262,7 +1554,8 @@ function WorkspaceTimeline({ onSelectLog }: WorkspaceTimelineProps) {
         if (!silent) setLoading(true)
         else setRefreshing(true)
         try {
-            const data = await getExecutionLog({ trigger_type: 'coordinator' })
+            // Load all trigger types: coordinator cycles + workspace chat sessions
+            const data = await getExecutionLog()
             setLogs((data || []).slice(0, 20))
         } catch {
             setLogs([])
@@ -1368,7 +1661,9 @@ function TimelineEntry({
         timeout: '#ffd16f',
     }[log.status] ?? 'rgba(255,255,255,0.2)'
 
-    const typeLabel = log.trigger_type === 'coordinator' ? 'PILOT' : log.trigger_type.toUpperCase()
+    const typeLabel = log.trigger_type === 'coordinator' ? 'PILOT'
+        : log.trigger_type === 'workspace_chat' ? 'CHAT'
+        : log.trigger_type.toUpperCase()
 
     return (
         <div className="mb-1 rounded-xl bg-muted/10 hover:bg-muted/20 border border-white/5 transition-colors overflow-hidden cursor-pointer"
