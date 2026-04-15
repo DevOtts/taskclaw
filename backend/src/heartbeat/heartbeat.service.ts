@@ -10,11 +10,13 @@ import { ExecutionLogService } from './execution-log.service';
 import { HEARTBEAT_QUEUE_NAME } from './heartbeat-queue.module';
 import { CreateHeartbeatDto } from './dto/create-heartbeat.dto';
 import { UpdateHeartbeatDto } from './dto/update-heartbeat.dto';
+import { BACKBONE_DISPATCH_QUEUE_NAME } from '../backbone/backbone-dispatch-queue.module';
 
 @Injectable()
 export class HeartbeatService {
   private readonly logger = new Logger(HeartbeatService.name);
   private heartbeatQueue?: Queue;
+  private backboneDispatchQueue?: Queue;
 
   constructor(
     private readonly supabaseAdmin: SupabaseAdminService,
@@ -30,6 +32,16 @@ export class HeartbeatService {
   setBullQueue(queue: Queue) {
     this.heartbeatQueue = queue;
     this.logger.log('BullMQ queue attached to HeartbeatService.');
+  }
+
+  /**
+   * Called by HeartbeatModule.onModuleInit to inject the backbone-dispatch queue
+   * if Redis is available. Used by B7 to route heartbeat execution through the
+   * backbone-dispatch queue for concurrency control.
+   */
+  setBackboneDispatchQueue(queue: Queue) {
+    this.backboneDispatchQueue = queue;
+    this.logger.log('Backbone dispatch queue attached to HeartbeatService.');
   }
 
   async initSchedules() {
@@ -250,13 +262,53 @@ export class HeartbeatService {
     return { message: 'Heartbeat triggered (direct)' };
   }
 
+  /**
+   * B7: Enqueues heartbeat execution via backbone-dispatch queue for concurrency control.
+   * When backbone-dispatch queue is available, adds a job with priority 5.
+   * Falls back to direct execution if the queue is not available.
+   *
+   * This method is called by HeartbeatProcessor when a scheduled heartbeat fires.
+   */
   async executeHeartbeat(configId: string) {
+    if (this.backboneDispatchQueue) {
+      const idempotencyKey = `heartbeat-exec-${configId}-${Date.now()}`;
+      await this.backboneDispatchQueue.add(
+        'dispatch',
+        {
+          type: 'heartbeat',
+          heartbeatConfigId: configId,
+          priority: 5,
+          idempotencyKey,
+        },
+        {
+          priority: 5,
+          jobId: idempotencyKey,
+        },
+      );
+      this.logger.log(
+        `Heartbeat ${configId} enqueued to backbone-dispatch (priority 5)`,
+      );
+      return;
+    }
+
+    // Fallback: direct execution when backbone-dispatch queue is unavailable
+    this.logger.debug(
+      `backbone-dispatch queue not available — executing heartbeat ${configId} directly`,
+    );
+    await this.executeHeartbeatCore(configId);
+  }
+
+  /**
+   * Core heartbeat execution logic. Called by BackboneDispatchProcessor
+   * (type: 'heartbeat') or directly as fallback.
+   */
+  async executeHeartbeatCore(configId: string) {
     const startTime = Date.now();
     const config = await this.findOne(configId);
 
     // Check circuit breaker
     if (
-      this.circuitBreaker.isOpen(
+      await this.circuitBreaker.isOpen(
         configId,
         config.circuit_breaker_threshold ?? 3,
       )
@@ -330,7 +382,7 @@ export class HeartbeatService {
         : `Processed ${tasks?.length ?? 0} tasks`;
 
       // Update config with success
-      this.circuitBreaker.recordSuccess(configId);
+      await this.circuitBreaker.recordSuccess(configId);
 
       await this.supabaseAdmin
         .getClient()
@@ -354,7 +406,7 @@ export class HeartbeatService {
     } catch (err) {
       const errorMessage = (err as Error).message;
 
-      const isOpen = this.circuitBreaker.recordFailure(
+      const isOpen = await this.circuitBreaker.recordFailure(
         configId,
         config.circuit_breaker_threshold ?? 3,
       );
