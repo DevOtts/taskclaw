@@ -163,6 +163,7 @@ export class PodsService {
       updateData.backbone_connection_id = dto.backbone_connection_id;
     if (dto.agent_config !== undefined) updateData.agent_config = dto.agent_config;
     if (dto.position !== undefined) updateData.position = dto.position;
+    if (dto.autonomy_level !== undefined) updateData.autonomy_level = dto.autonomy_level;
 
     const { data, error } = await client
       .from('pods')

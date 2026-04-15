@@ -35,10 +35,21 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
 
     const timeoutMs = (config.timeout_seconds ?? 120) * 1000;
     const model = config.model || 'claude-sonnet-4-6';
-    const workspaceDir = config.workspace_path || process.cwd();
+    const rawWorkspaceDir = config.workspace_path || process.cwd();
+    // Auto-create workspace dir so a missing /tmp path doesn't cause a misleading ENOENT on the binary
+    let workspaceDir = rawWorkspaceDir;
+    if (config.workspace_path && !fs.existsSync(config.workspace_path)) {
+      try {
+        fs.mkdirSync(config.workspace_path, { recursive: true });
+        this.logger.debug(`Claude Code CLI: created workspace dir ${config.workspace_path}`);
+      } catch {
+        this.logger.warn(`Claude Code CLI: workspace_path ${config.workspace_path} missing, falling back to cwd`);
+        workspaceDir = process.cwd();
+      }
+    }
 
     // Build full conversation prompt for --print mode
-    const fullPrompt = this.buildPrompt(systemPrompt, history, message, config);
+    const fullPrompt = this.buildPrompt(systemPrompt ?? '', history, message, config);
 
     this.logger.debug(
       `Claude Code CLI: spawning claude --print (model=${model})`,
@@ -114,11 +125,17 @@ export class ClaudeCodeAdapter implements BackboneAdapter {
 
       child.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'ENOENT') {
-          reject(
-            new Error(
-              'claude CLI not found in PATH. Install Claude Code: https://claude.ai/code',
-            ),
-          );
+          // ENOENT can mean either the binary or the cwd is missing
+          const pathHasClaude = (process.env.PATH || '')
+            .split(':')
+            .some((dir) => {
+              try { return fs.existsSync(`${dir}/claude`); } catch { return false; }
+            });
+          if (!pathHasClaude) {
+            reject(new Error('claude CLI not found in PATH. Install Claude Code: https://claude.ai/code'));
+          } else {
+            reject(new Error(`claude spawn failed (ENOENT): workspace_path "${workspaceDir}" may not exist`));
+          }
         } else {
           reject(err);
         }

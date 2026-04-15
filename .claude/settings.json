@@ -4,8 +4,19 @@
       {
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "Check: 1) Has /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/features-v3.json been updated with current progress? 2) Has /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/progress-v3.md been updated? 3) Was the last completed feature committed to git? If any are missing, respond with {\"ok\": false, \"reason\": \"describe what's missing\"}."
+            "type": "command",
+            "command": "FEATURES=/Users/macbook/Workspace/Devotts/taskclaw/.taskstate/features-v4.json; PROGRESS=/Users/macbook/Workspace/Devotts/taskclaw/.taskstate/progress-v4.md; [ -f \"$FEATURES\" ] && [ -f \"$PROGRESS\" ] && echo 'State files OK' || (echo 'WARNING: missing features-v4.json or progress-v4.md in .taskstate/' && exit 0)"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Code needs your attention\" with title \"Claude Code\"' 2>/dev/null; exit 0"
           }
         ]
       }
@@ -16,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'CONTEXT REMINDER: Read /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/features-v3.json for feature status. Read /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/progress-v3.md for current state. PRD at taskclaw-docs/implementations/prd-agents-first-class/prd-agents-first-class.md. Commit after completing each feature.'"
+            "command": "echo 'CONTEXT REMINDER: Read /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/features-v4.json for feature status. Read /Users/macbook/Workspace/Devotts/taskclaw/.taskstate/progress-v4.md for current state. PRD at /Users/macbook/Workspace/Devotts/taskclaw/taskclaw-docs/implementations/prd-full-orchestration/prd-full-orchestration.md. Pick the next FAILING feature and work on it. Commit after completing each feature.'"
           }
         ]
       }

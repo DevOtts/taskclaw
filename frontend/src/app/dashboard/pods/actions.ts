@@ -562,6 +562,63 @@ export async function getRecentOrchestrations(limit = 20): Promise<Orchestration
     }
 }
 
+export async function getOrchestration(orchestrationId: string): Promise<any | null> {
+    const headers = await getAuthHeaders()
+    if (!headers) return null
+    const accountId = await getActiveAccountId()
+    if (!accountId) return null
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/orchestrations/${orchestrationId}`,
+            { headers, cache: 'no-store' }
+        )
+        if (!res.ok) return null
+        return await res.json()
+    } catch {
+        return null
+    }
+}
+
+export async function approveOrchestration(orchestrationId: string): Promise<{ success?: boolean; error?: string }> {
+    const headers = await getAuthHeaders()
+    if (!headers) return { error: 'Not authenticated' }
+    const accountId = await getActiveAccountId()
+    if (!accountId) return { error: 'No active account' }
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/orchestrations/${orchestrationId}/approve`,
+            { method: 'POST', headers, body: '{}' }
+        )
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            return { error: err.message || 'Failed to approve' }
+        }
+        return { success: true }
+    } catch (e: any) {
+        return { error: e.message }
+    }
+}
+
+export async function rejectOrchestration(orchestrationId: string): Promise<{ success?: boolean; error?: string }> {
+    const headers = await getAuthHeaders()
+    if (!headers) return { error: 'Not authenticated' }
+    const accountId = await getActiveAccountId()
+    if (!accountId) return { error: 'No active account' }
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/orchestrations/${orchestrationId}/reject`,
+            { method: 'POST', headers, body: '{}' }
+        )
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            return { error: err.message || 'Failed to reject' }
+        }
+        return { success: true }
+    } catch (e: any) {
+        return { error: e.message }
+    }
+}
+
 export async function getPodDags(podId: string): Promise<TaskDag[]> {
     const headers = await getAuthHeaders()
     if (!headers) return []

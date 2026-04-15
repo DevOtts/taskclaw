@@ -108,6 +108,7 @@ import type { Agent } from '@/types/agent'
 import { formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { renderMarkdown } from '@/lib/markdown'
+import { CockpitExecutionFeed, type DelegationMeta } from '@/components/orchestration/cockpit-execution-feed'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,7 @@ interface Message {
     role: 'user' | 'assistant' | 'system'
     content: string
     created_at?: string
+    metadata?: Record<string, any>
 }
 
 interface SessionDetail {
@@ -784,7 +786,7 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
             const result = await getMessages(convId)
             if (result?.data && Array.isArray(result.data) && result.data.length > 0) {
                 const msgs: Message[] = result.data.map((m: any) => ({
-                    id: m.id, role: m.role, content: m.content, created_at: m.created_at,
+                    id: m.id, role: m.role, content: m.content, created_at: m.created_at, metadata: m.metadata,
                 }))
                 setMessages(msgs)
                 const last = msgs[msgs.length - 1]
@@ -869,6 +871,11 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
         }
     }
 
+    // Collect all delegations from messages metadata
+    const allDelegations: DelegationMeta[] = messages.flatMap(m =>
+        (m.metadata?.delegations as DelegationMeta[] | undefined) ?? []
+    )
+
     return (
         <div className="h-full flex flex-col min-h-0">
             {isActive ? (
@@ -885,6 +892,12 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
                             New command
                         </button>
                     </div>
+
+                    {/* Two-column: chat + execution feed */}
+                    <div className="flex flex-1 min-h-0">
+
+                    {/* Left: messages + input */}
+                    <div className="flex flex-col flex-1 min-h-0 min-w-0">
 
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto custom-cockpit-scroll px-4 py-4 space-y-4">
@@ -926,7 +939,7 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
                     </div>
 
                     {/* Input */}
-                    <div className="border-t border-white/5 p-3">
+                    <div className="border-t border-white/5 p-3 shrink-0">
                         <div className="flex gap-2">
                             <textarea
                                 ref={inputRef}
@@ -959,6 +972,25 @@ function CommandCenter({ activeConversationId, onConversationChange, openFreshCh
                             <span className="text-[10px] text-muted-foreground/25">⌘↵ to send</span>
                         </div>
                     </div>
+                    </div>{/* end left column */}
+
+                    {/* Right: execution feed */}
+                    <div className="w-[260px] shrink-0 border-l flex flex-col min-h-0" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                        <div className="px-3 py-2.5 border-b flex items-center gap-1.5 shrink-0" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                            <Activity className="w-3.5 h-3.5" style={{ color: '#8ff5ff', opacity: 0.7 }} />
+                            <span className="text-[10px] font-bold tracking-[0.15em] uppercase" style={{ color: 'rgba(143,245,255,0.5)' }}>
+                                Execution
+                            </span>
+                            {allDelegations.some(d => d.status === 'pending_approval') && (
+                                <span className="ml-auto w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                            )}
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-cockpit-scroll">
+                            <CockpitExecutionFeed delegations={allDelegations} />
+                        </div>
+                    </div>
+
+                    </div>{/* end two-column row */}
                 </>
             ) : (
                 // ── Init state: command input ──────────────────────────────
@@ -1172,7 +1204,13 @@ function stripDelegationJson(content: string): string {
 function ChatMessage({ message }: { message: Message }) {
     const isUser = message.role === 'user'
     const delegationCards = message.role === 'assistant' ? parseDelegationCards(message.content) : []
-    const displayContent = delegationCards.length > 0 ? stripDelegationJson(message.content) : message.content
+    let displayContent = delegationCards.length > 0 ? stripDelegationJson(message.content) : message.content
+    // Also strip <tool_result> XML and "Orchestration created: UUID." lines from legacy messages
+    displayContent = displayContent
+        .replace(/<tool_result[^>]*>[\s\S]*?<\/tool_result>/g, '')
+        .replace(/Orchestration created: [0-9a-f-]{36}\.?[^\n]*/gi, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
 
     const statusStyle: Record<string, { label: string; color: string }> = {
         pending_approval: { label: 'Pending', color: 'rgba(255,209,111,0.8)' },

@@ -5,6 +5,7 @@ import {
   BackboneSendResult,
   BackboneHealthResult,
   BackboneMessage,
+  CacheableBlock,
 } from './backbone-adapter.interface';
 import WebSocket from 'ws';
 import { v4 as uuid } from 'uuid';
@@ -27,6 +28,14 @@ export class OpenClawAdapter implements BackboneAdapter {
   readonly slug = 'openclaw';
   private readonly logger = new Logger(OpenClawAdapter.name);
 
+  /**
+   * F013: Per-session message counter for context pinning.
+   * Keyed by conversation_id (from options.metadata) or sessionKey.
+   * Tracks how many messages have been sent in each session so we can
+   * omit stable blocks after the first message and re-inject every 10th.
+   */
+  private readonly messageCountBySession = new Map<string, number>();
+
   // ── BackboneAdapter: sendMessage ──
 
   async sendMessage(options: BackboneSendOptions): Promise<BackboneSendResult> {
@@ -34,11 +43,50 @@ export class OpenClawAdapter implements BackboneAdapter {
 
     this.validateConfig(config);
 
+    // Derive a stable session identifier from the conversation id (if available)
+    // so that repeated calls in the same conversation reuse the same OpenClaw session.
+    const conversationId: string =
+      (options.metadata?.conversation_id as string) || '';
+    const sessionId = conversationId
+      ? `taskclaw-${conversationId.slice(0, 12)}`
+      : '';
+
+    // F013: Increment per-session message counter
+    let msgCount = 0;
+    if (options.systemPromptBlocks && sessionId) {
+      msgCount = (this.messageCountBySession.get(sessionId) ?? 0) + 1;
+      this.messageCountBySession.set(sessionId, msgCount);
+    }
+
     // Build messages array from the unified interface
     const messages: BackboneMessage[] = [];
-    if (systemPrompt) {
+
+    if (options.systemPromptBlocks) {
+      // F013: Session-level context pinning
+      // First message: send all blocks (full context)
+      // Subsequent messages: omit cacheable (stable) blocks — OpenClaw session retains them
+      // Every 10th message: re-inject full context as safety net against session eviction
+      const isFirstMessage = msgCount <= 1;
+      const isReinjectionMessage = msgCount > 1 && msgCount % 10 === 0;
+      const sendFullContext = isFirstMessage || isReinjectionMessage || !sessionId;
+
+      const blocksToSend: CacheableBlock[] = sendFullContext
+        ? options.systemPromptBlocks
+        : options.systemPromptBlocks.filter((b) => !b.cacheable);
+
+      const systemContent = blocksToSend.map((b) => b.text).join('\n\n');
+
+      if (systemContent) {
+        messages.push({ role: 'system', content: systemContent });
+        this.logger.log(
+          `[OpenClaw] Session ${sessionId} msg #${msgCount}: sending ${blocksToSend.length}/${options.systemPromptBlocks.length} system blocks (full=${sendFullContext})`,
+        );
+      }
+    } else if (systemPrompt) {
+      // Legacy flat string — backward compat
       messages.push({ role: 'system', content: systemPrompt });
     }
+
     if (history && history.length > 0) {
       messages.push(...history);
     }
@@ -47,7 +95,13 @@ export class OpenClawAdapter implements BackboneAdapter {
     // Build a single input string for OpenClaw (same as original buildOpenClawInput)
     const userInput = this.buildOpenClawInput(messages);
 
-    return this.executeOpenClawWebSocket(config, userInput, onToken, signal);
+    return this.executeOpenClawWebSocket(
+      config,
+      userInput,
+      onToken,
+      signal,
+      sessionId || undefined,
+    );
   }
 
   // ── BackboneAdapter: healthCheck ──
@@ -99,6 +153,7 @@ export class OpenClawAdapter implements BackboneAdapter {
     userInput: string,
     onToken?: (token: string) => void,
     signal?: AbortSignal,
+    externalSessionKey?: string,
   ): Promise<BackboneSendResult> {
     // Convert HTTP URL to WebSocket URL
     const wsUrl = (config.api_url as string)
@@ -213,7 +268,9 @@ export class OpenClawAdapter implements BackboneAdapter {
           connected = true;
           this.logger.log('[OpenClaw WS] Authenticated successfully');
 
-          currentSessionKey = `taskclaw-${uuid().slice(0, 12)}`;
+          // F013: Use stable external session key (derived from conversation_id) when available,
+          // so that repeated calls in the same conversation reuse the same OpenClaw session.
+          currentSessionKey = externalSessionKey || `taskclaw-${uuid().slice(0, 12)}`;
           ws.send(
             JSON.stringify({
               type: 'req',

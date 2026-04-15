@@ -25,4 +25,8 @@ export class CreateConversationDto {
   @IsUUID(4, { each: true })
   @IsOptional()
   skill_ids?: string[]; // Optional: Selected skills for this conversation
+
+  @IsUUID()
+  @IsOptional()
+  backbone_connection_id?: string; // Optional: Pin conversation to a specific backbone
 }

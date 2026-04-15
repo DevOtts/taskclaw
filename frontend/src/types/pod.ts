@@ -10,6 +10,7 @@ export interface Pod {
   agent_config: Record<string, any>
   position: number
   board_count?: number
+  autonomy_level?: number
   created_at: string
   updated_at?: string
 }
@@ -23,6 +24,7 @@ export type CreatePodPayload = {
   backbone_connection_id?: string
   agent_config?: Record<string, any>
   position?: number
+  autonomy_level?: number
 }
 
 export type UpdatePodPayload = Partial<CreatePodPayload>
@@ -48,7 +50,7 @@ export interface HeartbeatConfig {
 export interface ExecutionLog {
   id: string
   account_id: string
-  trigger_type: 'heartbeat' | 'dag_step' | 'route_transfer' | 'tool_execution' | 'coordinator' | 'manual'
+  trigger_type: 'heartbeat' | 'dag_step' | 'route_transfer' | 'tool_execution' | 'coordinator' | 'manual' | 'workspace_chat'
   status: 'success' | 'error' | 'skipped' | 'running' | 'timeout' | 'dry_run'
   pod_id?: string | null
   board_id?: string | null

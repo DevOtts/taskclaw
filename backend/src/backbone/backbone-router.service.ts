@@ -12,6 +12,7 @@ import {
  * Where in the resolution cascade the backbone was found.
  */
 export type ResolvedFrom =
+  | 'conversation'
   | 'task'
   | 'step'
   | 'board'
@@ -70,9 +71,18 @@ export class BackboneRouterService {
    */
   async resolve(
     accountId: string,
-    options?: { taskId?: string; stepId?: string; boardId?: string; categoryId?: string; agentId?: string; podId?: string },
+    options?: { taskId?: string; stepId?: string; boardId?: string; categoryId?: string; agentId?: string; podId?: string; conversationBackboneId?: string },
   ): Promise<ResolveResult> {
     const client = this.supabaseAdmin.getClient();
+
+    // -1. Conversation-pinned backbone (explicit user selection, highest priority)
+    if (options?.conversationBackboneId) {
+      const result = await this.loadConnection(
+        options.conversationBackboneId,
+        'conversation',
+      );
+      if (result) return result;
+    }
 
     // 0. Task-level override (highest priority)
     if (options?.taskId) {
@@ -232,7 +242,7 @@ export class BackboneRouterService {
     let systemPrompt = options.sendOptions.systemPrompt;
     if (resolved.adapter.transformSystemPrompt) {
       systemPrompt = resolved.adapter.transformSystemPrompt(
-        systemPrompt,
+        systemPrompt ?? '',
         resolved.config,
       );
     }
@@ -248,7 +258,7 @@ export class BackboneRouterService {
       const skillBlock = skills
         .map((s) => `- ${s.name}: ${s.description}`)
         .join('\n');
-      systemPrompt += `\n\nAvailable skills:\n${skillBlock}`;
+      systemPrompt = (systemPrompt ?? '') + `\n\nAvailable skills:\n${skillBlock}`;
       skills = undefined;
     }
 

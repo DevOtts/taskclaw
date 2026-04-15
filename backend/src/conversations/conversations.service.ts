@@ -475,6 +475,13 @@ export class ConversationsService {
             userId,
           );
           aiResponseText = cockpitResult.processedText;
+          if (cockpitResult.delegations.length > 0) {
+            aiResponseMetadata = {
+              ...aiResponseMetadata,
+              delegations: cockpitResult.delegations,
+              pending_approval: cockpitResult.delegations.some(d => d.status === 'pending_approval'),
+            };
+          }
         } catch (toolErr: any) {
           this.logger.warn(`[CockpitTools] Tool processing error: ${toolErr.message}`);
         }
@@ -834,8 +841,15 @@ export class ConversationsService {
               userId,
             );
             aiResponseText = cockpitResult.processedText;
+            if (cockpitResult.delegations.length > 0) {
+              aiResponseMetadata = {
+                ...aiResponseMetadata,
+                delegations: cockpitResult.delegations,
+                pending_approval: cockpitResult.delegations.some(d => d.status === 'pending_approval'),
+              };
+            }
             this.logger.debug(
-              `${logPrefix} Cockpit tool calls processed: ${cockpitResult.toolResults.length} results`,
+              `${logPrefix} Cockpit tool calls processed: ${cockpitResult.toolResults.length} results, ${cockpitResult.delegations.length} delegations`,
             );
           } catch (toolErr: any) {
             this.logger.warn(
@@ -2572,10 +2586,14 @@ ${JSON.stringify(tools, null, 2)}
     aiResponseText: string,
     accountId: string,
     userId: string,
-  ): Promise<{ processedText: string; toolResults: string[] }> {
+  ): Promise<{ processedText: string; toolResults: string[]; delegations: Array<{ orchestration_id: string; pod_id: string; pod_slug?: string; goal: string; status: string }> }> {
     const toolCallPattern = /<tool_call\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/tool_call>/g;
     const toolResults: string[] = [];
-    let processedText = aiResponseText;
+    const delegations: Array<{ orchestration_id: string; pod_id: string; pod_slug?: string; goal: string; status: string }> = [];
+    // Strip <tool_call> XML from the displayed text — keep only AI prose
+    let processedText = aiResponseText
+      .replace(/<tool_call\s[^>]*>[\s\S]*?<\/tool_call>/g, '')
+      .trim();
 
     let match: RegExpExecArray | null;
     while ((match = toolCallPattern.exec(aiResponseText)) !== null) {
@@ -2589,9 +2607,6 @@ ${JSON.stringify(tools, null, 2)}
         this.logger.warn(
           `[CockpitTools] Failed to parse JSON for tool ${toolName}: ${toolBody}`,
         );
-        toolResults.push(
-          `<tool_result name="${toolName}" status="error">Invalid JSON parameters</tool_result>`,
-        );
         continue;
       }
 
@@ -2603,15 +2618,23 @@ ${JSON.stringify(tools, null, 2)}
             userId,
           );
           toolResults.push(result);
+          // Extract orchestration_id from result and store delegation metadata
+          const idMatch = result.match(/Orchestration created: ([0-9a-f-]{36})/i);
+          if (idMatch) {
+            delegations.push({
+              orchestration_id: idMatch[1],
+              pod_id: params.pod_id,
+              pod_slug: params.pod_slug,
+              goal: params.goal,
+              status: 'pending_approval',
+            });
+          }
           this.logger.log(
             `[CockpitTools] delegate_to_pod executed for pod ${params.pod_id}`,
           );
         } catch (err: any) {
           this.logger.error(
             `[CockpitTools] delegate_to_pod failed: ${err.message}`,
-          );
-          toolResults.push(
-            `<tool_result name="delegate_to_pod" status="error">${err.message}</tool_result>`,
           );
         }
       } else {
@@ -2620,11 +2643,7 @@ ${JSON.stringify(tools, null, 2)}
       }
     }
 
-    if (toolResults.length > 0) {
-      processedText = `${aiResponseText}\n\n${toolResults.join('\n')}`;
-    }
-
-    return { processedText, toolResults };
+    return { processedText, toolResults, delegations };
   }
 
   /**

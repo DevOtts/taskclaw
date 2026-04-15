@@ -10,8 +10,11 @@ import { SkillsModule } from '../skills/skills.module';
 import { AdaptersModule } from '../adapters/adapters.module';
 import { AgentSyncModule } from '../agent-sync/agent-sync.module';
 import { BackboneModule } from '../backbone/backbone.module';
+import { WorkspaceContextModule } from '../workspace-context/workspace-context.module';
 
 import { IntegrationsModule } from '../integrations/integrations.module';
+import { HeartbeatModule } from '../heartbeat/heartbeat.module';
+import { OrchestrationModule } from '../orchestration/orchestration.module';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { IntegrationsModule } from '../integrations/integrations.module';
     forwardRef(() => AgentSyncModule),
     forwardRef(() => BackboneModule),
     IntegrationsModule,
+    HeartbeatModule,
+    WorkspaceContextModule,
+    forwardRef(() => OrchestrationModule),
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService, OpenClawService],

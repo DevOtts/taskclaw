@@ -25,6 +25,16 @@ async function getCurrentAccountId() {
     return accountId
 }
 
+export async function getAccountId(): Promise<string | null> {
+    return (await getCurrentAccountId()) ?? null
+}
+
+export async function getAuthTokenForClient(): Promise<string | null> {
+    const token = await getAuthToken()
+    if (!token || isTokenExpired(token)) return null
+    return token
+}
+
 export async function getConversations() {
     const headers = await getAuthHeaders()
     const accountId = await getCurrentAccountId()
@@ -99,7 +109,7 @@ export async function getSkills() {
     }
 }
 
-export async function createConversation(title?: string, taskId?: string, skillIds?: string[], podId?: string) {
+export async function createConversation(title?: string, taskId?: string, skillIds?: string[], podId?: string, backboneConnectionId?: string | null) {
     const headers = await getAuthHeaders()
     const accountId = await getCurrentAccountId()
 
@@ -126,6 +136,7 @@ export async function createConversation(title?: string, taskId?: string, skillI
                 task_id: taskId,
                 skill_ids: skillIds || [],
                 pod_id: podId,
+                ...(backboneConnectionId ? { backbone_connection_id: backboneConnectionId } : {}),
             }),
         })
 
