@@ -319,7 +319,12 @@ ${parts}
         },
       });
 
-      // 9. Complete task
+      // 9. Process tool calls from the AI response (e.g. create_task)
+      if (result.text.includes('<tool_call')) {
+        await this.processDagToolCalls(result.text, accountId, taskId, task.pod_id);
+      }
+
+      // 10. Complete task
       await this.orchestrationService.completeTask(taskId, {
         summary: result.text,
         structured_output: { raw_response: result.text, usage: result.usage },
@@ -362,6 +367,110 @@ ${parts}
     } finally {
       // Always release the semaphore lease (F023)
       await this.releaseLease(accountId, taskId);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Tool call processing for DAG dispatch (no ConversationsService dependency)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Parses tool calls from a backbone response and executes them.
+   * Currently handles: create_task — inserts board tasks with orchestration metadata
+   * so frontend can subscribe via Supabase Realtime and show live task cards.
+   */
+  private async processDagToolCalls(
+    responseText: string,
+    accountId: string,
+    orchestratedTaskId: string,
+    _podId: string | null,
+  ): Promise<void> {
+    const client = this.supabaseAdmin.getClient();
+    const toolCallPattern = /<tool_call\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/tool_call>/g;
+
+    let match: RegExpExecArray | null;
+    while ((match = toolCallPattern.exec(responseText)) !== null) {
+      const toolName = match[1];
+      const toolBody = match[2];
+
+      if (toolName !== 'create_task') continue;
+
+      let params: Record<string, any> = {};
+      try {
+        params = JSON.parse(toolBody.trim());
+      } catch {
+        this.logger.warn(`[DAGTools] Failed to parse JSON for create_task: ${toolBody}`);
+        continue;
+      }
+
+      if (!params.board_id || !params.title) {
+        this.logger.warn(`[DAGTools] create_task missing board_id or title`);
+        continue;
+      }
+
+      try {
+        // Resolve column/step
+        let stepId: string | null = params.column_id || null;
+        let status = 'To-Do';
+        let defaultAgentId: string | null = params.agent_id || null;
+
+        if (stepId) {
+          const { data: step } = await client
+            .from('board_steps')
+            .select('id, name, default_agent_id')
+            .eq('id', stepId)
+            .eq('board_instance_id', params.board_id)
+            .single();
+          if (step) {
+            status = step.name;
+            if (!defaultAgentId && step.default_agent_id) defaultAgentId = step.default_agent_id;
+          }
+        } else {
+          const { data: firstStep } = await client
+            .from('board_steps')
+            .select('id, name, default_agent_id')
+            .eq('board_instance_id', params.board_id)
+            .order('position', { ascending: true })
+            .limit(1)
+            .single();
+          if (firstStep) {
+            stepId = firstStep.id;
+            status = firstStep.name;
+            if (!defaultAgentId && firstStep.default_agent_id) defaultAgentId = firstStep.default_agent_id;
+          }
+        }
+
+        const { data: task, error } = await client
+          .from('tasks')
+          .insert({
+            account_id: accountId,
+            title: params.title,
+            notes: params.description || '',
+            priority: params.priority || 'Medium',
+            status,
+            board_instance_id: params.board_id,
+            current_step_id: stepId,
+            assignee_type: defaultAgentId ? 'agent' : 'none',
+            assignee_id: defaultAgentId,
+            completed: false,
+            card_data: {},
+            metadata: { orchestration_id: orchestratedTaskId },
+          })
+          .select('id')
+          .single();
+
+        if (error || !task) {
+          this.logger.error(`[DAGTools] create_task insert failed: ${error?.message}`);
+          continue;
+        }
+
+        this.logger.log(`[DAGTools] create_task executed: task_id=${task.id} orch=${orchestratedTaskId}`);
+
+        // Emit webhook so other listeners (e.g. board) know about the new task
+        this.webhookEmitter.emit(accountId, 'task.created', { task });
+      } catch (err: any) {
+        this.logger.error(`[DAGTools] create_task failed: ${err.message}`);
+      }
     }
   }
 

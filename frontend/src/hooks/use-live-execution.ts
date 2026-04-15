@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabaseBrowser } from '@/lib/supabase-browser'
+import { getActiveOrchestrations } from '@/app/dashboard/pods/actions'
 
 export interface ActiveOrchestration {
     id: string
@@ -15,66 +16,50 @@ export interface ActiveOrchestration {
     pod_slug?: string
 }
 
+/** A board task that was created by a pod agent during orchestration */
+export interface LiveTask {
+    id: string
+    title: string
+    status: string
+    priority: string
+    board_instance_id: string
+    account_id: string
+    created_at: string
+    /** The orchestrated_task id this board task belongs to */
+    orchestration_id: string
+}
+
 const ACTIVE_STATUSES = new Set(['pending_approval', 'running', 'pending'])
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
-
-function extractToken(): string | null {
-    if (typeof document === 'undefined') return null
-    try {
-        const cookies = document.cookie.split('; ')
-        const parts: Record<string, string> = {}
-        for (const c of cookies) {
-            const eq = c.indexOf('=')
-            const name = c.substring(0, eq)
-            const val = c.substring(eq + 1)
-            if (name.includes('auth-token')) parts[name] = val
-        }
-        const sorted = Object.entries(parts).sort(([a], [b]) => a.localeCompare(b))
-        const joined = sorted.map(([, v]) => v).join('')
-        if (!joined) return null
-        const raw = joined.startsWith('base64-') ? joined.slice(7) : joined
-        return JSON.parse(atob(raw))?.access_token ?? null
-    } catch { return null }
-}
 
 export function useLiveExecution(accountId: string | null) {
     const [activeTasks, setActiveTasks] = useState<ActiveOrchestration[]>([])
     const [isConnected, setIsConnected] = useState(false)
+    /** Live board tasks created by pod agents, keyed by orchestration_id */
+    const [liveTasksByOrch, setLiveTasksByOrch] = useState<Record<string, LiveTask[]>>({})
 
-    // Initial load of active orchestrations
-    const loadInitial = useCallback(async (acctId: string) => {
+    // Initial load of active orchestrations via server action (reads HttpOnly auth_token)
+    const loadInitial = useCallback(async () => {
         try {
-            const token = extractToken()
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-            if (token) headers['Authorization'] = `Bearer ${token}`
-
-            const res = await fetch(
-                `${API_URL}/accounts/${acctId}/orchestrations?status=running,pending_approval,pending&limit=50`,
-                { headers }
+            const result = await getActiveOrchestrations()
+            if (result.error || !result.data) return
+            const rootTasks = result.data.filter(
+                (t: ActiveOrchestration) =>
+                    !t.parent_orchestrated_task_id &&
+                    ACTIVE_STATUSES.has(t.status)
             )
-            if (!res.ok) return
-            const data = await res.json()
-            if (Array.isArray(data)) {
-                const rootTasks = data.filter(
-                    (t: ActiveOrchestration) =>
-                        !t.parent_orchestrated_task_id &&
-                        ACTIVE_STATUSES.has(t.status)
-                )
-                setActiveTasks(rootTasks)
-            }
+            setActiveTasks(rootTasks)
         } catch { /* silent */ }
     }, [])
 
     useEffect(() => {
         if (!accountId) return
 
-        // Load initial state
-        loadInitial(accountId)
+        // Load initial state via server action
+        loadInitial()
 
-        // Subscribe to Realtime for incremental updates
-        const channel = supabaseBrowser
+        // Subscribe to Realtime for orchestrated_tasks updates
+        const orchChannel = supabaseBrowser
             .channel(`live-execution-${accountId}`)
             .on(
                 'postgres_changes',
@@ -133,10 +118,48 @@ export function useLiveExecution(accountId: string | null) {
                 setIsConnected(status === 'SUBSCRIBED')
             })
 
+        // Subscribe to Realtime for board tasks created by pod agents during orchestration
+        const tasksChannel = supabaseBrowser
+            .channel(`live-tasks-${accountId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'tasks',
+                    filter: `account_id=eq.${accountId}`,
+                },
+                (payload) => {
+                    const inserted = payload.new as any
+                    const orchId: string | undefined = inserted.metadata?.orchestration_id
+                    if (!orchId) return  // not from an orchestration — ignore
+
+                    const liveTask: LiveTask = {
+                        id: inserted.id,
+                        title: inserted.title,
+                        status: inserted.status,
+                        priority: inserted.priority || 'Medium',
+                        board_instance_id: inserted.board_instance_id,
+                        account_id: inserted.account_id,
+                        created_at: inserted.created_at,
+                        orchestration_id: orchId,
+                    }
+
+                    setLiveTasksByOrch(prev => {
+                        const existing = prev[orchId] ?? []
+                        // Avoid duplicates
+                        if (existing.some(t => t.id === liveTask.id)) return prev
+                        return { ...prev, [orchId]: [...existing, liveTask] }
+                    })
+                }
+            )
+            .subscribe()
+
         return () => {
-            supabaseBrowser.removeChannel(channel)
+            supabaseBrowser.removeChannel(orchChannel)
+            supabaseBrowser.removeChannel(tasksChannel)
         }
     }, [accountId, loadInitial])
 
-    return { activeTasks, isConnected }
+    return { activeTasks, isConnected, liveTasksByOrch }
 }

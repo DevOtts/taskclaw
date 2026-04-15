@@ -23,7 +23,7 @@ export function CockpitRightPanel({
     accountId,
     children,
 }: CockpitRightPanelProps) {
-    const { activeTasks, isConnected } = useLiveExecution(accountId)
+    const { activeTasks, isConnected, liveTasksByOrch } = useLiveExecution(accountId)
     const [mode, setMode] = useState<PanelMode>('history')
     const [showHistoryPeek, setShowHistoryPeek] = useState(false)
     const [idleTimer, setIdleTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
@@ -81,49 +81,40 @@ export function CockpitRightPanel({
 
     return (
         <div className="h-full flex flex-col bg-background/60 backdrop-blur-sm">
-            {/* Panel Header */}
-            <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2 shrink-0">
-                <div className="flex-1">
-                    <h2 className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground/60 uppercase">
-                        {isLiveMode ? 'Execution' : '24h Company Timeline'}
-                    </h2>
-                </div>
-
-                {isLiveMode && (
-                    <>
-                        {/* LIVE badge */}
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-                            <span className={cn(
-                                'w-1.5 h-1.5 rounded-full',
-                                isConnected ? 'bg-blue-400 animate-pulse' : 'bg-slate-400'
-                            )} />
-                            <span className="text-[9px] font-bold tracking-widest text-blue-400/80 uppercase">Live</span>
-                        </div>
-
-                        {/* History peek toggle */}
-                        <button
-                            onClick={() => setShowHistoryPeek(v => !v)}
-                            className={cn(
-                                'flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium transition-colors',
-                                showHistoryPeek
-                                    ? 'bg-accent text-foreground'
-                                    : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent/50'
-                            )}
-                            title="Toggle history view"
-                        >
-                            <History className="w-3 h-3" />
-                            history
-                        </button>
-                    </>
-                )}
-
-                {!isLiveMode && (
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold tracking-widest text-emerald-500/80 uppercase">Live</span>
+            {/* Panel Header — only shown in live mode; history children own their own header */}
+            {isLiveMode && (
+                <div className="px-4 py-3 border-b border-white/5 flex items-center gap-2 shrink-0">
+                    <div className="flex-1">
+                        <h2 className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground/60 uppercase">
+                            Execution
+                        </h2>
                     </div>
-                )}
-            </div>
+
+                    {/* LIVE badge */}
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                        <span className={cn(
+                            'w-1.5 h-1.5 rounded-full',
+                            isConnected ? 'bg-blue-400 animate-pulse' : 'bg-slate-400'
+                        )} />
+                        <span className="text-[9px] font-bold tracking-widest text-blue-400/80 uppercase">Live</span>
+                    </div>
+
+                    {/* History peek toggle */}
+                    <button
+                        onClick={() => setShowHistoryPeek(v => !v)}
+                        className={cn(
+                            'flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-medium transition-colors',
+                            showHistoryPeek
+                                ? 'bg-accent text-foreground'
+                                : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-accent/50'
+                        )}
+                        title="Toggle history view"
+                    >
+                        <History className="w-3 h-3" />
+                        history
+                    </button>
+                </div>
+            )}
 
             {/* Panel Content */}
             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
@@ -138,7 +129,7 @@ export function CockpitRightPanel({
                                 sessionDelegations={sessionDelegations}
                                 activeTasks={activeTasks}
                                 liveStatuses={liveStatuses}
-                                accountId={accountId ?? ''}
+                                liveTasksByOrch={liveTasksByOrch}
                             />
                         </div>
 

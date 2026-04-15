@@ -2709,6 +2709,7 @@ ${JSON.stringify(tools, null, 2)}
     conversation: any,
     accountId: string,
     userId: string,
+    orchestratedTaskId?: string,
   ): Promise<{
     processedText: string;
     toolResults: string[];
@@ -2736,7 +2737,7 @@ ${JSON.stringify(tools, null, 2)}
       if (toolName === 'create_task') {
         // F019: Create task in specified board column
         try {
-          const taskId = await this.executePodCreateTask(params, accountId, userId);
+          const taskId = await this.executePodCreateTask(params, accountId, userId, orchestratedTaskId);
           toolResults.push(
             `<tool_result name="create_task" status="success">Task created with ID: ${taskId}</tool_result>`,
           );
@@ -2786,6 +2787,7 @@ ${JSON.stringify(tools, null, 2)}
     params: Record<string, any>,
     accountId: string,
     userId: string,
+    orchestratedTaskId?: string,
   ): Promise<string> {
     const client = this.supabaseAdmin.getClient();
 
@@ -2848,6 +2850,7 @@ ${JSON.stringify(tools, null, 2)}
         assignee_id: defaultAgentId,
         completed: false,
         card_data: {},
+        ...(orchestratedTaskId ? { metadata: { orchestration_id: orchestratedTaskId } } : {}),
       })
       .select('id')
       .single();

@@ -3,7 +3,7 @@
 import { Activity } from 'lucide-react'
 import { CockpitExecutionFeed, type DelegationMeta } from './cockpit-execution-feed'
 import { OrchestrationGroup } from './orchestration-group'
-import type { ActiveOrchestration } from '@/hooks/use-live-execution'
+import type { ActiveOrchestration, LiveTask } from '@/hooks/use-live-execution'
 
 interface LiveExecutionPanelProps {
     /** Feed A: current session delegations */
@@ -12,14 +12,15 @@ interface LiveExecutionPanelProps {
     activeTasks: ActiveOrchestration[]
     /** Live statuses from Realtime, keyed by orchestration_id */
     liveStatuses: Record<string, string>
-    accountId: string
+    /** Live board tasks created during orchestration, keyed by orchestration_id */
+    liveTasksByOrch?: Record<string, LiveTask[]>
 }
 
 export function LiveExecutionPanel({
     sessionDelegations,
     activeTasks,
     liveStatuses,
-    accountId,
+    liveTasksByOrch = {},
 }: LiveExecutionPanelProps) {
     // Feed B: background tasks = active tasks NOT already shown in Feed A
     const sessionIds = new Set(sessionDelegations.map(d => d.orchestration_id))
@@ -43,6 +44,7 @@ export function LiveExecutionPanel({
                     <CockpitExecutionFeed
                         delegations={sessionDelegations}
                         liveStatuses={liveStatuses}
+                        liveTasksByOrch={liveTasksByOrch}
                     />
                 </div>
             )}
@@ -69,7 +71,7 @@ export function LiveExecutionPanel({
                                 key={task.id}
                                 orchestration={task}
                                 liveStatus={liveStatuses[task.id]}
-                                accountId={accountId}
+                                liveTasks={liveTasksByOrch[task.id]}
                             />
                         ))}
                     </div>

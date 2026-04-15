@@ -85,11 +85,14 @@ export class OrchestrationService {
       effectiveAutonomy >= 3 ? 'pending' : 'pending_approval';
 
     // Create the parent orchestration container row
+    // Store the primary pod_id (first task's pod) so the parent row can show a pod name
+    const primaryPodId = dto.tasks.length > 0 ? dto.tasks[0].pod_id : null;
+
     const { data: parentTask, error: parentError } = await client
       .from('orchestrated_tasks')
       .insert({
         account_id: accountId,
-        pod_id: null,
+        pod_id: primaryPodId,
         parent_orchestrated_task_id: null,
         goal: dto.goal,
         input_context: null,
@@ -224,10 +227,33 @@ export class OrchestrationService {
       throw new Error(`Failed to list orchestrations: ${error.message}`);
     }
 
-    return ((data ?? []) as any[]).map((row) => ({
+    // For parent rows without a pod_id (legacy data), look up pod from first child task
+    const parentRows = (data ?? []) as any[];
+    const nullPodParentIds = parentRows
+      .filter((r) => !r.pod_id)
+      .map((r) => r.id);
+
+    let childPodMap: Record<string, { name: string | null; slug: string | null }> = {};
+    if (nullPodParentIds.length > 0) {
+      const { data: childData } = await client
+        .from('orchestrated_tasks')
+        .select('parent_orchestrated_task_id, pods(id, name, slug)')
+        .in('parent_orchestrated_task_id', nullPodParentIds)
+        .not('pod_id', 'is', null)
+        .order('created_at', { ascending: true });
+
+      for (const child of (childData ?? []) as any[]) {
+        const parentId = child.parent_orchestrated_task_id;
+        if (!childPodMap[parentId] && child.pods) {
+          childPodMap[parentId] = { name: child.pods.name ?? null, slug: child.pods.slug ?? null };
+        }
+      }
+    }
+
+    return parentRows.map((row) => ({
       ...row,
-      pod_name: row.pods?.name ?? null,
-      pod_slug: row.pods?.slug ?? null,
+      pod_name: row.pods?.name ?? childPodMap[row.id]?.name ?? null,
+      pod_slug: row.pods?.slug ?? childPodMap[row.id]?.slug ?? null,
       pods: undefined,
     })) as OrchestratedTask[];
   }

@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ChevronDown, ChevronRight, Loader2, ExternalLink, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { ChevronDown, ChevronRight, Loader2, ExternalLink, CheckCircle2, XCircle, Clock, ThumbsUp, X } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { useTaskStore } from '@/hooks/use-task-store'
-import type { ActiveOrchestration } from '@/hooks/use-live-execution'
+import type { ActiveOrchestration, LiveTask } from '@/hooks/use-live-execution'
+import { getOrchestrationDetail, approveOrchestration, rejectOrchestration } from '@/app/dashboard/pods/actions'
+import { toast } from 'sonner'
 
 interface OrchTask {
     id: string
@@ -23,8 +25,6 @@ interface OrchDetail {
     tasks: OrchTask[]
     pods?: { name?: string; slug?: string }
 }
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003'
 
 const STATUS_ICON: Record<string, React.ReactNode> = {
     pending_approval: <Clock className="w-3 h-3 text-yellow-400" />,
@@ -44,59 +44,48 @@ const STATUS_LABEL: Record<string, string> = {
     cancelled: 'Cancelled',
 }
 
-function extractToken(): string | null {
-    if (typeof document === 'undefined') return null
-    try {
-        const cookies = document.cookie.split('; ')
-        const parts: Record<string, string> = {}
-        for (const c of cookies) {
-            const eq = c.indexOf('=')
-            const name = c.substring(0, eq)
-            const val = c.substring(eq + 1)
-            if (name.includes('auth-token')) parts[name] = val
-        }
-        const sorted = Object.entries(parts).sort(([a], [b]) => a.localeCompare(b))
-        const joined = sorted.map(([, v]) => v).join('')
-        if (!joined) return null
-        const raw = joined.startsWith('base64-') ? joined.slice(7) : joined
-        return JSON.parse(atob(raw))?.access_token ?? null
-    } catch { return null }
-}
-
 interface OrchestrationGroupProps {
     orchestration: ActiveOrchestration
     liveStatus?: string
-    accountId: string
+    /** Board tasks created live by pod agents during this orchestration */
+    liveTasks?: LiveTask[]
 }
 
-export function OrchestrationGroup({ orchestration, liveStatus, accountId }: OrchestrationGroupProps) {
+export function OrchestrationGroup({ orchestration, liveStatus, liveTasks = [] }: OrchestrationGroupProps) {
     const [expanded, setExpanded] = useState(false)
     const [detail, setDetail] = useState<OrchDetail | null>(null)
     const [loadingDetail, setLoadingDetail] = useState(false)
+    const [localStatus, setLocalStatus] = useState(liveStatus ?? orchestration.status)
+    const [approving, setApproving] = useState(false)
+    const [rejecting, setRejecting] = useState(false)
     const setSelectedTaskId = useTaskStore((s) => s.setSelectedTaskId)
 
-    const status = liveStatus ?? orchestration.status
+    const status = liveStatus ?? localStatus
     const podName = detail?.pods?.name ?? orchestration.pod_name ?? orchestration.pod_slug ?? 'Pod'
     const podSlug = detail?.pods?.slug ?? orchestration.pod_slug
-    const tasks = detail?.tasks ?? []
+    const allTasks = detail?.tasks ?? []
+    // Filter out child tasks whose goal is identical to the parent (1:1 delegation — they add no info)
+    const tasks = allTasks.filter(t => t.goal.trim() !== orchestration.goal.trim())
 
     const fetchDetail = useCallback(async () => {
         if (loadingDetail) return
         setLoadingDetail(true)
         try {
-            const token = extractToken()
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-            if (token) headers['Authorization'] = `Bearer ${token}`
-            const res = await fetch(
-                `${API_URL}/accounts/${accountId}/orchestrations/${orchestration.id}`,
-                { headers }
-            )
-            if (!res.ok) return
-            const data: OrchDetail = await res.json()
-            setDetail(data)
+            const result = await getOrchestrationDetail(orchestration.id)
+            if (!result.error && result.data) {
+                setDetail(result.data)
+            }
         } catch { /* silent */ }
         finally { setLoadingDetail(false) }
-    }, [accountId, orchestration.id, loadingDetail])
+    }, [orchestration.id, loadingDetail])
+
+    // Auto-fetch detail on mount for pending_approval so user can see what they're approving
+    useEffect(() => {
+        if (status === 'pending_approval' && !detail) {
+            fetchDetail()
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Fetch detail when expanded
     useEffect(() => {
@@ -104,6 +93,25 @@ export function OrchestrationGroup({ orchestration, liveStatus, accountId }: Orc
             fetchDetail()
         }
     }, [expanded, detail, fetchDetail])
+
+    const handleApprove = async () => {
+        setApproving(true)
+        const r = await approveOrchestration(orchestration.id)
+        setApproving(false)
+        if (r.error) { toast.error(r.error); return }
+        setLocalStatus('running')
+        toast.success('Orchestration approved — running!')
+        fetchDetail()
+    }
+
+    const handleReject = async () => {
+        setRejecting(true)
+        const r = await rejectOrchestration(orchestration.id)
+        setRejecting(false)
+        if (r.error) { toast.error(r.error); return }
+        setLocalStatus('cancelled')
+        toast.info('Orchestration cancelled')
+    }
 
     return (
         <div className={cn(
@@ -154,14 +162,94 @@ export function OrchestrationGroup({ orchestration, liveStatus, accountId }: Orc
                 </div>
             </button>
 
+            {/* Approval bar — shown inline when pending_approval */}
+            {status === 'pending_approval' && (
+                <div className="px-3 pb-2.5 flex items-center gap-2">
+                    <button
+                        onClick={handleApprove}
+                        disabled={approving}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-50"
+                        style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.25)' }}
+                    >
+                        {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <ThumbsUp className="w-3 h-3" />}
+                        Approve
+                    </button>
+                    <button
+                        onClick={handleReject}
+                        disabled={rejecting}
+                        className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all disabled:opacity-50"
+                        style={{ background: 'rgba(248,113,113,0.1)', color: 'rgba(248,113,113,0.7)', border: '1px solid rgba(248,113,113,0.2)' }}
+                    >
+                        {rejecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                        Cancel
+                    </button>
+                    {podSlug && (
+                        <Link href={`/dashboard/pods/${podSlug}?tab=goals`}
+                            className="p-1.5 rounded-lg transition-colors hover:bg-white/10"
+                            style={{ color: 'rgba(143,245,255,0.6)' }} title="View pod">
+                            <ExternalLink className="w-3 h-3" />
+                        </Link>
+                    )}
+                </div>
+            )}
+
+            {/* Live board task cards — appear in real-time as pod agents call create_task */}
+            {liveTasks.length > 0 && (
+                <div className="border-t divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="px-3 pt-2 pb-1 flex items-center gap-1.5">
+                        <span className="text-[9px] font-bold tracking-[0.15em] uppercase"
+                            style={{ color: 'rgba(143,245,255,0.4)' }}>
+                            Tasks created
+                        </span>
+                        <span className="text-[9px] px-1 py-0.5 rounded-full font-semibold"
+                            style={{ background: 'rgba(143,245,255,0.1)', color: 'rgba(143,245,255,0.7)' }}>
+                            {liveTasks.length}
+                        </span>
+                    </div>
+                    {liveTasks.map((t) => (
+                        <div key={t.id}
+                            className="px-3 py-2 flex items-start gap-2 group hover:bg-white/[0.03] transition-colors cursor-pointer"
+                            onClick={() => setSelectedTaskId(t.id)}
+                        >
+                            <div className="mt-0.5 shrink-0">
+                                {STATUS_ICON[t.status] ?? STATUS_ICON.pending}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[10px] leading-snug font-medium"
+                                    style={{ color: 'rgba(255,255,255,0.8)' }}>
+                                    {t.title}
+                                </p>
+                                <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                    {t.priority} · {t.status}
+                                </span>
+                            </div>
+                            <span className="opacity-0 group-hover:opacity-100 text-[9px] px-1.5 py-0.5 rounded shrink-0 transition-opacity"
+                                style={{ background: 'rgba(143,245,255,0.1)', color: 'rgba(143,245,255,0.7)' }}>
+                                Open
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Expanded task list */}
             {expanded && (
                 <div className="border-t divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    {loadingDetail && tasks.length === 0 && (
+                    {loadingDetail && allTasks.length === 0 && (
                         <div className="px-3 py-3 text-center">
                             <Loader2 className="w-3 h-3 animate-spin mx-auto" style={{ color: 'rgba(255,255,255,0.3)' }} />
                         </div>
                     )}
+
+                    {/* When all tasks are identical to parent goal, show informational note */}
+                    {!loadingDetail && allTasks.length > 0 && tasks.length === 0 && (
+                        <div className="px-3 py-2.5">
+                            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                                {podName} will decompose this goal into board tasks when execution begins.
+                            </p>
+                        </div>
+                    )}
+
                     {tasks.map((task) => (
                         <div
                             key={task.id}
@@ -185,7 +273,6 @@ export function OrchestrationGroup({ orchestration, liveStatus, accountId }: Orc
                                     </p>
                                 )}
                             </div>
-                            {/* If there's a linked task_id, show open button */}
                             {task.task_id && (
                                 <button
                                     onClick={() => setSelectedTaskId(task.task_id!)}

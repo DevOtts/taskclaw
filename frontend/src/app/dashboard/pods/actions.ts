@@ -802,3 +802,47 @@ export async function triggerBoardRoute(
         return { error: e.message }
     }
 }
+
+// ─── Orchestration queries (used by live execution UI) ────────────────────────
+
+export async function getActiveOrchestrations(): Promise<{ data?: any[]; error?: string }> {
+    const headers = await getAuthHeaders()
+    if (!headers) return { error: 'Not authenticated' }
+    const accountId = await getActiveAccountId()
+    if (!accountId) return { error: 'No active account' }
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/orchestrations`,
+            { headers }
+        )
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            return { error: err.message || 'Failed to fetch orchestrations' }
+        }
+        const data = await res.json()
+        return { data }
+    } catch (e: any) {
+        return { error: e.message }
+    }
+}
+
+export async function getOrchestrationDetail(orchestrationId: string): Promise<{ data?: any; error?: string }> {
+    const headers = await getAuthHeaders()
+    if (!headers) return { error: 'Not authenticated' }
+    const accountId = await getActiveAccountId()
+    if (!accountId) return { error: 'No active account' }
+    try {
+        const res = await fetch(
+            `${API_URL}/accounts/${accountId}/orchestrations/${orchestrationId}`,
+            { headers }
+        )
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            return { error: err.message || 'Failed to fetch orchestration detail' }
+        }
+        const data = await res.json()
+        return { data }
+    } catch (e: any) {
+        return { error: e.message }
+    }
+}
