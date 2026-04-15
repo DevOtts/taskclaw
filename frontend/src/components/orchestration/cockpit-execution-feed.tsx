@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
     CheckCircle2, XCircle, Clock, Play, ChevronDown, ChevronRight,
     Loader2, RefreshCw, ThumbsUp, X, ExternalLink, Activity,
@@ -99,14 +99,22 @@ const STATUS_LABEL: Record<string, string> = {
 
 // ── Single orchestration card ───────────────────────────────────────────────
 
-function OrchCard({ meta, accountId, onStatusChange }: { meta: DelegationMeta; accountId: string; onStatusChange?: (id: string, status: string) => void }) {
+function OrchCard({ meta, accountId, onStatusChange, liveStatus }: { meta: DelegationMeta; accountId: string; onStatusChange?: (id: string, status: string) => void; liveStatus?: string }) {
     const [detail, setDetail] = useState<OrchDetail | null>(null)
     const [expanded, setExpanded] = useState(false)
     const [approving, setApproving] = useState(false)
     const [rejecting, setRejecting] = useState(false)
-    const [status, setStatus] = useState(meta.status)
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    // Use liveStatus from Realtime when available, fall back to meta.status
+    const [status, setStatus] = useState(liveStatus ?? meta.status)
     const setSelectedTaskId = useTaskStore((s) => s.setSelectedTaskId)
+
+    // Sync status when liveStatus changes from parent (Realtime)
+    useEffect(() => {
+        if (liveStatus !== undefined) {
+            setStatus(liveStatus)
+            onStatusChange?.(meta.orchestration_id, liveStatus)
+        }
+    }, [liveStatus, meta.orchestration_id, onStatusChange])
 
     const fetchDetail = useCallback(async () => {
         try {
@@ -120,26 +128,18 @@ function OrchCard({ meta, accountId, onStatusChange }: { meta: DelegationMeta; a
             if (!res.ok) return
             const data: OrchDetail = await res.json()
             setDetail(data)
-            setStatus(data.status)
-            onStatusChange?.(meta.orchestration_id, data.status)
-            if (TERMINAL.has(data.status) && pollRef.current) {
-                clearInterval(pollRef.current)
-                pollRef.current = null
+            // Only update status from fetch if no liveStatus is provided
+            if (liveStatus === undefined) {
+                setStatus(data.status)
+                onStatusChange?.(meta.orchestration_id, data.status)
             }
         } catch { /* silent */ }
-    }, [accountId, meta.orchestration_id, onStatusChange])
+    }, [accountId, meta.orchestration_id, onStatusChange, liveStatus])
 
-    // Start polling when expanded or when status is running
+    // Fetch detail once on mount to populate task list
     useEffect(() => {
         fetchDetail()
     }, [fetchDetail])
-
-    useEffect(() => {
-        if (!TERMINAL.has(status)) {
-            pollRef.current = setInterval(fetchDetail, 3000)
-        }
-        return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
-    }, [status, fetchDetail])
 
     const handleApprove = async () => {
         setApproving(true)
@@ -310,19 +310,21 @@ function OrchCard({ meta, accountId, onStatusChange }: { meta: DelegationMeta; a
 interface CockpitExecutionFeedProps {
     /** Delegations from the current conversation's messages */
     delegations: DelegationMeta[]
+    /** Live statuses from Realtime subscription, keyed by orchestration_id */
+    liveStatuses?: Record<string, string>
 }
 
-export function CockpitExecutionFeed({ delegations }: CockpitExecutionFeedProps) {
+export function CockpitExecutionFeed({ delegations, liveStatuses = {} }: CockpitExecutionFeedProps) {
     const [accountId, setAccountId] = useState<string | null>(null)
     // Track live statuses reported by OrchCard children (overrides stale metadata)
-    const [liveStatuses, setLiveStatuses] = useState<Record<string, string>>({})
+    const [localLiveStatuses, setLocalLiveStatuses] = useState<Record<string, string>>({})
 
     useEffect(() => {
         setAccountId(getAccountId())
     }, [])
 
     const onStatusChange = useCallback((id: string, status: string) => {
-        setLiveStatuses(prev => prev[id] === status ? prev : { ...prev, [id]: status })
+        setLocalLiveStatuses(prev => prev[id] === status ? prev : { ...prev, [id]: status })
     }, [])
 
     if (!accountId || delegations.length === 0) {
@@ -336,8 +338,11 @@ export function CockpitExecutionFeed({ delegations }: CockpitExecutionFeedProps)
         )
     }
 
+    // Merge external liveStatuses with local ones (external Realtime takes priority)
+    const mergedStatuses = { ...localLiveStatuses, ...liveStatuses }
+
     const pendingApproval = delegations.filter(d => {
-        const live = liveStatuses[d.orchestration_id]
+        const live = mergedStatuses[d.orchestration_id]
         return (live ?? d.status) === 'pending_approval'
     }).length
 
@@ -351,7 +356,13 @@ export function CockpitExecutionFeed({ delegations }: CockpitExecutionFeedProps)
                 </div>
             )}
             {delegations.map((d) => (
-                <OrchCard key={d.orchestration_id} meta={d} accountId={accountId} onStatusChange={onStatusChange} />
+                <OrchCard
+                    key={d.orchestration_id}
+                    meta={d}
+                    accountId={accountId}
+                    onStatusChange={onStatusChange}
+                    liveStatus={mergedStatuses[d.orchestration_id]}
+                />
             ))}
         </div>
     )
