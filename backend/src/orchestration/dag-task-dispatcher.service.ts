@@ -1,4 +1,5 @@
 import { Injectable, Logger, forwardRef, Inject } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { BackboneRouterService } from '../backbone/backbone-router.service';
 import { ExecutionLogService } from '../heartbeat/execution-log.service';
@@ -6,12 +7,13 @@ import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
 import { OrchestrationService } from './orchestration.service';
 
 /**
- * DagTaskDispatcher (F021–F023, F025)
+ * DagTaskDispatcher (F021–F023, F025, B6)
  *
  * Handles:
  * - Detecting newly-unblocked tasks after a task completes (F021)
  * - Routing based on autonomy_level — approval gate vs. auto-dispatch (F021)
- * - Dispatching to backbone with upstream context injection (F022)
+ * - Enqueueing tasks to backbone-dispatch queue with idempotency (B6)
+ * - Dispatching to backbone with upstream context injection (F022) — via BackboneDispatchProcessor
  * - Semaphore concurrency control (max 3 concurrent per account) (F023)
  * - Cockpit timeline log entries (F025)
  */
@@ -22,6 +24,8 @@ export class DagTaskDispatcher {
   /** Max concurrent backbone calls per account */
   private static readonly MAX_CONCURRENT = 3;
 
+  private backboneDispatchQueue?: Queue;
+
   constructor(
     private readonly supabaseAdmin: SupabaseAdminService,
     @Inject(forwardRef(() => BackboneRouterService))
@@ -31,6 +35,14 @@ export class DagTaskDispatcher {
     @Inject(forwardRef(() => OrchestrationService))
     private readonly orchestrationService: OrchestrationService,
   ) {}
+
+  /**
+   * Called by OrchestrationModule.onModuleInit to inject the backbone-dispatch queue.
+   */
+  setBackboneDispatchQueue(queue: Queue) {
+    this.backboneDispatchQueue = queue;
+    this.logger.log('Backbone dispatch queue wired to DagTaskDispatcher (B6).');
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // F021 — Unblocked task detection + autonomy routing
@@ -96,23 +108,18 @@ export class DagTaskDispatcher {
         );
         await this.emitApprovalRequired(task, effectiveAccountId);
       } else {
-        // Fully autonomous — dispatch immediately
+        // Fully autonomous — enqueue via backbone-dispatch (B6)
         this.logger.log(
-          `[DAG] Auto-dispatching task ${unblockedTaskId} (autonomy_level=${task.autonomy_level})`,
+          `[DAG] Auto-enqueueing task ${unblockedTaskId} (autonomy_level=${task.autonomy_level})`,
         );
-        // Fire-and-forget — don't block detection loop
-        this.dispatchTask(unblockedTaskId).catch((err) => {
-          this.logger.error(
-            `[DAG] dispatchTask(${unblockedTaskId}) failed: ${err.message}`,
-          );
-        });
+        await this.enqueueTask(unblockedTaskId, 2);
       }
     }
   }
 
   /**
    * Called when a human approves a pending_approval task.
-   * Transitions the task to 'pending' then dispatches it.
+   * Transitions the task to 'pending' then enqueues it with priority 1 (user just acted).
    */
   async approveTask(taskId: string): Promise<void> {
     const client = this.supabaseAdmin.getClient();
@@ -127,8 +134,59 @@ export class DagTaskDispatcher {
       throw new Error(`Failed to approve task ${taskId}: ${error.message}`);
     }
 
-    this.logger.log(`[DAG] Task ${taskId} approved — dispatching`);
-    await this.dispatchTask(taskId);
+    this.logger.log(`[DAG] Task ${taskId} approved — enqueueing (priority 1)`);
+    await this.enqueueTask(taskId, 1);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // B6 — Enqueue task to backbone-dispatch queue
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * B6: Enqueues an orchestration task to the backbone-dispatch BullMQ queue.
+   * Uses jobId for idempotency — duplicate calls for the same taskId are no-ops.
+   *
+   * Priority lanes:
+   *   1 = user-initiated (cockpit delegation, approval just granted)
+   *   2 = DAG continuation (unblocked task, reconciler requeue)
+   */
+  async enqueueTask(taskId: string, priority = 2): Promise<void> {
+    // Fetch account_id for the job payload
+    const client = this.supabaseAdmin.getClient();
+    const { data: task } = await client
+      .from('orchestrated_tasks')
+      .select('account_id')
+      .eq('id', taskId)
+      .single();
+
+    const accountId = task?.account_id ?? 'unknown';
+    const jobId = `orch-task-${taskId}`;
+
+    if (this.backboneDispatchQueue) {
+      await this.backboneDispatchQueue.add(
+        'dispatch',
+        {
+          type: 'orchestration_task',
+          orchestratedTaskId: taskId,
+          accountId,
+          priority,
+          idempotencyKey: jobId,
+        },
+        {
+          priority,
+          jobId, // BullMQ deduplicates by jobId
+        },
+      );
+      this.logger.log(
+        `[DAG] Task ${taskId} enqueued to backbone-dispatch (priority=${priority}, jobId=${jobId})`,
+      );
+    } else {
+      // Fallback: direct dispatch when queue is unavailable
+      this.logger.warn(
+        `[DAG] backbone-dispatch queue not available — dispatching task ${taskId} directly`,
+      );
+      await this.dispatchTask(taskId);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -138,6 +196,9 @@ export class DagTaskDispatcher {
   /**
    * Fetch the task, inject upstream results into the system prompt,
    * call the backbone, and persist the result.
+   *
+   * Called by BackboneDispatchProcessor (type: 'orchestration_task') or
+   * directly as fallback when backbone-dispatch queue is unavailable.
    */
   async dispatchTask(taskId: string): Promise<void> {
     const client = this.supabaseAdmin.getClient();
@@ -224,16 +285,12 @@ ${parts}
     const acquired = await this.acquireLease(accountId, taskId);
     if (!acquired) {
       this.logger.log(
-        `[DAG] Semaphore full for account ${accountId} — retrying task ${taskId} in 10s`,
+        `[DAG] Semaphore full for account ${accountId} — task ${taskId} will be retried by BullMQ`,
       );
-      setTimeout(() => {
-        this.dispatchTask(taskId).catch((err) => {
-          this.logger.error(
-            `[DAG] Retry dispatchTask(${taskId}) failed: ${err.message}`,
-          );
-        });
-      }, 10_000);
-      return;
+      // Throw so BullMQ retries with exponential backoff
+      throw new Error(
+        `Semaphore full for account ${accountId} — concurrency limit reached`,
+      );
     }
 
     try {
@@ -299,6 +356,9 @@ ${parts}
           duration_ms: durationMs,
         });
       }
+
+      // Re-throw so BullMQ can retry
+      throw err;
     } finally {
       // Always release the semaphore lease (F023)
       await this.releaseLease(accountId, taskId);
