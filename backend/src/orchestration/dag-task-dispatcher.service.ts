@@ -266,17 +266,18 @@ ${parts}
     }
 
     // 5. Create execution log entry (F025)
+    // Note: dag_id FK references task_dags table, but orchestrations use orchestrated_tasks.
+    // Store the orchestration parent ID in metadata only to avoid FK violation.
     const execLog = await this.executionLogService.create({
       account_id: accountId,
       trigger_type: 'coordinator',
       status: 'running',
       pod_id: task.pod_id ?? undefined,
-      dag_id: task.parent_orchestrated_task_id ?? undefined,
       summary: `DAG task: ${task.goal} (pod: ${podName})`,
       metadata: {
         orchestrated_task_id: taskId,
         pod_id: task.pod_id,
-        dag_id: task.parent_orchestrated_task_id,
+        orchestration_id: task.parent_orchestrated_task_id,
       },
     });
     const execLogId = execLog?.id ?? null;

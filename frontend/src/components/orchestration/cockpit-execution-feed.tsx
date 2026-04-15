@@ -387,8 +387,9 @@ export function CockpitExecutionFeed({ delegations, liveStatuses = {} }: Cockpit
         )
     }
 
-    // Merge external liveStatuses with local ones (external Realtime takes priority)
-    const mergedStatuses = { ...localLiveStatuses, ...liveStatuses }
+    // Merge: local (post-approve/reject actions) takes priority over external Realtime,
+    // so that clicking Approve immediately reflects in UI before Realtime catches up.
+    const mergedStatuses = { ...liveStatuses, ...localLiveStatuses }
 
     const pendingApproval = delegations.filter(d => {
         const live = mergedStatuses[d.orchestration_id]
