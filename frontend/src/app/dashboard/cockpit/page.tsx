@@ -301,6 +301,7 @@ export default function CockpitPage() {
                             detail={sessionDetail}
                             onBack={() => setSessionDetail(null)}
                             onOpenConversation={(convId) => {
+                                setSessionDetail(null)
                                 if (convId) setActiveConversationId(convId)
                                 else setOpenFreshChat(true)
                             }}

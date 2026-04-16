@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
     CheckCircle2, XCircle, Clock, Play, ChevronDown, ChevronRight,
     Loader2, RefreshCw, ThumbsUp, X, ExternalLink, Activity,
@@ -164,11 +164,18 @@ function OrchCard({ meta, accountId, onStatusChange, liveStatus }: { meta: Deleg
         fetchDetail()
     }
 
+    // Final fetch when status first reaches a terminal state (catches last-minute tasks)
+    const prevStatusRef = useRef<string | null>(null)
+    useEffect(() => {
+        const terminal = new Set(['completed', 'failed', 'cancelled'])
+        if (terminal.has(status) && !terminal.has(prevStatusRef.current ?? '')) {
+            fetchDetail()
+        }
+        prevStatusRef.current = status
+    }, [status, fetchDetail])
+
     const podName = detail?.pods?.name ?? meta.pod_name ?? meta.pod_slug ?? 'Pod'
     const podSlug = detail?.pods?.slug ?? meta.pod_slug
-    const allTasks = detail?.tasks ?? []
-    // Filter out child tasks whose goal is identical to the parent (1:1 delegation — they add no info)
-    const tasks = allTasks.filter(t => t.goal.trim() !== meta.goal.trim())
 
     return (
         <div className={cn(
@@ -206,6 +213,12 @@ function OrchCard({ meta, accountId, onStatusChange, liveStatus }: { meta: Deleg
                             }}>
                             {STATUS_LABEL[status] ?? status}
                         </span>
+                        {boardTasks.length > 0 && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                                style={{ background: 'rgba(143,245,255,0.1)', color: 'rgba(143,245,255,0.7)' }}>
+                                {boardTasks.length} task{boardTasks.length !== 1 ? 's' : ''}
+                            </span>
+                        )}
                     </div>
                     <p className="text-[10px] mt-0.5 line-clamp-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
                         {meta.goal}
@@ -250,19 +263,20 @@ function OrchCard({ meta, accountId, onStatusChange, liveStatus }: { meta: Deleg
                 </div>
             )}
 
-            {/* Board task cards — polled every 5s while running */}
-            {boardTasks.length > 0 && (
+            {/* Expanded board task list */}
+            {expanded && (
                 <div className="border-t divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    <div className="px-3 pt-2 pb-1 flex items-center gap-1.5">
-                        <span className="text-[9px] font-bold tracking-[0.15em] uppercase"
-                            style={{ color: 'rgba(143,245,255,0.4)' }}>
-                            Tasks created
-                        </span>
-                        <span className="text-[9px] px-1 py-0.5 rounded-full font-semibold"
-                            style={{ background: 'rgba(143,245,255,0.1)', color: 'rgba(143,245,255,0.7)' }}>
-                            {boardTasks.length}
-                        </span>
-                    </div>
+                    {boardTasks.length === 0 && (
+                        <div className="px-3 py-3 text-center">
+                            {status === 'running' || status === 'pending' ? (
+                                <Loader2 className="w-3 h-3 animate-spin mx-auto" style={{ color: 'rgba(255,255,255,0.3)' }} />
+                            ) : (
+                                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                                    {podName} will decompose this goal into board tasks when execution begins.
+                                </p>
+                            )}
+                        </div>
+                    )}
                     {boardTasks.map((t) => (
                         <div key={t.id}
                             className="px-3 py-2 flex items-start gap-2 group hover:bg-white/[0.03] transition-colors cursor-pointer"
@@ -284,56 +298,6 @@ function OrchCard({ meta, accountId, onStatusChange, liveStatus }: { meta: Deleg
                                 style={{ background: 'rgba(143,245,255,0.1)', color: 'rgba(143,245,255,0.7)' }}>
                                 Open
                             </span>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Expanded task list */}
-            {expanded && (
-                <div className="border-t divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    {allTasks.length === 0 && (
-                        <div className="px-3 py-3 text-center">
-                            <Loader2 className="w-3 h-3 animate-spin mx-auto" style={{ color: 'rgba(255,255,255,0.3)' }} />
-                        </div>
-                    )}
-                    {allTasks.length > 0 && tasks.length === 0 && (
-                        <div className="px-3 py-2.5">
-                            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                                {podName} will decompose this goal into board tasks when execution begins.
-                            </p>
-                        </div>
-                    )}
-                    {tasks.map((task) => (
-                        <div key={task.id} className="px-3 py-2 flex items-start gap-2 group hover:bg-white/[0.03] transition-colors">
-                            <div className="mt-0.5 shrink-0">
-                                {STATUS_ICON[task.status] ?? STATUS_ICON.pending}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] leading-snug" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                                    {task.goal}
-                                </p>
-                                {task.pod_name && (
-                                    <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                                        {task.pod_name}
-                                    </span>
-                                )}
-                                {task.depends_on_titles && task.depends_on_titles.length > 0 && (
-                                    <p className="text-[9px] mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>
-                                        after: {task.depends_on_titles.join(', ')}
-                                    </p>
-                                )}
-                            </div>
-                            {/* If there's a linked task_id, show open button */}
-                            {task.task_id && (
-                                <button
-                                    onClick={() => setSelectedTaskId(task.task_id!)}
-                                    className="opacity-0 group-hover:opacity-100 text-[9px] px-1.5 py-0.5 rounded shrink-0 transition-opacity"
-                                    style={{ background: 'rgba(143,245,255,0.1)', color: 'rgba(143,245,255,0.7)' }}
-                                >
-                                    Open
-                                </button>
-                            )}
                         </div>
                     ))}
 
